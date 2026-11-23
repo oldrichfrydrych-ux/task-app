@@ -27,6 +27,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.compositionLocalOf
@@ -44,6 +45,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import cz.olda.tasks.R
@@ -66,18 +68,22 @@ private val TouchTarget = 48.dp
  * and the coral add button that opens quick-add, around the navigation graph.
  */
 @Composable
-fun AppShell(modifier: Modifier = Modifier) {
+fun AppShell(
+    modifier: Modifier = Modifier,
+    navController: NavHostController = rememberNavController(),
+) {
     // Saved by name, so the tab survives process death and not just rotation.
     var selectedName by rememberSaveable { mutableStateOf(Destination.Today.name) }
     var quickAddOpen by rememberSaveable { mutableStateOf(false) }
-    val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // The graph decides which tab is current, so Back and taps cannot disagree; the saved
-    // name covers detail screens, which belong to no tab.
+    // The graph decides which tab is current, so Back and taps cannot disagree. Detail screens
+    // belong to no tab and keep the last top-level one, which is the only thing written to the
+    // saved name: it follows the route, never a tap, so there is a single writer.
     val route = navController.currentBackStackEntryAsState().value?.destination?.route
-    val selected = Destination.entries.firstOrNull { it.route == route }
-        ?: Destination.ofName(selectedName)
+    val routeTab = Destination.entries.firstOrNull { it.route == route }
+    LaunchedEffect(routeTab) { if (routeTab != null) selectedName = routeTab.name }
+    val selected = routeTab ?: Destination.ofName(selectedName)
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -86,7 +92,6 @@ fun AppShell(modifier: Modifier = Modifier) {
             FloatingBottomBar(
                 selected = selected,
                 onSelect = { destination ->
-                    selectedName = destination.name
                     // Pop to the graph start so tabs do not pile up on the back stack.
                     navController.navigate(destination.route) {
                         popUpTo(navController.graph.findStartDestination().id) { saveState = true }

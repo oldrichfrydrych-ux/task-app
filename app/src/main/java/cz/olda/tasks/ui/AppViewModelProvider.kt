@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.AP
 import cz.olda.tasks.AppContainer
 import cz.olda.tasks.TasksApplication
 import cz.olda.tasks.ui.inbox.InboxViewModel
+import cz.olda.tasks.ui.lists.ListsViewModel
 import cz.olda.tasks.ui.today.TodayViewModel
 import cz.olda.tasks.ui.upcoming.UpcomingViewModel
 
@@ -21,6 +22,7 @@ object AppViewModelProvider {
         initializer { TodayViewModel(container().taskRepository, container().clock) }
         initializer { UpcomingViewModel(container().taskRepository) }
         initializer { InboxViewModel(container().taskRepository, container().listRepository) }
+        initializer { ListsViewModel(container().listRepository, container().taskRepository) }
     }
 }
 

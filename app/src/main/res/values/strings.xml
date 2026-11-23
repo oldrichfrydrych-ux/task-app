@@ -30,6 +30,25 @@
     <string name="upcoming_empty">Nothing coming up</string>
     <string name="inbox_empty">Inbox is empty</string>
 
+    <!-- Lists -->
+    <string name="lists_empty">No lists yet</string>
+    <string name="new_list">New list</string>
+    <string name="new_group">New group</string>
+    <string name="edit_list">Edit list</string>
+    <string name="edit_group">Edit group</string>
+    <string name="list_name_hint">List name</string>
+    <string name="group_name_hint">Group name</string>
+    <string name="list_group_label">Group</string>
+    <string name="list_no_group">No group</string>
+    <string name="list_colour">Colour</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="delete_list_title">Delete this list?</string>
+    <string name="delete_list_moves_tasks">The tasks in this list are not deleted. They move to Inbox.</string>
+    <string name="delete_group_title">Delete this group?</string>
+    <string name="delete_group_keeps_lists">The lists in this group are not deleted. They stay, outside any group.</string>
+
     <!-- Placeholder screens, until Phase 1 fills them in -->
     <string name="list_detail">List</string>
     <string name="task_detail">Task</string>

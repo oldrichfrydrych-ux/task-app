@@ -20,7 +20,10 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
 import androidx.test.espresso.Espresso
+import cz.olda.tasks.ui.nav.Routes
 import cz.olda.tasks.ui.theme.AppTheme
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -95,6 +98,25 @@ class AppShellTest {
         rule.onNodeWithTag("quick-add-field").performTextInput("zitra zavolat na urad")
         restore.emulateSavedInstanceStateRestore()
         rule.onNodeWithTag("quick-add-field").assertTextContains("zitra zavolat na urad")
+    }
+
+    /**
+     * Detail screens belong to no tab, and the saved name used to change only when a tab was
+     * tapped, so a detail opened after Back highlighted whichever tab was tapped last.
+     */
+    @Test
+    fun aDetailKeepsTheTabItWasOpenedFrom() {
+        lateinit var navController: NavHostController
+        rule.setContent {
+            navController = rememberNavController()
+            AppTheme { AppShell(navController = navController) }
+        }
+        rule.onNode(hasText("Lists") and hasAnyAncestor(hasTestTag("bottom-bar"))).performClick()
+        Espresso.pressBack()
+        rule.onNodeWithTag("screen-Today").assertIsDisplayed()
+        rule.runOnUiThread { navController.navigate(Routes.task(1)) }
+        rule.onNodeWithTag("screen-task").assertIsDisplayed()
+        todayTab().assertIsSelected()
     }
 
     /**
