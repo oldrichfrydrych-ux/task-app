@@ -26,6 +26,18 @@ class ThemeColorsTest {
         assertTrue(contrastRatio(LightColorScheme.onSurface, LightColorScheme.surface) >= 4.5f)
     }
 
+    /**
+     * Secondary text is a real text role, so it has to clear 4.5:1 on every surface the
+     * app can put it on, not just on the background.
+     */
+    @Test
+    fun secondaryTextIsReadable() {
+        assertTrue(contrastRatio(LightColorScheme.onSurfaceVariant, LightColorScheme.surfaceVariant) >= 4.5f)
+        assertTrue(contrastRatio(LightColorScheme.onSurfaceVariant, LightColorScheme.background) >= 4.5f)
+        assertTrue(contrastRatio(DarkColorScheme.onSurfaceVariant, DarkColorScheme.surfaceVariant) >= 4.5f)
+        assertTrue(contrastRatio(DarkColorScheme.onSurfaceVariant, DarkColorScheme.background) >= 4.5f)
+    }
+
     @Test
     fun darkTextIsReadable() {
         assertTrue(contrastRatio(DarkColorScheme.onBackground, DarkColorScheme.background) >= 4.5f)

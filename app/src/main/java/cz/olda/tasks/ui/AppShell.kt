@@ -55,7 +55,7 @@ fun AppShell(modifier: Modifier = Modifier) {
     // Saved by name, so the tab survives process death and not just rotation.
     var selectedName by rememberSaveable { mutableStateOf(Destination.Today.name) }
     var quickAddOpen by rememberSaveable { mutableStateOf(false) }
-    val selected = Destination.valueOf(selectedName)
+    val selected = Destination.ofName(selectedName)
 
     Scaffold(
         modifier = modifier.fillMaxSize(),

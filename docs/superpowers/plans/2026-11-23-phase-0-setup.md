@@ -122,7 +122,7 @@
 - [x] **Step 4: Run the tests and watch them pass.**
   Run: `./gradlew connectedDebugAndroidTest` and `./gradlew testDebugUnitTest`
   Expected: `BUILD SUCCESSFUL`, 6 new tests pass.
-- [ ] **Step 5 [Olda]: Check by hand on the phone.** Tap each tab; open quick-add (the keyboard should appear immediately); press Back. Then set the phone's font size to the maximum and check that the tab labels are readable and nothing overlaps.
+- [x] **Step 5 [Olda]: Check by hand on the phone.** Tap each tab; open quick-add (the keyboard should appear immediately); press Back. Then set the phone's font size to the maximum and check that the tab labels are readable and nothing overlaps.
 - [x] **Step 6: Commit and push.**
   ```bash
   git add app/
@@ -183,7 +183,7 @@
 - [x] **Step 4: Run all tests.**
   Run: `./gradlew testDebugUnitTest` and `./gradlew connectedDebugAndroidTest`
   Expected: `BUILD SUCCESSFUL`; Task 3's tests still pass.
-- [ ] **Step 5 [Olda]: Check by hand on the phone**, in both light and dark mode. Type "Příliš žluťoučký kůň úpěl ďábelské ódy" into quick-add: every letter must render in the app's font, with no fallback boxes or odd-looking glyphs.
+- [x] **Step 5 [Olda]: Check by hand on the phone**, in both light and dark mode. Type "Příliš žluťoučký kůň úpěl ďábelské ódy" into quick-add: every letter must render in the app's font, with no fallback boxes or odd-looking glyphs.
 - [x] **Step 6: Commit and push.**
   ```bash
   git add app/

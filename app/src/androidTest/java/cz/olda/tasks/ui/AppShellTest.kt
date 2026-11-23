@@ -15,7 +15,9 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.test.espresso.Espresso
 import cz.olda.tasks.ui.theme.AppTheme
 import org.junit.Assert.assertTrue
@@ -76,6 +78,17 @@ class AppShellTest {
         rule.onNodeWithText("Inbox").performClick()
         restore.emulateSavedInstanceStateRestore()
         rule.onNodeWithText("Inbox").assertIsSelected()
+    }
+
+    /** Typing a task and losing it to a process restart would be worse than no sheet. */
+    @Test
+    fun quickAddKeepsWhatYouTyped() {
+        val restore = StateRestorationTester(rule)
+        restore.setContent { AppTheme { AppShell() } }
+        rule.onNodeWithContentDescription("Add task").performClick()
+        rule.onNodeWithTag("quick-add-field").performTextInput("zitra zavolat na urad")
+        restore.emulateSavedInstanceStateRestore()
+        rule.onNodeWithTag("quick-add-field").assertTextContains("zitra zavolat na urad")
     }
 
     /**
