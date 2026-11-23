@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import cz.olda.tasks.R
 import cz.olda.tasks.data.entity.ListEntity
+import cz.olda.tasks.data.entity.TaskEntity
 import cz.olda.tasks.ui.theme.ListPalette
 import cz.olda.tasks.ui.theme.toHex
 import kotlinx.coroutines.flow.first
@@ -35,14 +36,10 @@ class ListRepositoryTest {
 
     @After fun close() { db.close() }
 
-    // TODO: switch to TaskDao when Task 3 lands.
-    private fun insertTask(listId: Long, headingId: Long? = null): Long {
-        db.openHelper.writableDatabase.execSQL(
-            "INSERT INTO tasks (title, notes, titleNormalised, notesNormalised, listId, headingId, priority, done, position, updatedAt) " +
-                "VALUES ('t', '', 't', '', ?, ?, 4, 0, 0, 0)",
-            arrayOf<Any?>(listId, headingId),
+    private fun insertTask(listId: Long, headingId: Long? = null): Long = runBlocking {
+        db.taskDao().insert(
+            TaskEntity(title = "t", titleNormalised = "t", notesNormalised = "", listId = listId, headingId = headingId),
         )
-        return db.openHelper.readableDatabase.query("SELECT last_insert_rowid()").use { it.moveToFirst(); it.getLong(0) }
     }
 
     private fun taskRow(id: Long): Triple<Long, Long?, Long?> =

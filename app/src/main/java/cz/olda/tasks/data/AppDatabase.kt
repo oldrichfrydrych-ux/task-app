@@ -8,6 +8,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import cz.olda.tasks.data.dao.GroupDao
 import cz.olda.tasks.data.dao.HeadingDao
 import cz.olda.tasks.data.dao.ListDao
+import cz.olda.tasks.data.dao.TaskDao
 import cz.olda.tasks.data.entity.GroupEntity
 import cz.olda.tasks.data.entity.HeadingEntity
 import cz.olda.tasks.data.entity.ListEntity
@@ -33,6 +34,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun listDao(): ListDao
     abstract fun groupDao(): GroupDao
     abstract fun headingDao(): HeadingDao
+    abstract fun taskDao(): TaskDao
 
     companion object {
         /** Seeds the undeletable Inbox list when the database is first created. */
