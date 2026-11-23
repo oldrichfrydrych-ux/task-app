@@ -62,13 +62,17 @@ class TaskRepository(
         )
     }
 
+    /**
+     * Open top-level tasks only. Day views, dots and search also include subtasks, so a subtask can
+     * show on Today without appearing here.
+     */
     fun observeInList(listId: Long): Flow<List<TaskWithList>> = taskDao.observeInList(listId)
 
     fun observeSubtasks(parentId: Long): Flow<List<TaskEntity>> = taskDao.observeSubtasks(parentId)
 
     fun observeTask(id: Long): Flow<TaskEntity?> = taskDao.observeTask(id)
 
-    /** The distinct list colours with an open task on each day in [from]..[to] inclusive. */
+    /** The distinct list colours with an open task (subtasks included) on each day in [from]..[to] inclusive. */
     fun observeDots(from: LocalDate, to: LocalDate): Flow<Map<LocalDate, List<String>>> =
         taskDao.observeDots(from.toEpochDay(), to.toEpochDay()).map { rows ->
             rows.groupBy({ LocalDate.ofEpochDay(it.dueDate) }, { it.colorHex })
@@ -82,6 +86,10 @@ class TaskRepository(
         return taskDao.search("%$escaped%")
     }
 
+    /**
+     * Open top-level tasks per list. Lists with no open tasks are absent from the map, so callers
+     * must default to 0. Subtasks are not counted, matching what [observeInList] shows.
+     */
     fun observeOpenCounts(): Flow<Map<Long, Int>> =
         taskDao.observeOpenCounts().map { rows -> rows.associate { it.listId to it.openCount } }
 
@@ -110,18 +118,32 @@ class TaskRepository(
         ),
     )
 
-    suspend fun update(task: TaskEntity) = taskDao.update(
-        task.copy(
-            titleNormalised = normalise(task.title),
-            notesNormalised = normalise(task.notes),
-            updatedAt = now(),
-        ),
+    /** Writes only the editable columns of a live task; a stale or deleted snapshot changes nothing else. */
+    suspend fun update(task: TaskEntity) = taskDao.updateEditable(
+        id = task.id,
+        title = task.title,
+        titleNormalised = normalise(task.title),
+        notes = task.notes,
+        notesNormalised = normalise(task.notes),
+        listId = task.listId,
+        headingId = task.headingId,
+        dueDate = task.dueDate,
+        dueMinute = task.dueMinute,
+        priority = task.priority,
+        now = now(),
     )
 
     /** Completing also completes open subtasks; reopening touches only the task itself. */
     suspend fun setDone(id: Long, done: Boolean) = taskDao.setDone(id, done, now())
 
     /** Also deletes the live subtasks; [restore] brings back exactly those. */
+    /**
+     * Undo for [setDone] with done = true: reopens the task and the subtasks completed with it (same
+     * completedAt stamp), so a cascade completion is reversed in full. [setDone] with false still
+     * reopens only the task itself.
+     */
+    suspend fun undoCompletion(id: Long) = taskDao.undoCompletion(id, now())
+
     suspend fun softDelete(id: Long) = taskDao.softDelete(id, now())
 
     suspend fun restore(id: Long) = taskDao.restore(id, now())

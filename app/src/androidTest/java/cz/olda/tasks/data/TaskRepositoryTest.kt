@@ -199,4 +199,95 @@ class TaskRepositoryTest {
         assertEquals(listOf(child), repo.observeSubtasks(parent).first().map { it.id })
         assertEquals(listOf(parent), repo.observeInList(inbox).first().map { it.task.id })
     }
+
+    @Test fun updateCannotUndeleteOrRevertATask() = runBlocking {
+        val id = add("original")
+        val snapshot = repo.observeTask(id).first()!!
+        repo.softDelete(id)
+        repo.update(snapshot.copy(title = "edited"))
+        assertNull(repo.observeTask(id).first())
+        repo.restore(id)
+        assertEquals("original", repo.observeTask(id).first()!!.title)
+    }
+
+    @Test fun updateLeavesCompletionAndPositionAlone() = runBlocking {
+        val id = add("t")
+        val stale = repo.observeTask(id).first()!!
+        repo.setDone(id, true)
+        repo.update(stale.copy(title = "Úřad", notes = "Poznámka", priority = 1))
+        val now = repo.observeTask(id).first()!!
+        assertTrue(now.done)
+        assertNotNull(now.completedAt)
+        assertEquals("Úřad", now.title)
+        assertEquals("urad", now.titleNormalised)
+        assertEquals("poznamka", now.notesNormalised)
+        assertEquals(1, now.priority)
+    }
+
+    @Test fun undoCompletionReopensTheParentAndItsCascadedSubtasks() = runBlocking {
+        val parent = add("p")
+        val c1 = add("c1", parent = parent)
+        val c2 = add("c2", parent = parent)
+        repo.setDone(parent, true)
+        repo.undoCompletion(parent)
+        listOf(parent, c1, c2).forEach {
+            val task = repo.observeTask(it).first()!!
+            assertFalse(task.done)
+            assertNull(task.completedAt)
+        }
+    }
+
+    @Test fun completingADoneTaskKeepsItsCompletionTime() = runBlocking {
+        var millis = 1_000L
+        val ticking = object : Clock() {
+            override fun getZone(): ZoneId = zone
+            override fun withZone(zone: ZoneId?): Clock = this
+            override fun instant(): java.time.Instant = java.time.Instant.ofEpochMilli(millis)
+        }
+        val ticker = TaskRepository(db.taskDao(), ticking)
+        val id = ticker.add("t", inbox, null, null, 4)
+        ticker.setDone(id, true)
+        millis = 9_000L
+        ticker.setDone(id, true)
+        assertEquals(1_000L, ticker.observeTask(id).first()!!.completedAt)
+    }
+
+    @Test fun siblingsAreAppendedInOrder() = runBlocking {
+        val heading = lists.createHeading(inbox, "H")
+        val a = add("a")
+        val b = add("b")
+        val c = add("c")
+        val h1 = repo.add("h1", inbox, null, null, 4, headingId = heading)
+        val h2 = repo.add("h2", inbox, null, null, 4, headingId = heading)
+        val positions = listOf(a, b, c, h1, h2).map { repo.observeTask(it).first()!!.position }
+        assertEquals(listOf(0, 1, 2, 0, 1), positions)
+    }
+
+    @Test fun doneTasksAreAbsentFromDayUpcomingAndDots() = runBlocking {
+        val ids = listOf(
+            add("overdue", today.minusDays(1)),
+            add("timed", today, 60),
+            add("anytime", today),
+            add("tomorrow", today.plusDays(1)),
+            add("later", today.plusDays(4)),
+        )
+        ids.forEach { repo.setDone(it, true) }
+        val day = repo.observeDay(today).first()
+        assertTrue(day.overdue.isEmpty())
+        assertTrue(day.timed.isEmpty())
+        assertTrue(day.anytime.isEmpty())
+        assertTrue(day.tomorrow.isEmpty())
+        assertTrue(repo.observeUpcoming().first().isEmpty())
+        assertTrue(repo.observeDots(today.minusDays(2), today.plusDays(6)).first().isEmpty())
+    }
+
+    @Test fun searchTreatsPercentAndUnderscoreLiterally() = runBlocking {
+        val percent = add("100% sure")
+        val underscore = add("a_b")
+        add("axb")
+        add("plain")
+        assertEquals(listOf(percent), repo.search("%").first().map { it.task.id })
+        assertEquals(listOf(underscore), repo.search("a_b").first().map { it.task.id })
+        assertEquals(listOf(underscore), repo.search("_").first().map { it.task.id })
+    }
 }

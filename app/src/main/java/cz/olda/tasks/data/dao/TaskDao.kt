@@ -4,7 +4,6 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
-import androidx.room.Update
 import cz.olda.tasks.data.TaskWithList
 import cz.olda.tasks.data.entity.TaskEntity
 import kotlinx.coroutines.flow.Flow
@@ -16,9 +15,11 @@ data class ListOpenCount(val listId: Long, val openCount: Int)
 data class DayDot(val dueDate: Long, val colorHex: String)
 
 /**
- * Every query here excludes soft-deleted rows (deletedAt IS NULL). Day queries (overdue, a day,
- * a range, dots), the list, search and count queries return open tasks only; subtask and single-task queries
- * also return done ones.
+ * Every read query excludes soft-deleted rows (deletedAt IS NULL), with two deliberate exceptions:
+ * [nextPosition] counts deleted siblings too, so a restored task never collides with a live one, and
+ * [deletedAtOf] must see the stamp of a deleted row. Writes are guarded individually (see each one).
+ * Day queries (overdue, a day, a range, dots), the list, search and count queries return open tasks
+ * only; subtask and single-task queries also return done ones.
  */
 @Dao
 abstract class TaskDao {
@@ -96,11 +97,51 @@ abstract class TaskDao {
     @Insert
     abstract suspend fun insert(task: TaskEntity): Long
 
-    @Update
-    abstract suspend fun update(task: TaskEntity)
+    /**
+     * Writes only the editable columns, and only to a live row: a stale snapshot can neither
+     * revert done, completedAt, position or deletedAt nor edit a soft-deleted task.
+     */
+    @Query(
+        "UPDATE tasks SET title = :title, titleNormalised = :titleNormalised, notes = :notes, " +
+            "notesNormalised = :notesNormalised, listId = :listId, headingId = :headingId, dueDate = :dueDate, " +
+            "dueMinute = :dueMinute, priority = :priority, updatedAt = :now WHERE id = :id AND deletedAt IS NULL",
+    )
+    abstract suspend fun updateEditable(
+        id: Long,
+        title: String,
+        titleNormalised: String,
+        notes: String,
+        notesNormalised: String,
+        listId: Long,
+        headingId: Long?,
+        dueDate: Long?,
+        dueMinute: Int?,
+        priority: Int,
+        now: Long,
+    )
 
-    @Query("UPDATE tasks SET done = :done, completedAt = :completedAt, updatedAt = :now WHERE id = :id")
+    /** A no-op when the task is already in the requested state, so completedAt keeps its first value. */
+    @Query(
+        "UPDATE tasks SET done = :done, completedAt = :completedAt, updatedAt = :now WHERE id = :id AND done != :done",
+    )
     abstract suspend fun markDone(id: Long, done: Boolean, completedAt: Long?, now: Long)
+
+    @Query("SELECT completedAt FROM tasks WHERE id = :id")
+    abstract suspend fun completedAtOf(id: Long): Long?
+
+    /** Reopens the task and the live subtasks completed with it (same completedAt stamp). */
+    @Query(
+        "UPDATE tasks SET done = 0, completedAt = NULL, updatedAt = :now " +
+            "WHERE (id = :id OR parentTaskId = :id) AND done = 1 AND completedAt = :stamp AND deletedAt IS NULL",
+    )
+    abstract suspend fun reopenStamped(id: Long, stamp: Long, now: Long)
+
+    /** Undoes a completion, cascade included. A fixed clock cannot tell a subtask completed earlier apart. */
+    @Transaction
+    open suspend fun undoCompletion(id: Long, now: Long) {
+        val stamp = completedAtOf(id) ?: return
+        reopenStamped(id, stamp, now)
+    }
 
     /** Only live, still-open subtasks: ones already done keep their original completion time. */
     @Query(
