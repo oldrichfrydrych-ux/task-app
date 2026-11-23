@@ -12,6 +12,9 @@ enum class Destination(@param:StringRes val label: Int, val icon: ImageVector) {
     Lists(R.string.lists, AppIcons.Lists),
     ;
 
+    /** The navigation route of this destination. */
+    val route: String get() = name
+
     companion object {
         /**
          * The destination saved under [name], or [Today] if no destination has that

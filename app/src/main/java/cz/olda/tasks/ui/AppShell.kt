@@ -21,9 +21,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ProvidableCompositionLocal
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -37,18 +44,27 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import cz.olda.tasks.R
+import cz.olda.tasks.ui.nav.AppNavHost
 import cz.olda.tasks.ui.quickadd.QuickAddSheet
-import cz.olda.tasks.ui.screens.PlaceholderScreen
 import cz.olda.tasks.ui.theme.LocalBottomBarColors
+
+/**
+ * Lets any screen post a message without owning a snackbar host. The shell provides it
+ * around the navigation graph.
+ */
+val LocalSnackbarHostState: ProvidableCompositionLocal<SnackbarHostState> =
+    compositionLocalOf { error("No SnackbarHostState provided") }
 
 /** Touch targets stay at or above this, as docs/design.md asks. */
 private val TouchTarget = 48.dp
 
 /**
  * The frame every screen sits in: the floating bottom bar with the four destinations
- * and the coral add button that opens quick-add. No navigation library yet, Phase 1
- * brings one.
+ * and the coral add button that opens quick-add, around the navigation graph.
  */
 @Composable
 fun AppShell(modifier: Modifier = Modifier) {
@@ -56,6 +72,14 @@ fun AppShell(modifier: Modifier = Modifier) {
     var selectedName by rememberSaveable { mutableStateOf(Destination.Today.name) }
     var quickAddOpen by rememberSaveable { mutableStateOf(false) }
     val selected = Destination.ofName(selectedName)
+    val navController = rememberNavController()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Back can leave a tab for the one before it, so the bar follows the graph.
+    val route = navController.currentBackStackEntryAsState().value?.destination?.route
+    LaunchedEffect(route) {
+        Destination.entries.firstOrNull { it.route == route }?.let { selectedName = it.name }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -63,13 +87,24 @@ fun AppShell(modifier: Modifier = Modifier) {
         bottomBar = {
             FloatingBottomBar(
                 selected = selected,
-                onSelect = { selectedName = it.name },
+                onSelect = { destination ->
+                    selectedName = destination.name
+                    // Pop to the graph start so tabs do not pile up on the back stack.
+                    navController.navigate(destination.route) {
+                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
                 onAdd = { quickAddOpen = true },
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
-            PlaceholderScreen(selected)
+            CompositionLocalProvider(LocalSnackbarHostState provides snackbarHostState) {
+                AppNavHost(navController = navController, selected = selected)
+            }
         }
     }
 
