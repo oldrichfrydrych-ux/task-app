@@ -64,6 +64,21 @@ class ListRepositoryTest {
         assertEquals(1, repo.observeLists().first().count { it.isInbox })
     }
 
+    @Test fun aListMovesIntoAGroupAndOutAgain() = runBlocking {
+        val group = repo.createGroup("G")
+        val list = repo.createList("L")
+        repo.moveListToGroup(list, group)
+        assertEquals(group, repo.observeLists().first().single { it.id == list }.groupId)
+        repo.moveListToGroup(list, null)
+        assertNull(repo.observeLists().first().single { it.id == list }.groupId)
+    }
+
+    @Test fun inboxCannotBeMovedIntoAGroup() = runBlocking {
+        val group = repo.createGroup("G")
+        repo.moveListToGroup(repo.inboxId(), group)
+        assertNull(repo.observeLists().first().single { it.isInbox }.groupId)
+    }
+
     @Test fun deletingAListMovesItsTasksToInbox() = runBlocking {
         val listId = repo.createList("Work", "#112233", null)
         val a = insertTask(listId)

@@ -15,7 +15,9 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -110,6 +112,15 @@ class ListsScreenTest {
         count(hasText(text)) == 0
     }
 
+    /** Waits on the list row itself, not on text the still-open input field would also match. */
+    private fun awaitRow(name: String) = rule.waitUntil(timeoutMillis = 10_000) {
+        count(tagStartsWith("list-row-") and hasText(name, substring = true)) > 0
+    }
+
+    private fun awaitSheetClosed(fieldTag: String) = rule.waitUntil(timeoutMillis = 10_000) {
+        count(hasTestTag(fieldTag)) == 0
+    }
+
     private fun awaitShown(text: String) = rule.waitUntil(timeoutMillis = 10_000) {
         count(hasText(text)) > 0
     }
@@ -172,9 +183,8 @@ class ListsScreenTest {
         rule.onNodeWithTag("list-edit-$id").performClick()
         rule.onNodeWithTag("list-delete").performClick()
         // The confirmation says where the tasks go, before anything is deleted.
-        rule.onNodeWithText(
-            ApplicationProvider.getApplicationContext<Context>().getString(R.string.delete_list_moves_tasks),
-        ).assertIsDisplayed()
+        rule.onNode(hasText("Inbox", substring = true) and hasAnyAncestor(isDialog())).assertIsDisplayed()
+        rule.onNodeWithTag("delete-confirm").assertIsDisplayed()
         assertEquals(1, runBlocking { lists.observeLists().first().count { it.id == id } })
         rule.onNodeWithTag("delete-confirm").performClick()
         awaitGone("Doomed")
@@ -202,7 +212,7 @@ class ListsScreenTest {
         rule.onNodeWithTag("new-list").performClick()
         rule.onNodeWithTag("list-name-field").performTextInput("Fresh")
         rule.onNodeWithTag("list-save").performClick()
-        awaitShown("Fresh")
+        awaitRow("Fresh")
         rule.onNodeWithText("Fresh").assertIsDisplayed()
     }
 
@@ -214,7 +224,7 @@ class ListsScreenTest {
         rule.onNodeWithTag("list-name-field").performTextInput("Boiler")
         rule.onNodeWithTag("list-group-option-$gid").performClick()
         rule.onNodeWithTag("list-save").performClick()
-        awaitShown("Boiler")
+        awaitRow("Boiler")
         assertEquals(gid, runBlocking { lists.observeLists().first().single { it.name == "Boiler" }.groupId })
     }
 
@@ -225,8 +235,35 @@ class ListsScreenTest {
         rule.onNodeWithTag("list-name-field").performTextClearance()
         rule.onNodeWithTag("list-name-field").performTextInput("New")
         rule.onNodeWithTag("list-save").performClick()
-        awaitShown("New")
+        awaitRow("New")
         awaitGone("Old")
+    }
+
+    @Test fun anExistingListMovesBetweenGroupsFromTheSheet() {
+        val gid = runBlocking { lists.createGroup("Home") }
+        val id = runBlocking { lists.createList("Mover") }
+        show()
+        rule.onNodeWithTag("list-edit-$id").performClick()
+        rule.onNodeWithTag("list-group-option-$gid").performClick()
+        rule.onNodeWithTag("list-save").performClick()
+        awaitSheetClosed("list-name-field")
+        rule.waitUntil(timeoutMillis = 10_000) {
+            runBlocking { lists.observeLists().first().single { it.id == id }.groupId } == gid
+        }
+        rule.onNodeWithTag("list-edit-$id").performClick()
+        rule.onNodeWithTag("list-group-option-none").performClick()
+        rule.onNodeWithTag("list-save").performClick()
+        awaitSheetClosed("list-name-field")
+        rule.waitUntil(timeoutMillis = 10_000) {
+            runBlocking { lists.observeLists().first().single { it.id == id }.groupId } == null
+        }
+    }
+
+    @Test fun inboxCannotBeEdited() {
+        runBlocking { lists.createList("Other") }
+        show()
+        assertEquals(0, count(hasTestTag("list-edit-$inbox")))
+        assertEquals(0, count(hasTestTag("list-row-$inbox")))
     }
 
     @Test fun aGroupIsCreatedAndItsListsSurviveItsDeletion() {
@@ -234,6 +271,7 @@ class ListsScreenTest {
         rule.onNodeWithTag("new-group").performClick()
         rule.onNodeWithTag("group-name-field").performTextInput("Errands")
         rule.onNodeWithTag("group-save").performClick()
+        awaitSheetClosed("group-name-field")
         awaitShown("Errands")
         val gid = groupId()
         runBlocking { lists.createList("Shop", null, gid) }

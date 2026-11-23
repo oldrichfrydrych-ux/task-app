@@ -32,6 +32,10 @@ abstract class ListDao {
     @Query("UPDATE lists SET colorHex = :colorHex WHERE id = :id")
     abstract suspend fun recolour(id: Long, colorHex: String)
 
+    /** Inbox never joins a group, so the guard is in the statement itself. */
+    @Query("UPDATE lists SET groupId = :groupId WHERE id = :id AND isInbox = 0")
+    abstract suspend fun setGroup(id: Long, groupId: Long?)
+
     /** Moves, never cascades: live tasks only; trashed ones are left alone. */
     @Query("UPDATE tasks SET listId = :toListId, headingId = NULL WHERE listId = :fromListId AND deletedAt IS NULL")
     abstract suspend fun moveTasks(fromListId: Long, toListId: Long)

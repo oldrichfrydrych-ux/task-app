@@ -40,7 +40,6 @@
     <string name="group_name_hint">Group name</string>
     <string name="list_group_label">Group</string>
     <string name="list_no_group">No group</string>
-    <string name="list_colour">Colour</string>
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
     <string name="delete">Delete</string>

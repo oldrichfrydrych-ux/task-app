@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -40,18 +39,17 @@ import cz.olda.tasks.ui.theme.parseHex
 
 /**
  * Creates a list ([initial] null) or edits one. The colour is a read-only dot for now and is
- * handed back unchanged: for a new list it is empty, and the caller lets `createList` pick the
+ * handed back unchanged: null for a new list, meaning "not chosen", so `createList` picks the
  * next preset. The colour picker is dropped in here later without changing [onSave].
  *
- * [groups] fills the group picker and is only offered when creating: moving an existing list
- * between groups has no repository operation yet. [onDelete] is null when the list cannot be
+ * [groups] fills the group picker and also works when editing. [onDelete] is null when the list cannot be
  * deleted; the sheet asks for confirmation itself and says where the tasks go.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ListEditSheet(
     initial: ListEntity?,
-    onSave: (name: String, colorHex: String, groupId: Long?) -> Unit,
+    onSave: (name: String, colorHex: String?, groupId: Long?) -> Unit,
     onDelete: (() -> Unit)?,
     onDismiss: () -> Unit,
     groups: List<GroupEntity> = emptyList(),
@@ -59,7 +57,7 @@ fun ListEditSheet(
     var name by rememberSaveable { mutableStateOf(initial?.name.orEmpty()) }
     var groupId by rememberSaveable { mutableStateOf(initial?.groupId) }
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
-    val colorHex = initial?.colorHex.orEmpty()
+    val colorHex = initial?.colorHex
     val canSave = name.isNotBlank()
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState()) {
@@ -71,7 +69,7 @@ fun ListEditSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                parseHex(colorHex)?.let { color ->
+                colorHex?.let(::parseHex)?.let { color ->
                     Box(
                         modifier = Modifier
                             .size(16.dp)
@@ -90,7 +88,7 @@ fun ListEditSheet(
                         .testTag("list-name-field"),
                 )
             }
-            if (initial == null && groups.isNotEmpty()) {
+            if (groups.isNotEmpty()) {
                 Text(
                     text = stringResource(R.string.list_group_label),
                     style = MaterialTheme.typography.labelLarge,
@@ -145,27 +143,3 @@ private fun GroupOption(label: String, selected: Boolean, tagSuffix: String, onS
     }
 }
 
-/** Asks before deleting, spelling out what happens to whatever the thing holds. */
-@Composable
-internal fun ConfirmDeleteDialog(
-    title: String,
-    message: String,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = { Text(message) },
-        confirmButton = {
-            TextButton(onClick = onConfirm, modifier = Modifier.testTag("delete-confirm")) {
-                Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, modifier = Modifier.testTag("delete-cancel")) {
-                Text(stringResource(R.string.cancel))
-            }
-        },
-    )
-}

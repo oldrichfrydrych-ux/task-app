@@ -109,13 +109,12 @@ fun ListsScreen(
     }
 
     val allGroups = groups.orEmpty().mapNotNull { it.group }
-    val editingList = groups.orEmpty().flatMap { it.lists }.firstOrNull { it.id == editingListId }
+    val editingList = groups.orEmpty().flatMap { it.lists }.firstOrNull { it.id == editingListId && !it.isInbox }
     if (creatingList) {
         ListEditSheet(
             initial = null,
-            // The colour is unset for a new list, so createList takes the next preset.
-            onSave = { name, _, groupId ->
-                viewModel.createList(name, null, groupId)
+            onSave = { name, colorHex, groupId ->
+                viewModel.createList(name, colorHex, groupId)
                 creatingList = false
             },
             onDelete = null,
@@ -126,9 +125,10 @@ fun ListsScreen(
     if (editingList != null) {
         ListEditSheet(
             initial = editingList,
-            onSave = { name, colorHex, _ ->
+            onSave = { name, colorHex, groupId ->
                 if (name != editingList.name) viewModel.renameList(editingList.id, name)
-                if (colorHex != editingList.colorHex) viewModel.recolourList(editingList.id, colorHex)
+                if (colorHex != null && colorHex != editingList.colorHex) viewModel.recolourList(editingList.id, colorHex)
+                if (groupId != editingList.groupId) viewModel.moveListToGroup(editingList.id, groupId)
                 editingListId = null
             },
             onDelete = {
@@ -136,6 +136,7 @@ fun ListsScreen(
                 editingListId = null
             },
             onDismiss = { editingListId = null },
+            groups = allGroups,
         )
     }
     if (creatingGroup) {

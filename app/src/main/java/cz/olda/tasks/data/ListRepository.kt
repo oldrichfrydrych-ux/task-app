@@ -45,6 +45,9 @@ class ListRepository(
     /** Moves the list's tasks to Inbox first; the Inbox itself is never deleted. */
     suspend fun deleteList(id: Long) = listDao.deleteAndMoveTasksToInbox(id)
 
+    /** Moves the list into [groupId], or out of any group when null. The Inbox is left where it is. */
+    suspend fun moveListToGroup(id: Long, groupId: Long?) = listDao.setGroup(id, groupId)
+
     suspend fun createGroup(name: String): Long = groupDao.create(name)
 
     suspend fun renameGroup(id: Long, name: String) = groupDao.rename(id, name)

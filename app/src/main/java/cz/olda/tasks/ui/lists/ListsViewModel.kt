@@ -48,6 +48,11 @@ class ListsViewModel(
     }
 
     /** The list's tasks move to Inbox; the screen says so before asking for this. */
+    /** Moves the list into a group, or out of any with null; the Inbox is refused by the repository. */
+    fun moveListToGroup(id: Long, groupId: Long?) {
+        viewModelScope.launch { listRepository.moveListToGroup(id, groupId) }
+    }
+
     fun deleteList(id: Long) {
         viewModelScope.launch { listRepository.deleteList(id) }
     }
