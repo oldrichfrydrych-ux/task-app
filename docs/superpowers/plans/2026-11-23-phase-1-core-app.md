@@ -223,7 +223,7 @@ git push
   - `class AppContainer(context: Context)` with `val database: AppDatabase`, `val listRepository: ListRepository`, `val taskRepository: TaskRepository`.
   - `class TasksApplication : Application()` with `val container: AppContainer`.
   - `object AppViewModelProvider { val Factory: ViewModelProvider.Factory }` — built with `viewModelFactory { initializer { … } }`; every later task adds its ViewModel here.
-  - `AppNavHost(navController: NavHostController, selected: Destination, modifier: Modifier)` — the four top-level routes plus `list/{listId}`, `task/{taskId}` and `search`.
+  - `AppNavHost(navController: NavHostController, modifier: Modifier)` — the four top-level routes plus `list/{listId}`, `task/{taskId}` and `search`. Its start destination is the constant `Destination.Today.route`. (Amended during Task 4's review: the original signature took `selected`, but deriving the graph's start from restored state made tab popping break after recreation, and once the selected tab is read from the back stack the parameter has no use.)
   - `AppShell` keeps its own `rememberSaveable` selected tab and hands it to `AppNavHost`; tapping a tab navigates and pops to that tab's start.
   - `AppShell`'s `Scaffold` gains a `SnackbarHost`, and `val LocalSnackbarHostState: ProvidableCompositionLocal<SnackbarHostState>` is provided around the nav host, so any screen can post a message without owning a host. Task 5 builds the undo on top of it.
 - Each top-level screen keeps `Modifier.testTag("screen-${destination.name}")`, so Phase 0's `AppShellTest` keeps passing unchanged.
