@@ -123,8 +123,8 @@ git push
   - `fun observeGroupsWithLists(): Flow<List<GroupWithLists>>`, where `GroupWithLists(group: GroupEntity?, lists: List<ListEntity>)` and a null group holds the ungrouped lists.
   - `fun observeLists(): Flow<List<ListEntity>>` — every list, Inbox first.
   - `suspend fun inboxId(): Long`
-  - `suspend fun createList(name: String, colorHex: String, groupId: Long?): Long`
-  - `suspend fun renameList(id: Long, name: String)`, `suspend fun recolourList(id: Long, colorHex: String)`
+  - `suspend fun createList(name: String, colorHex: String? = null, groupId: Long? = null): Long` — **null means "take the next preset"**; a non-null value is stored as given. (Amended during Task 2's review: the original `colorHex: String` left no way to ask for the automatic colour, and a blank-string sentinel gave the same type two meanings across sibling methods.)
+  - `suspend fun renameList(id: Long, name: String)`, `suspend fun recolourList(id: Long, colorHex: String)` — `recolourList` requires a real colour and rejects a blank one.
   - `suspend fun deleteList(id: Long)` — **moves the list's tasks to Inbox first**; refuses to delete the Inbox list.
   - `suspend fun createGroup(name: String): Long`, `suspend fun renameGroup(id: Long, name: String)`, `suspend fun deleteGroup(id: Long)` — the group's lists survive with `groupId = null`.
   - `fun observeHeadings(listId: Long): Flow<List<HeadingEntity>>`, `suspend fun createHeading(listId: Long, name: String): Long`, `suspend fun renameHeading(id: Long, name: String)`, `suspend fun deleteHeading(id: Long)` — the heading's tasks stay in the list with `headingId = null`.
