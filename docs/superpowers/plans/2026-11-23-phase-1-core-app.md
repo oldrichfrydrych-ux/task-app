@@ -173,6 +173,7 @@ git push
   - `fun observeTask(id: Long): Flow<TaskEntity?>`
   - `fun observeDots(from: LocalDate, to: LocalDate): Flow<Map<LocalDate, List<String>>>` — the distinct list colours that have a task on each day, for the week strip.
   - `fun search(query: String): Flow<List<TaskWithList>>` — matches `titleNormalised` or `notesNormalised` against `normalise(query)`.
+  - `fun observeOpenCounts(): Flow<Map<Long, Int>>` — open, undeleted tasks per list id, for the counts on the Lists screen in Task 8.
   - `suspend fun add(title: String, listId: Long, dueDate: LocalDate?, dueMinute: Int?, priority: Int, parentTaskId: Long? = null, headingId: Long? = null): Long` — fills both normalised columns and appends by `position`.
   - `suspend fun update(task: TaskEntity)` — refreshes the normalised columns.
   - `suspend fun setDone(id: Long, done: Boolean)` — **completing also completes open subtasks**; reopening touches only the task itself.
@@ -190,6 +191,7 @@ git push
 @Test fun softDeletedTasksLeaveEveryQuery()
 @Test fun searchIgnoresCaseAndDiacritics()            // add("Zítra zavolat na úřad"); search("ZITRA ZAVOLAT") finds it
 @Test fun dotsReportOneColourPerListPerDay()
+@Test fun openCountsIgnoreDoneAndDeletedTasks()
 ```
 
 - [ ] **Step 2: Run them and watch them fail.** Run: `gradlew.bat connectedDebugAndroidTest`. Expected: compile error, unresolved `TaskRepository`.
@@ -260,8 +262,8 @@ git push
 - Produces:
   - `@Composable fun TaskRow(item: TaskWithList, onToggleDone: () -> Unit, onClick: () -> Unit, modifier: Modifier = Modifier)` — the compact rail from *Look*: start time on the left, title in the middle, list name on the right in the list's colour, a checkbox with content description `R.string.complete_task`. Root carries `testTag("task-${item.task.id}")`.
   - `@Composable fun TaskListSection(title: String?, items: List<TaskWithList>, onToggleDone: (Long) -> Unit, onClick: (Long) -> Unit, modifier: Modifier = Modifier)` — a header and its rows; renders nothing when `items` is empty.
-  - `@Composable fun rememberCompletionUndo(onSetDone: (Long, Boolean) -> Unit): (Long) -> Unit` — the single place the "completed, with undo" behaviour lives. It marks the task done, posts a snackbar on `LocalSnackbarHostState` (Task 4) with `R.string.task_completed` and `R.string.undo`, and reopens the task if the action is tapped. **Every screen that shows tasks uses this rather than calling `setDone` directly**, so the behaviour is written once.
-- Strings: `complete_task` "Complete task", `section_anytime` "Anytime", `section_overdue` "Overdue", `section_tomorrow` "Tomorrow", `task_completed` "Task completed", `undo` "Undo".
+- Strings: `complete_task` "Complete task", `section_anytime` "Anytime", `section_overdue` "Overdue", `section_tomorrow` "Tomorrow".
+- This task defines the row and the section only. The shared "completed, with undo" behaviour arrives in Task 6, where it is first used and tested.
 
 - [ ] **Step 1: Write the failing tests** in `TaskRowTest.kt`:
 
@@ -308,6 +310,8 @@ git push
   - `class TodayViewModel(repository: TaskRepository, clock: Clock) : ViewModel()` with `val state: StateFlow<TodayState>`, `fun showDay(date: LocalDate)`, `fun toggleDone(id: Long)`. `TodayState(shownDay: LocalDate, isToday: Boolean, sections: DaySections, dots: Map<LocalDate, List<String>>, weekStart: LocalDate)`.
   - `@Composable fun WeekStrip(weekStart: LocalDate, shownDay: LocalDate, dots: Map<LocalDate, List<String>>, onPickDay: (LocalDate) -> Unit, modifier: Modifier = Modifier)` — seven days, each with its list-colour dots; the shown day is marked; each day carries `testTag("day-${date}")`.
   - `@Composable fun TodayScreen(viewModel: TodayViewModel, onOpenTask: (Long) -> Unit, modifier: Modifier = Modifier)` — root carries `testTag("screen-Today")`.
+  - `@Composable fun rememberCompletionUndo(onSetDone: (Long, Boolean) -> Unit): (Long) -> Unit` in `ui/components/CompletionUndo.kt` — the single place the "completed, with undo" behaviour lives. It marks the task done, posts a snackbar on `LocalSnackbarHostState` (Task 4) with `R.string.task_completed` and `R.string.undo`, and reopens the task if the action is tapped. **Every later screen that shows tasks uses this rather than calling `setDone` directly**, so the behaviour is written once. `completingARowRemovesItWithAnUndo` below is its test.
+- Strings: `task_completed` "Task completed", `undo` "Undo".
 - The header names the shown day; it reads from `R.string.today` when the shown day is today.
 
 - [ ] **Step 1: Write the failing ViewModel tests** in `TodayViewModelTest.kt`, with a mutable fake `Clock`:
@@ -403,7 +407,7 @@ git push
 - Produces:
   - `class ListsViewModel(listRepository: ListRepository, taskRepository: TaskRepository) : ViewModel()` with `val state: StateFlow<List<GroupWithLists>>` and `createList`, `renameList`, `recolourList`, `deleteList`, `createGroup`, `renameGroup`, `deleteGroup`.
   - `@Composable fun ListsScreen(viewModel: ListsViewModel, onOpenList: (Long) -> Unit, modifier: Modifier = Modifier)` — groups as headers, lists as rows with their colour dot and open-task count; root `testTag("screen-Lists")`.
-  - `@Composable fun ListEditSheet(initial: ListEntity?, onSave: (name: String, colorHex: String, groupId: Long?) -> Unit, onDelete: (() -> Unit)?, onDismiss: () -> Unit)` — the name field carries `testTag("list-name-field")`.
+  - `@Composable fun ListEditSheet(initial: ListEntity?, onSave: (name: String, colorHex: String, groupId: Long?) -> Unit, onDelete: (() -> Unit)?, onDismiss: () -> Unit)` — the name field carries `testTag("list-name-field")`. **In this task the colour is shown as a read-only dot and passed through unchanged**; a new list keeps the preset `ListRepository.createList` gave it. Task 9 makes it editable by dropping `ColorPicker` into this sheet, which is why the signature already carries `colorHex`.
 - Inbox appears in neither the Lists screen nor the group picker.
 
 - [ ] **Step 1: Write the failing tests** in `ListsScreenTest.kt`:
@@ -585,7 +589,7 @@ git push
 
 **Files:**
 - Create: `app/src/main/java/cz/olda/tasks/ui/search/{SearchScreen,SearchViewModel}.kt`
-- Modify: `ui/AppViewModelProvider.kt`, `ui/nav/AppNavHost.kt`, `ui/AppShell.kt`, `res/values/strings.xml`
+- Modify: `ui/AppViewModelProvider.kt`, `ui/lists/ListsScreen.kt` (the search icon in its header), `res/values/strings.xml`
 - Test: `app/src/androidTest/java/cz/olda/tasks/ui/search/SearchScreenTest.kt`
 
 **Interfaces:**
