@@ -121,7 +121,8 @@ class TaskRepository(
     /** Completing also completes open subtasks; reopening touches only the task itself. */
     suspend fun setDone(id: Long, done: Boolean) = taskDao.setDone(id, done, now())
 
-    suspend fun softDelete(id: Long) = taskDao.setDeletedAt(id, now(), now())
+    /** Also deletes the live subtasks; [restore] brings back exactly those. */
+    suspend fun softDelete(id: Long) = taskDao.softDelete(id, now())
 
-    suspend fun restore(id: Long) = taskDao.setDeletedAt(id, null, now())
+    suspend fun restore(id: Long) = taskDao.restore(id, now())
 }

@@ -17,8 +17,8 @@ data class DayDot(val dueDate: Long, val colorHex: String)
 
 /**
  * Every query here excludes soft-deleted rows (deletedAt IS NULL). Day queries (overdue, a day,
- * a range, dots) return open tasks only; list, subtask, single-task and search queries also
- * return done ones.
+ * a range, dots), the list, search and count queries return open tasks only; subtask and single-task queries
+ * also return done ones.
  */
 @Dao
 abstract class TaskDao {
@@ -47,12 +47,12 @@ abstract class TaskDao {
     )
     abstract fun observeDueAfter(epochDay: Long): Flow<List<TaskWithList>>
 
-    /** Top-level tasks of a list, open ones first. */
+    /** Open top-level tasks of a list. */
     @Query(
         "SELECT tasks.*, lists.name AS listName, lists.colorHex AS listColorHex FROM tasks " +
             "JOIN lists ON lists.id = tasks.listId " +
-            "WHERE tasks.deletedAt IS NULL AND tasks.parentTaskId IS NULL AND tasks.listId = :listId " +
-            "ORDER BY tasks.done, tasks.position, tasks.id",
+            "WHERE tasks.deletedAt IS NULL AND tasks.done = 0 AND tasks.parentTaskId IS NULL AND tasks.listId = :listId " +
+            "ORDER BY tasks.position, tasks.id",
     )
     abstract fun observeInList(listId: Long): Flow<List<TaskWithList>>
 
@@ -74,15 +74,15 @@ abstract class TaskDao {
     @Query(
         "SELECT tasks.*, lists.name AS listName, lists.colorHex AS listColorHex FROM tasks " +
             "JOIN lists ON lists.id = tasks.listId " +
-            "WHERE tasks.deletedAt IS NULL " +
+            "WHERE tasks.deletedAt IS NULL AND tasks.done = 0 " +
             "AND (tasks.titleNormalised LIKE :pattern ESCAPE '\\' OR tasks.notesNormalised LIKE :pattern ESCAPE '\\') " +
-            "ORDER BY tasks.done, tasks.id",
+            "ORDER BY tasks.id",
     )
     abstract fun search(pattern: String): Flow<List<TaskWithList>>
 
     @Query(
         "SELECT listId, COUNT(*) AS openCount FROM tasks " +
-            "WHERE deletedAt IS NULL AND done = 0 GROUP BY listId",
+            "WHERE deletedAt IS NULL AND done = 0 AND parentTaskId IS NULL GROUP BY listId",
     )
     abstract fun observeOpenCounts(): Flow<List<ListOpenCount>>
 
@@ -109,8 +109,27 @@ abstract class TaskDao {
     )
     abstract suspend fun completeOpenSubtasks(parentId: Long, now: Long)
 
-    @Query("UPDATE tasks SET deletedAt = :deletedAt, updatedAt = :now WHERE id = :id")
-    abstract suspend fun setDeletedAt(id: Long, deletedAt: Long?, now: Long)
+    @Query("SELECT deletedAt FROM tasks WHERE id = :id")
+    abstract suspend fun deletedAtOf(id: Long): Long?
+
+    /** Stamps the task and its live subtasks with one shared [stamp]. */
+    @Query("UPDATE tasks SET deletedAt = :stamp, updatedAt = :stamp WHERE (id = :id OR parentTaskId = :id) AND deletedAt IS NULL")
+    abstract suspend fun stampDeleted(id: Long, stamp: Long)
+
+    /** Clears only rows carrying [stamp], so subtasks deleted on their own earlier stay deleted. */
+    @Query("UPDATE tasks SET deletedAt = NULL, updatedAt = :now WHERE (id = :id OR parentTaskId = :id) AND deletedAt = :stamp")
+    abstract suspend fun clearDeleted(id: Long, stamp: Long, now: Long)
+
+    /** Deleting a parent deletes its live subtasks with the same timestamp. */
+    @Transaction
+    open suspend fun softDelete(id: Long, now: Long) = stampDeleted(id, now)
+
+    /** Undoes [softDelete]: the task and the subtasks that went with it come back. */
+    @Transaction
+    open suspend fun restore(id: Long, now: Long) {
+        val stamp = deletedAtOf(id) ?: return
+        clearDeleted(id, stamp, now)
+    }
 
     /** Completing also completes open subtasks; reopening touches only the task itself. */
     @Transaction

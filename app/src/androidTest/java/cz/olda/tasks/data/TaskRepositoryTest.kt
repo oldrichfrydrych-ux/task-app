@@ -171,4 +171,32 @@ class TaskRepositoryTest {
         repo.softDelete(deleted)
         assertEquals(mapOf(list to 1, inbox to 1), repo.observeOpenCounts().first())
     }
+
+    @Test fun doneTasksAreAbsentFromSearchAndLists() = runBlocking {
+        val open = add("alpaca open")
+        val done = add("alpaca done")
+        repo.setDone(done, true)
+        assertEquals(listOf(open), repo.search("alpaca").first().map { it.task.id })
+        assertEquals(listOf(open), repo.observeInList(inbox).first().map { it.task.id })
+    }
+
+    @Test fun openCountsIgnoreSubtasks() = runBlocking {
+        val parent = add("p")
+        add("c1", parent = parent)
+        add("c2", parent = parent)
+        assertEquals(mapOf(inbox to 1), repo.observeOpenCounts().first())
+    }
+
+    @Test fun deletingAParentDeletesItsSubtasksAndRestoreBringsThemBack() = runBlocking {
+        val parent = add("p zebra")
+        val child = add("c zebra", parent = parent)
+        repo.softDelete(parent)
+        assertTrue(repo.observeSubtasks(parent).first().isEmpty())
+        assertNull(repo.observeTask(child).first())
+        assertNull(repo.observeTask(parent).first())
+        assertTrue(repo.search("zebra").first().isEmpty())
+        repo.restore(parent)
+        assertEquals(listOf(child), repo.observeSubtasks(parent).first().map { it.id })
+        assertEquals(listOf(parent), repo.observeInList(inbox).first().map { it.task.id })
+    }
 }
