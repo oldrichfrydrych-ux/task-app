@@ -80,7 +80,7 @@ fun TaskRow(
                 textDecoration = if (task.done) TextDecoration.LineThrough else null,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f).padding(vertical = 8.dp),
+                modifier = Modifier.weight(1f).padding(vertical = 8.dp).testTag("task-title-${task.id}"),
             )
             Text(
                 text = item.listName,
@@ -88,7 +88,7 @@ fun TaskRow(
                 color = listColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = 10.dp).widthIn(max = 120.dp),
+                modifier = Modifier.padding(start = 10.dp).widthIn(max = 120.dp).testTag("task-list-${task.id}"),
             )
         }
     }
