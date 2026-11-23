@@ -104,6 +104,15 @@ class TodayViewModelTest {
         return vm
     }
 
+    @Test fun isNotLoadedUntilTheFirstEmission() = runTest {
+        val clock = MutableClock(startOfDay("2026-11-23T10:00"), zone)
+        val vm = TodayViewModel(TaskRepository(FakeTaskDao(emptyList()), clock), clock)
+        backgroundScope.launch { vm.state.collect {} }
+        assertFalse(vm.state.value.isLoaded) // nothing has run yet: placeholder, not "empty"
+        runCurrent()
+        assertTrue(vm.state.value.isLoaded)
+    }
+
     @Test fun startsOnToday() = runTest {
         val vm = viewModel(MutableClock(startOfDay("2026-11-23T10:00"), zone))
         val state = vm.state.value

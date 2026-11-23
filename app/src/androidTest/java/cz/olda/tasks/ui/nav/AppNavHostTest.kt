@@ -8,7 +8,6 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.CompositionLocalProvider
@@ -40,16 +39,16 @@ class AppNavHostTest {
     @Test
     fun aTabTakesYouToItsScreen() {
         rule.setContent { AppTheme { AppShell() } }
-        rule.onNodeWithText("Lists").performClick()
+        rule.onNode(hasText("Lists") and hasAnyAncestor(hasTestTag("bottom-bar"))).performClick()
         rule.onNodeWithTag("screen-Lists").assertIsDisplayed()
     }
 
     @Test
     fun tabsDoNotPileUpOnTheBackStack() {
         rule.setContent { AppTheme { AppShell() } }
-        rule.onNodeWithText("Lists").performClick()
+        rule.onNode(hasText("Lists") and hasAnyAncestor(hasTestTag("bottom-bar"))).performClick()
         todayTab().performClick()
-        rule.onNodeWithText("Lists").performClick()
+        rule.onNode(hasText("Lists") and hasAnyAncestor(hasTestTag("bottom-bar"))).performClick()
         Espresso.pressBack()
         rule.onNodeWithTag("screen-Today").assertIsDisplayed()
         todayTab().assertIsSelected()
@@ -60,10 +59,10 @@ class AppNavHostTest {
     fun tabsDoNotPileUpAfterRecreation() {
         val restore = StateRestorationTester(rule)
         restore.setContent { AppTheme { AppShell() } }
-        rule.onNodeWithText("Lists").performClick()
+        rule.onNode(hasText("Lists") and hasAnyAncestor(hasTestTag("bottom-bar"))).performClick()
         restore.emulateSavedInstanceStateRestore()
         todayTab().performClick()
-        rule.onNodeWithText("Inbox").performClick()
+        rule.onNode(hasText("Inbox") and hasAnyAncestor(hasTestTag("bottom-bar"))).performClick()
         Espresso.pressBack()
         rule.onNodeWithTag("screen-Today").assertIsDisplayed()
         todayTab().assertIsSelected()

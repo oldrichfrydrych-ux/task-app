@@ -18,10 +18,12 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.isSelected
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import cz.olda.tasks.R
 import cz.olda.tasks.data.AppDatabase
+import cz.olda.tasks.data.DaySections
 import cz.olda.tasks.data.ListRepository
 import cz.olda.tasks.data.TaskRepository
 import cz.olda.tasks.ui.LocalSnackbarHostState
@@ -81,6 +83,16 @@ class TodayScreenTest {
 
     private fun top(tag: String) = rule.onNodeWithTag(tag).getUnclippedBoundsInRoot().top
 
+    /** The shown day comes back from the database asynchronously, so wait for it instead of racing it. */
+    private fun awaitSelected(tag: String) = rule.waitUntil {
+        rule.onAllNodes(hasTestTag(tag) and isSelected()).fetchSemanticsNodes().isNotEmpty()
+    }
+
+    private fun pickDay(tag: String) {
+        rule.onNodeWithTag(tag).performClick()
+        awaitSelected(tag)
+    }
+
     @Test fun showsOverdueThenTimedThenAnytime() {
         val ids = runBlocking {
             listOf(
@@ -106,7 +118,7 @@ class TodayScreenTest {
         rule.onNodeWithText("today task").assertIsDisplayed()
         rule.onNodeWithTag("day-2026-11-23").assertIsSelected()
 
-        rule.onNodeWithTag("day-2026-11-25").performClick()
+        pickDay("day-2026-11-25")
 
         rule.onNodeWithTag("day-2026-11-25").assertIsSelected()
         rule.onNodeWithText("wednesday task").assertIsDisplayed()
@@ -119,7 +131,7 @@ class TodayScreenTest {
         rule.onNodeWithText("Tomorrow").assertIsDisplayed()
         rule.onNodeWithText("for tomorrow").assertIsDisplayed()
 
-        rule.onNodeWithTag("day-2026-11-25").performClick()
+        pickDay("day-2026-11-25")
         rule.onNodeWithText("Tomorrow").assertDoesNotExist()
         rule.onNodeWithText("for tomorrow").assertDoesNotExist()
     }
@@ -157,9 +169,30 @@ class TodayScreenTest {
     @Test fun anEmptyDayHasAnEmptyStateWithWordingForTodayAndForOtherDays() {
         show()
         rule.onNodeWithText("Nothing due today").assertIsDisplayed()
-        rule.onNodeWithTag("day-2026-11-25").performClick()
+        pickDay("day-2026-11-25")
         rule.onNodeWithText("Nothing planned for this day").assertIsDisplayed()
         rule.onNodeWithText("Nothing due today").assertDoesNotExist()
+    }
+
+    @Test fun noEmptyTextBeforeTheFirstEmission() {
+        val placeholder = TodayState(
+            shownDay = today, isToday = true,
+            sections = DaySections(emptyList(), emptyList(), emptyList(), emptyList()),
+            dots = emptyMap(), weekStart = today, isLoaded = false,
+        )
+        rule.setContent { AppTheme { TodayContent(placeholder, {}, {}, {}, {}) } }
+        rule.onNodeWithText("Nothing due today").assertDoesNotExist()
+        rule.onNodeWithTag("today-empty").assertDoesNotExist()
+    }
+
+    @Test fun emptyTextShowsOnceLoadedEmpty() {
+        val loaded = TodayState(
+            shownDay = today, isToday = true,
+            sections = DaySections(emptyList(), emptyList(), emptyList(), emptyList()),
+            dots = emptyMap(), weekStart = today,
+        )
+        rule.setContent { AppTheme { TodayContent(loaded, {}, {}, {}, {}) } }
+        rule.onNodeWithText("Nothing due today").assertIsDisplayed()
     }
 
     @Test fun aDayWithTasksHasNoEmptyState() {
@@ -172,9 +205,10 @@ class TodayScreenTest {
     @Test fun backToTodayOnlyShowsOnOtherDaysAndReturns() {
         show()
         rule.onNodeWithTag("back-to-today").assertDoesNotExist()
-        rule.onNodeWithTag("day-2026-11-25").performClick()
+        pickDay("day-2026-11-25")
         rule.onNodeWithTag("day-2026-11-25").assertIsSelected()
         rule.onNodeWithTag("back-to-today").performClick()
+        awaitSelected("day-2026-11-23")
         rule.onNodeWithTag("day-2026-11-23").assertIsSelected()
         rule.onNodeWithTag("back-to-today").assertDoesNotExist()
     }

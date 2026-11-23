@@ -12,7 +12,9 @@ import cz.olda.tasks.R
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cz.olda.tasks.ui.AppViewModelProvider
 import cz.olda.tasks.ui.Destination
+import cz.olda.tasks.ui.inbox.InboxScreen
 import cz.olda.tasks.ui.today.TodayScreen
+import cz.olda.tasks.ui.upcoming.UpcomingScreen
 import cz.olda.tasks.ui.screens.PlaceholderScreen
 
 object Routes {
@@ -40,9 +42,19 @@ fun AppNavHost(
                 onOpenTask = { navController.navigate(Routes.task(it)) },
             )
         }
-        Destination.entries.filter { it != Destination.Today }.forEach { destination ->
-            composable(destination.route) { PlaceholderScreen(destination) }
+        composable(Destination.Upcoming.route) {
+            UpcomingScreen(
+                viewModel = viewModel(factory = AppViewModelProvider.Factory),
+                onOpenTask = { navController.navigate(Routes.task(it)) },
+            )
         }
+        composable(Destination.Inbox.route) {
+            InboxScreen(
+                viewModel = viewModel(factory = AppViewModelProvider.Factory),
+                onOpenTask = { navController.navigate(Routes.task(it)) },
+            )
+        }
+        composable(Destination.Lists.route) { PlaceholderScreen(Destination.Lists) }
         composable(
             Routes.LIST,
             arguments = listOf(navArgument("listId") { type = NavType.LongType }),

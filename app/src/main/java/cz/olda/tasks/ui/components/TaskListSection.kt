@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import cz.olda.tasks.data.TaskWithList
 
-/** A header and its rows. Renders nothing at all when [items] is empty. */
+/** A header (tagged with [headerModifier]) and its rows. Renders nothing at all when [items] is empty. */
 @Composable
 fun TaskListSection(
     title: String?,
@@ -18,6 +18,7 @@ fun TaskListSection(
     onToggleDone: (Long) -> Unit,
     onClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    headerModifier: Modifier = Modifier,
 ) {
     if (items.isEmpty()) return
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -26,7 +27,7 @@ fun TaskListSection(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                modifier = headerModifier.padding(horizontal = 4.dp, vertical = 4.dp),
             )
         }
         items.forEach { item ->

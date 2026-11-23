@@ -1,0 +1,144 @@
+package cz.olda.tasks.ui.upcoming
+
+import android.content.Context
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.room.Room
+import androidx.test.core.app.ApplicationProvider
+import cz.olda.tasks.R
+import cz.olda.tasks.data.AppDatabase
+import cz.olda.tasks.data.ListRepository
+import cz.olda.tasks.data.TaskRepository
+import cz.olda.tasks.ui.LocalSnackbarHostState
+import cz.olda.tasks.ui.theme.AppTheme
+import kotlinx.coroutines.runBlocking
+import org.junit.After
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
+import java.time.Clock
+import java.time.LocalDate
+import java.time.ZoneId
+
+class UpcomingScreenTest {
+    @get:Rule
+    val rule = createComposeRule()
+
+    private lateinit var db: AppDatabase
+    private lateinit var repo: TaskRepository
+    private var inbox = 0L
+
+    private val zone = ZoneId.of("Europe/Prague")
+    private val today = LocalDate.of(2026, 11, 23)
+    private val clock = Clock.fixed(today.atTime(10, 0).atZone(zone).toInstant(), zone)
+
+    @Before fun open() = runBlocking<Unit> {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+            .addCallback(AppDatabase.seedInbox(context.getString(R.string.inbox)))
+            .build()
+        repo = TaskRepository(db.taskDao(), clock)
+        inbox = ListRepository(db.listDao(), db.groupDao(), db.headingDao()).inboxId()
+    }
+
+    @After fun close() { db.close() }
+
+    private suspend fun add(title: String, due: LocalDate?) = repo.add(title, inbox, due, null, 4)
+
+    private fun show() {
+        val viewModel = UpcomingViewModel(repo)
+        rule.setContent {
+            AppTheme {
+                val hostState = remember { SnackbarHostState() }
+                CompositionLocalProvider(LocalSnackbarHostState provides hostState) {
+                    Scaffold(snackbarHost = { SnackbarHost(hostState) }) { padding ->
+                        Box(Modifier.padding(padding)) {
+                            UpcomingScreen(viewModel = viewModel, onOpenTask = {})
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun top(tag: String) = rule.onNodeWithTag(tag).getUnclippedBoundsInRoot().top
+
+    @Test fun groupsTasksUnderTheirDay() {
+        val ids = runBlocking {
+            listOf(
+                add("second day", today.plusDays(2)),
+                add("first day a", today.plusDays(1)),
+                add("first day b", today.plusDays(1)),
+            )
+        }
+        show()
+        val (second, firstA, firstB) = ids
+        val firstHeader = "upcoming-day-${today.plusDays(1)}"
+        val secondHeader = "upcoming-day-${today.plusDays(2)}"
+        rule.onNodeWithTag(firstHeader).assertIsDisplayed()
+        rule.onNodeWithTag(secondHeader).assertIsDisplayed()
+        assertTrue(top(firstHeader) < top("task-$firstA"))
+        assertTrue(top("task-$firstB") < top(secondHeader))
+        assertTrue(top(secondHeader) < top("task-$second"))
+    }
+
+    @Test fun todaysTasksDoNotAppear() {
+        runBlocking {
+            add("due today", today)
+            add("overdue", today.minusDays(1))
+            add("due tomorrow", today.plusDays(1))
+        }
+        show()
+        rule.onNodeWithText("due tomorrow").assertIsDisplayed()
+        rule.onNodeWithText("due today").assertDoesNotExist()
+        rule.onNodeWithText("overdue").assertDoesNotExist()
+    }
+
+    @Test fun emptyUpcomingSaysSo() {
+        show()
+        rule.onNodeWithText("Nothing coming up").assertIsDisplayed()
+    }
+
+    @Test fun aDayWithTasksHasNoEmptyState() {
+        runBlocking { add("later", today.plusDays(3)) }
+        show()
+        rule.onNodeWithText("later").assertIsDisplayed()
+        rule.onNodeWithText("Nothing coming up").assertDoesNotExist()
+    }
+
+    @Test fun noEmptyTextBeforeTheFirstEmission() {
+        rule.setContent { AppTheme { UpcomingContent(days = null, onToggleDone = {}, onOpenTask = {}) } }
+        rule.onNodeWithText("Nothing coming up").assertDoesNotExist()
+    }
+
+    @Test fun emptyTextShowsOnceLoadedEmpty() {
+        rule.setContent { AppTheme { UpcomingContent(days = emptyList(), onToggleDone = {}, onOpenTask = {}) } }
+        rule.onNodeWithText("Nothing coming up").assertIsDisplayed()
+    }
+
+    @Test fun completingARowRemovesItWithAnUndo() {
+        val id = runBlocking { add("finish me", today.plusDays(1)) }
+        show()
+        rule.onNode(hasContentDescription("Complete task") and hasAnyAncestor(hasTestTag("task-$id")))
+            .performClick()
+        rule.onNodeWithText("finish me").assertDoesNotExist()
+        rule.onNodeWithText("Undo").assertIsDisplayed().performClick()
+        rule.onNodeWithTag("task-$id").assertIsDisplayed()
+    }
+}

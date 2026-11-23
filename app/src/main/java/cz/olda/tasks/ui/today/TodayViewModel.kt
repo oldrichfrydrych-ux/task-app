@@ -34,6 +34,11 @@ data class TodayState(
     val dots: Map<LocalDate, List<String>>,
     /** The Monday of the week that holds [shownDay]. */
     val weekStart: LocalDate,
+    /**
+     * False only for the placeholder state before the database's first emission. Without it an
+     * empty day and a not-yet-loaded one look the same, and "Nothing due today" flashes on start.
+     */
+    val isLoaded: Boolean = true,
 )
 
 /**
@@ -105,6 +110,7 @@ class TodayViewModel(
             sections = DaySections(emptyList(), emptyList(), emptyList(), emptyList()),
             dots = emptyMap(),
             weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)),
+            isLoaded = false,
         )
     }
 }

@@ -21,6 +21,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cz.olda.tasks.R
 import cz.olda.tasks.ui.components.TaskListSection
 import cz.olda.tasks.ui.components.rememberCompletionUndo
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
@@ -37,6 +38,27 @@ fun TodayScreen(
         onComplete = viewModel::complete,
         onUndo = viewModel::undoCompletion,
     )
+    TodayContent(
+        state = state,
+        onToggleDone = complete,
+        onOpenTask = onOpenTask,
+        onPickDay = viewModel::showDay,
+        onBackToToday = viewModel::showToday,
+        modifier = modifier,
+    )
+}
+
+/** The stateless body of [TodayScreen]; shows no empty text until [TodayState.isLoaded]. */
+@Composable
+fun TodayContent(
+    state: TodayState,
+    onToggleDone: (Long) -> Unit,
+    onOpenTask: (Long) -> Unit,
+    onPickDay: (LocalDate) -> Unit,
+    onBackToToday: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val complete = onToggleDone
     val sections = state.sections
 
     Column(
@@ -61,7 +83,7 @@ fun TodayScreen(
             )
             if (!state.isToday) {
                 TextButton(
-                    onClick = { viewModel.showToday() },
+                    onClick = onBackToToday,
                     modifier = Modifier.testTag("back-to-today"),
                 ) { Text(stringResource(R.string.back_to_today)) }
             }
@@ -70,13 +92,13 @@ fun TodayScreen(
             weekStart = state.weekStart,
             shownDay = state.shownDay,
             dots = state.dots,
-            onPickDay = viewModel::showDay,
+            onPickDay = onPickDay,
         )
         TaskListSection(stringResource(R.string.section_overdue), sections.overdue, complete, onOpenTask)
         TaskListSection(null, sections.timed, complete, onOpenTask)
         TaskListSection(stringResource(R.string.section_anytime), sections.anytime, complete, onOpenTask)
         TaskListSection(stringResource(R.string.section_tomorrow), sections.tomorrow, complete, onOpenTask)
-        if (listOf(sections.overdue, sections.timed, sections.anytime, sections.tomorrow).all { it.isEmpty() }) {
+        if (state.isLoaded && listOf(sections.overdue, sections.timed, sections.anytime, sections.tomorrow).all { it.isEmpty() }) {
             Text(
                 text = stringResource(if (state.isToday) R.string.today_empty else R.string.day_empty),
                 style = MaterialTheme.typography.bodyLarge,

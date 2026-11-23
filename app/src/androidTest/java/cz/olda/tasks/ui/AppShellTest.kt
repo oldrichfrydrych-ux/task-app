@@ -17,7 +17,6 @@ import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -40,7 +39,7 @@ class AppShellTest {
         rule.setContent { AppTheme { AppShell() } }
         todayTab().assertIsDisplayed()
         listOf("Upcoming", "Inbox", "Lists").forEach {
-            rule.onNodeWithText(it).assertIsDisplayed()
+            rule.onNode(hasText(it) and hasAnyAncestor(hasTestTag("bottom-bar"))).assertIsDisplayed()
         }
     }
 
@@ -53,7 +52,7 @@ class AppShellTest {
     @Test
     fun tappingInboxShowsInbox() {
         rule.setContent { AppTheme { AppShell() } }
-        rule.onNodeWithText("Inbox").performClick()
+        rule.onNode(hasText("Inbox") and hasAnyAncestor(hasTestTag("bottom-bar"))).performClick()
         rule.onNodeWithTag("screen-Inbox").assertIsDisplayed()
     }
 
@@ -82,9 +81,9 @@ class AppShellTest {
     fun selectedTabSurvivesRecreation() {
         val restore = StateRestorationTester(rule)
         restore.setContent { AppTheme { AppShell() } }
-        rule.onNodeWithText("Inbox").performClick()
+        rule.onNode(hasText("Inbox") and hasAnyAncestor(hasTestTag("bottom-bar"))).performClick()
         restore.emulateSavedInstanceStateRestore()
-        rule.onNodeWithText("Inbox").assertIsSelected()
+        rule.onNode(hasText("Inbox") and hasAnyAncestor(hasTestTag("bottom-bar"))).assertIsSelected()
     }
 
     /** Typing a task and losing it to a process restart would be worse than no sheet. */

@@ -26,6 +26,10 @@
     <string name="day_empty">Nothing planned for this day</string>
     <string name="back_to_today">Back to today</string>
 
+    <!-- Upcoming and Inbox -->
+    <string name="upcoming_empty">Nothing coming up</string>
+    <string name="inbox_empty">Inbox is empty</string>
+
     <!-- Placeholder screens, until Phase 1 fills them in -->
     <string name="list_detail">List</string>
     <string name="task_detail">Task</string>
