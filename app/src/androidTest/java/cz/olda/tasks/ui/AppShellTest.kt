@@ -1,6 +1,13 @@
 package cz.olda.tasks.ui
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.StateRestorationTester
@@ -11,6 +18,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.espresso.Espresso
 import cz.olda.tasks.ui.theme.AppTheme
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -68,5 +76,26 @@ class AppShellTest {
         rule.onNodeWithText("Inbox").performClick()
         restore.emulateSavedInstanceStateRestore()
         rule.onNodeWithText("Inbox").assertIsSelected()
+    }
+
+    /**
+     * The app draws edge to edge, so the floating bar has to keep itself out of the
+     * phone's gesture bar - otherwise the add button sits under it.
+     */
+    @Test
+    fun bottomBarStaysClearOfTheSystemBar() {
+        var systemBar = 0.dp
+        rule.setContent {
+            val density = LocalDensity.current
+            systemBar = with(density) { WindowInsets.navigationBars.getBottom(density).toDp() }
+            AppTheme { AppShell() }
+        }
+        val root = rule.onRoot().getUnclippedBoundsInRoot()
+        val bar = rule.onNodeWithTag("bottom-bar").getUnclippedBoundsInRoot()
+        assertTrue(
+            "the system bar is $systemBar tall, but the floating bar is drawn down to " +
+                "${root.height - bar.bottom} above the bottom edge",
+            bar.bottom <= root.height - systemBar,
+        )
     }
 }
