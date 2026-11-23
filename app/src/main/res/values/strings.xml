@@ -1,3 +1,16 @@
 <resources>
     <string name="app_name">Tasks</string>
+
+    <!-- Bottom bar -->
+    <string name="today">Today</string>
+    <string name="upcoming">Upcoming</string>
+    <string name="inbox">Inbox</string>
+    <string name="lists">Lists</string>
+
+    <!-- Quick add -->
+    <string name="add_task">Add task</string>
+    <string name="quick_add_hint">What needs doing?</string>
+
+    <!-- Placeholder screens, until Phase 1 fills them in -->
+    <string name="placeholder_screen">%1$s · coming soon</string>
 </resources>

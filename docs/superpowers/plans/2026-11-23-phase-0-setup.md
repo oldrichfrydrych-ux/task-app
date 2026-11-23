@@ -37,18 +37,18 @@
 
 **Files:** none.
 
-- [ ] **Step 1: Install Android Studio** from https://developer.android.com/studio and finish the setup wizard (Standard install; it downloads the Android SDK).
+- [x] **Step 1: Install Android Studio** from https://developer.android.com/studio and finish the setup wizard (Standard install; it downloads the Android SDK).
   Check: Android Studio opens to its Welcome screen.
-- [ ] **Step 2: Install Git** (https://git-scm.com).
+- [x] **Step 2: Install Git** (https://git-scm.com).
   Check: `git --version` in a terminal prints a version.
-- [ ] **Step 3: Install Claude Code and sign in**, following the official Claude Code quickstart on docs.claude.com. Confirm your Claude plan includes it.
+- [x] **Step 3: Install Claude Code and sign in**, following the official Claude Code quickstart on docs.claude.com. Confirm your Claude plan includes it.
   Check: `claude` starts in a terminal.
-- [ ] **Step 4: Check the phone's Android version:** Settings → About phone → Android version.
+- [x] **Step 4: Check the phone's Android version:** Settings → About phone → Android version.
   Check: 10 or higher.
-- [ ] **Step 5: Turn on developer mode:** Settings → About phone → tap *Build number* seven times. Then Settings → System → Developer options → turn on *USB debugging*. Menu names vary slightly by phone brand.
-- [ ] **Step 6: Connect the phone by USB** and accept the "Allow USB debugging?" prompt on the phone.
+- [x] **Step 5: Turn on developer mode:** Settings → About phone → tap *Build number* seven times. Then Settings → System → Developer options → turn on *USB debugging*. Menu names vary slightly by phone brand.
+- [x] **Step 6: Connect the phone by USB** and accept the "Allow USB debugging?" prompt on the phone.
   Check: in Android Studio, the phone's name appears in the device drop-down at the top.
-- [ ] **Step 7: Create a private GitHub repository** named `task-app` (no README, no .gitignore; the wizard makes those).
+- [x] **Step 7: Create a private GitHub repository** named `task-app` (no README, no .gitignore; the wizard makes those).
 
 ### Task 2: Create the project and see it on the phone [Olda, then Claude Code]
 
@@ -56,19 +56,19 @@
 - Created by the wizard: `app/src/main/java/cz/olda/tasks/MainActivity.kt`, `app/src/main/java/cz/olda/tasks/ui/theme/{Color,Theme,Type}.kt`, `app/src/test/.../ExampleUnitTest.kt`, `app/src/androidTest/.../ExampleInstrumentedTest.kt`, `gradle/libs.versions.toml`
 - Add from the starter pack: `CLAUDE.md`, `docs/design.md`, `docs/superpowers/plans/2026-11-23-phase-0-setup.md`
 
-- [ ] **Step 1 [Olda]: Run the wizard:** File → New → New Project → *Empty Activity*. Values:
+- [x] **Step 1 [Olda]: Run the wizard:** File → New → New Project → *Empty Activity*. Values:
   - Name: `Tasks`
   - Package name: `cz.olda.tasks`
   - Minimum SDK: `API 29 ("Q"; Android 10.0)`
   - Build configuration language: Kotlin DSL
   Check: the project opens and the first Gradle sync finishes without errors.
-- [ ] **Step 2 [Olda]: Press Run** (green ▶) with the phone selected.
+- [x] **Step 2 [Olda]: Press Run** (green ▶) with the phone selected.
   Check: the phone shows "Hello Android!".
-- [ ] **Step 3 [Olda]: Copy the starter pack** (`CLAUDE.md` and the `docs/` folder) into the project's root folder, next to `settings.gradle.kts`.
-- [ ] **Step 4 [Claude Code]: Run the wizard's tests.**
+- [x] **Step 3 [Olda]: Copy the starter pack** (`CLAUDE.md` and the `docs/` folder) into the project's root folder, next to `settings.gradle.kts`.
+- [x] **Step 4 [Claude Code]: Run the wizard's tests.**
   Run: `./gradlew testDebugUnitTest` then `./gradlew connectedDebugAndroidTest` (phone connected).
   Expected: both end with `BUILD SUCCESSFUL`.
-- [ ] **Step 5 [Claude Code]: First commit and push.**
+- [x] **Step 5 [Claude Code]: First commit and push.**
   ```bash
   git init -b main
   git add .
@@ -99,7 +99,7 @@
   - `AppTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit)`
 - Strings: `today` "Today", `upcoming` "Upcoming", `inbox` "Inbox", `lists` "Lists", `add_task` "Add task", `quick_add_hint` "What needs doing?"
 
-- [ ] **Step 1: Write the failing tests** in `AppShellTest.kt` (`createComposeRule()`, each `setContent { AppTheme { AppShell() } }`):
+- [x] **Step 1: Write the failing tests** in `AppShellTest.kt` (`createComposeRule()`, each `setContent { AppTheme { AppShell() } }`):
   ```kotlin
   @Test fun showsFourTabs() { listOf("Today","Upcoming","Inbox","Lists").forEach { rule.onNodeWithText(it).assertIsDisplayed() } }
   @Test fun todayIsSelectedAtStart() { rule.onNodeWithText("Today").assertIsSelected() }
@@ -115,15 +115,15 @@
   }
   ```
   (`selectedTabSurvivesRecreation` calls `restore.setContent` instead of `rule.setContent`.)
-- [ ] **Step 2: Run the tests and watch them fail.**
+- [x] **Step 2: Run the tests and watch them fail.**
   Run: `./gradlew connectedDebugAndroidTest`
   Expected: compile errors for `AppShell`, `AppTheme`.
-- [ ] **Step 3: Implement** `Destination`, `PlaceholderScreen`, `QuickAddSheet`, `AppShell` and the `AppTheme` rename with the signatures above. Keep the selected tab in `rememberSaveable` (save the enum's `name`). Focus the field with a `FocusRequester` from a `LaunchedEffect(Unit)`. Make `MainActivity` call `enableEdgeToEdge()` and `setContent { AppTheme { AppShell() } }`.
-- [ ] **Step 4: Run the tests and watch them pass.**
+- [x] **Step 3: Implement** `Destination`, `PlaceholderScreen`, `QuickAddSheet`, `AppShell` and the `AppTheme` rename with the signatures above. Keep the selected tab in `rememberSaveable` (save the enum's `name`). Focus the field with a `FocusRequester` from a `LaunchedEffect(Unit)`. Make `MainActivity` call `enableEdgeToEdge()` and `setContent { AppTheme { AppShell() } }`.
+- [x] **Step 4: Run the tests and watch them pass.**
   Run: `./gradlew connectedDebugAndroidTest` and `./gradlew testDebugUnitTest`
   Expected: `BUILD SUCCESSFUL`, 6 new tests pass.
 - [ ] **Step 5 [Olda]: Check by hand on the phone.** Tap each tab; open quick-add (the keyboard should appear immediately); press Back. Then set the phone's font size to the maximum and check that the tab labels are readable and nothing overlaps.
-- [ ] **Step 6: Commit and push.**
+- [x] **Step 6: Commit and push.**
   ```bash
   git add app/
   git commit -m "feat: app shell with four tabs and quick-add sheet"
@@ -138,7 +138,7 @@
 - [x] **Step 1 [Claude chat]: Mock up visual directions** of Today, lists and quick-add, in light and dark. Done 23 Nov (mockups: https://claude.ai/artifact/7KbFvurP9WWc49FXhS2A2j).
 - [x] **Step 2 [Olda]: Pick one direction.** Done 23 Nov: the warm "rail" direction, with List and Day views of Today.
 - [x] **Step 3 [Claude chat]: Write the result into `docs/design.md` → *Look***: colour roles for light and dark, Manrope, corner radius, the 12 list colours. Done 23 Nov.
-- [ ] **Step 4 [Olda]: Commit** the updated `docs/design.md` (it comes in this starter pack).
+- [x] **Step 4 [Olda]: Commit** the updated `docs/design.md` (it comes in this starter pack).
 
 ### Task 5: Apply the chosen theme [Claude Code]
 
@@ -158,7 +158,7 @@
   - `data class ListColor(val name: String, val light: Color, val dark: Color)` and `val ListPalette: List<ListColor>`: the 12 preset list colours from *Look*, in its order (custom hex colours come in Phase 1, see *Colours*)
   - `fun contrastRatio(a: Color, b: Color): Float`: WCAG ratio from `Color.luminance()`, `(lighter + 0.05f) / (darker + 0.05f)`
 
-- [ ] **Step 1: Write the failing unit tests** in `ThemeColorsTest.kt`:
+- [x] **Step 1: Write the failing unit tests** in `ThemeColorsTest.kt`:
   ```kotlin
   @Test fun listPaletteHasTwelveDistinctColours() {
       assertEquals(12, ListPalette.size)
@@ -176,15 +176,15 @@
       assertTrue(contrastRatio(DarkColorScheme.onSurface, DarkColorScheme.surface) >= 4.5f)
   }
   ```
-- [ ] **Step 2: Run them and watch them fail.**
+- [x] **Step 2: Run them and watch them fail.**
   Run: `./gradlew testDebugUnitTest`
   Expected: compile errors for `ListPalette`, `contrastRatio`.
-- [ ] **Step 3: Implement** the colour schemes, Manrope typography, `ListPalette` and `contrastRatio` with the values from *Look*. Remove the dynamic-colour branch from `AppTheme`. Restyle the bottom bar in `AppShell` as the floating pill from *Look* (bottom bar colour, selected tab as a lighter pill with its label, coral add button at the right end). Keep each tab's selected/unselected semantics so Task 3's tests still find and select them.
-- [ ] **Step 4: Run all tests.**
+- [x] **Step 3: Implement** the colour schemes, Manrope typography, `ListPalette` and `contrastRatio` with the values from *Look*. Remove the dynamic-colour branch from `AppTheme`. Restyle the bottom bar in `AppShell` as the floating pill from *Look* (bottom bar colour, selected tab as a lighter pill with its label, coral add button at the right end). Keep each tab's selected/unselected semantics so Task 3's tests still find and select them.
+- [x] **Step 4: Run all tests.**
   Run: `./gradlew testDebugUnitTest` and `./gradlew connectedDebugAndroidTest`
   Expected: `BUILD SUCCESSFUL`; Task 3's tests still pass.
 - [ ] **Step 5 [Olda]: Check by hand on the phone**, in both light and dark mode. Type "Příliš žluťoučký kůň úpěl ďábelské ódy" into quick-add: every letter must render in the app's font, with no fallback boxes or odd-looking glyphs.
-- [ ] **Step 6: Commit and push.**
+- [x] **Step 6: Commit and push.**
   ```bash
   git add app/
   git commit -m "feat: apply chosen look (light and dark)"
