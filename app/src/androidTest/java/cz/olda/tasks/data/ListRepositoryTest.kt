@@ -14,6 +14,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -34,6 +35,7 @@ class ListRepositoryTest {
 
     @After fun close() { db.close() }
 
+    // TODO: switch to TaskDao when Task 3 lands.
     private fun insertTask(listId: Long, headingId: Long? = null): Long {
         db.openHelper.writableDatabase.execSQL(
             "INSERT INTO tasks (title, notes, titleNormalised, notesNormalised, listId, headingId, priority, done, position, updatedAt) " +
@@ -98,12 +100,58 @@ class ListRepositoryTest {
     }
 
     @Test fun newListTakesTheNextPresetColour() = runBlocking {
-        // A blank colour means "pick the next preset".
-        val first = repo.createList("L", "", null)
-        val second = repo.createList("M", "", null)
+        // A null colour means "pick the next preset".
+        val first = repo.createList("L", null, null)
+        val second = repo.createList("M", null, null)
         val lists: List<ListEntity> = repo.observeLists().first()
         assertEquals(ListPalette[1].light.toHex(), lists.single { it.id == first }.colorHex)
         assertEquals(ListPalette[2].light.toHex(), lists.single { it.id == second }.colorHex)
         assertEquals(ListPalette[0].light.toHex(), lists.single { it.isInbox }.colorHex)
+    }
+
+    @Test fun explicitColourIsStoredAsGiven() = runBlocking {
+        val id = repo.createList("L", "#ABCDEF", null)
+        assertEquals("#ABCDEF", repo.observeLists().first().single { it.id == id }.colorHex)
+    }
+
+    @Test fun recolourRejectsBlankColour() = runBlocking {
+        val id = repo.createList("L", "#112233", null)
+        try {
+            repo.recolourList(id, "")
+            fail("expected IllegalArgumentException")
+        } catch (_: IllegalArgumentException) {
+        }
+        assertEquals("#112233", repo.observeLists().first().single { it.id == id }.colorHex)
+    }
+
+    @Test fun deletingAListLeavesSoftDeletedTasksAlone() = runBlocking {
+        val listId = repo.createList("L", null, null)
+        val live = insertTask(listId)
+        val trashed = insertTask(listId)
+        db.openHelper.writableDatabase.execSQL("UPDATE tasks SET deletedAt = 5 WHERE id = $trashed")
+        repo.deleteList(listId)
+        assertEquals(repo.inboxId(), taskRow(live).first)
+        assertEquals(listId, taskRow(trashed).first)
+        assertEquals(5L, taskRow(trashed).third)
+    }
+
+    @Test fun deletingAListRemovesItsHeadings() = runBlocking {
+        val listId = repo.createList("L", null, null)
+        repo.createHeading(listId, "H")
+        repo.deleteList(listId)
+        assertTrue(repo.observeHeadings(listId).first().isEmpty())
+    }
+
+    @Test fun groupsWithListsIncludesEmptyGroupsAndUngroupedEntry() = runBlocking {
+        val full = repo.createGroup("Full")
+        val empty = repo.createGroup("Empty")
+        val inGroup = repo.createList("In", null, full)
+        val loose = repo.createList("Loose", null, null)
+        val result = repo.observeGroupsWithLists().first()
+        assertNull(result[0].group)
+        assertEquals(setOf(repo.inboxId(), loose), result[0].lists.map { it.id }.toSet())
+        assertEquals(listOf(full, empty), result.drop(1).map { it.group!!.id })
+        assertEquals(listOf(inGroup), result[1].lists.map { it.id })
+        assertTrue(result[2].lists.isEmpty())
     }
 }

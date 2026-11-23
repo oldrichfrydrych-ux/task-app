@@ -6,6 +6,7 @@ import cz.olda.tasks.data.dao.ListDao
 import cz.olda.tasks.data.entity.GroupEntity
 import cz.olda.tasks.data.entity.HeadingEntity
 import cz.olda.tasks.data.entity.ListEntity
+import cz.olda.tasks.ui.theme.parseHex
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
@@ -30,13 +31,16 @@ class ListRepository(
 
     suspend fun inboxId(): Long = listDao.inboxId()
 
-    /** A blank [colorHex] takes the next preset colour. */
-    suspend fun createList(name: String, colorHex: String, groupId: Long?): Long =
+    /** A null [colorHex] takes the next preset colour; a non-null one is stored as given. */
+    suspend fun createList(name: String, colorHex: String? = null, groupId: Long? = null): Long =
         listDao.create(name, colorHex, groupId)
 
     suspend fun renameList(id: Long, name: String) = listDao.rename(id, name)
 
-    suspend fun recolourList(id: Long, colorHex: String) = listDao.recolour(id, colorHex)
+    suspend fun recolourList(id: Long, colorHex: String) {
+        require(parseHex(colorHex) != null) { "Not a #RRGGBB colour: $colorHex" }
+        listDao.recolour(id, colorHex)
+    }
 
     /** Moves the list's tasks to Inbox first; the Inbox itself is never deleted. */
     suspend fun deleteList(id: Long) = listDao.deleteAndMoveTasksToInbox(id)

@@ -42,11 +42,11 @@ abstract class ListDao {
     @Query("DELETE FROM lists WHERE id = :id AND isInbox = 0")
     abstract suspend fun deleteRow(id: Long)
 
-    /** A blank [colorHex] takes the next preset, chosen by position. */
+    /** A null [colorHex] takes the next preset, chosen by position; a non-null one is stored as given. */
     @Transaction
-    open suspend fun create(name: String, colorHex: String, groupId: Long?): Long {
+    open suspend fun create(name: String, colorHex: String?, groupId: Long?): Long {
         val position = nextPosition()
-        val colour = colorHex.ifBlank { ListPalette[position % ListPalette.size].light.toHex() }
+        val colour = colorHex ?: ListPalette[position % ListPalette.size].light.toHex()
         return insert(ListEntity(name = name, colorHex = colour, groupId = groupId, position = position))
     }
 
