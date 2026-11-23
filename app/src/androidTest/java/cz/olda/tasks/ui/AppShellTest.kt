@@ -10,6 +10,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -29,10 +32,14 @@ class AppShellTest {
     @get:Rule
     val rule = createComposeRule()
 
+    /** The tab, not the Today screen header that carries the same word. */
+    private fun todayTab() = rule.onNode(hasText("Today") and hasAnyAncestor(hasTestTag("bottom-bar")))
+
     @Test
     fun showsFourTabs() {
         rule.setContent { AppTheme { AppShell() } }
-        listOf("Today", "Upcoming", "Inbox", "Lists").forEach {
+        todayTab().assertIsDisplayed()
+        listOf("Upcoming", "Inbox", "Lists").forEach {
             rule.onNodeWithText(it).assertIsDisplayed()
         }
     }
@@ -40,7 +47,7 @@ class AppShellTest {
     @Test
     fun todayIsSelectedAtStart() {
         rule.setContent { AppTheme { AppShell() } }
-        rule.onNodeWithText("Today").assertIsSelected()
+        todayTab().assertIsSelected()
     }
 
     @Test
@@ -68,7 +75,7 @@ class AppShellTest {
         Espresso.pressBack()
         rule.onNodeWithTag("quick-add-field").assertDoesNotExist()
         // The app itself stays open, with the shell where it was.
-        rule.onNodeWithText("Today").assertIsSelected()
+        todayTab().assertIsSelected()
     }
 
     @Test

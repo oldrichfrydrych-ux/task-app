@@ -9,7 +9,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import cz.olda.tasks.R
+import androidx.lifecycle.viewmodel.compose.viewModel
+import cz.olda.tasks.ui.AppViewModelProvider
 import cz.olda.tasks.ui.Destination
+import cz.olda.tasks.ui.today.TodayScreen
 import cz.olda.tasks.ui.screens.PlaceholderScreen
 
 object Routes {
@@ -31,7 +34,13 @@ fun AppNavHost(
     modifier: Modifier = Modifier,
 ) {
     NavHost(navController = navController, startDestination = Destination.Today.route, modifier = modifier) {
-        Destination.entries.forEach { destination ->
+        composable(Destination.Today.route) {
+            TodayScreen(
+                viewModel = viewModel(factory = AppViewModelProvider.Factory),
+                onOpenTask = { navController.navigate(Routes.task(it)) },
+            )
+        }
+        Destination.entries.filter { it != Destination.Today }.forEach { destination ->
             composable(destination.route) { PlaceholderScreen(destination) }
         }
         composable(

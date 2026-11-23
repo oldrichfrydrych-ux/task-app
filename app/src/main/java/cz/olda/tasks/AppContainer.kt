@@ -21,7 +21,10 @@ class AppContainer(context: Context, dbName: String = "tasks.db") {
         ListRepository(database.listDao(), database.groupDao(), database.headingDao())
     }
 
+    /** One clock for everything that reads "today", so the repository and the ViewModels agree. */
+    val clock: Clock = Clock.systemDefaultZone()
+
     val taskRepository: TaskRepository by lazy {
-        TaskRepository(database.taskDao(), Clock.systemDefaultZone())
+        TaskRepository(database.taskDao(), clock)
     }
 }

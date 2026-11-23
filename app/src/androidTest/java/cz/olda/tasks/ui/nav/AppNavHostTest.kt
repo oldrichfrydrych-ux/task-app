@@ -2,11 +2,18 @@ package cz.olda.tasks.ui.nav
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import cz.olda.tasks.ui.LocalSnackbarHostState
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.test.espresso.Espresso
@@ -20,6 +27,9 @@ class AppNavHostTest {
 
     @get:Rule
     val rule = createComposeRule()
+
+    /** The tab, not the Today screen header that carries the same word. */
+    private fun todayTab() = rule.onNode(hasText("Today") and hasAnyAncestor(hasTestTag("bottom-bar")))
 
     @Test
     fun opensOnToday() {
@@ -38,11 +48,11 @@ class AppNavHostTest {
     fun tabsDoNotPileUpOnTheBackStack() {
         rule.setContent { AppTheme { AppShell() } }
         rule.onNodeWithText("Lists").performClick()
-        rule.onNodeWithText("Today").performClick()
+        todayTab().performClick()
         rule.onNodeWithText("Lists").performClick()
         Espresso.pressBack()
         rule.onNodeWithTag("screen-Today").assertIsDisplayed()
-        rule.onNodeWithText("Today").assertIsSelected()
+        todayTab().assertIsSelected()
     }
 
     /** The start destination used to follow the restored tab, which broke popping afterwards. */
@@ -52,11 +62,11 @@ class AppNavHostTest {
         restore.setContent { AppTheme { AppShell() } }
         rule.onNodeWithText("Lists").performClick()
         restore.emulateSavedInstanceStateRestore()
-        rule.onNodeWithText("Today").performClick()
+        todayTab().performClick()
         rule.onNodeWithText("Inbox").performClick()
         Espresso.pressBack()
         rule.onNodeWithTag("screen-Today").assertIsDisplayed()
-        rule.onNodeWithText("Today").assertIsSelected()
+        todayTab().assertIsSelected()
     }
 
     @Test
@@ -65,7 +75,9 @@ class AppNavHostTest {
         rule.setContent {
             AppTheme {
                 navController = rememberNavController()
-                AppNavHost(navController)
+                CompositionLocalProvider(LocalSnackbarHostState provides remember { SnackbarHostState() }) {
+                    AppNavHost(navController)
+                }
             }
         }
         rule.runOnUiThread {

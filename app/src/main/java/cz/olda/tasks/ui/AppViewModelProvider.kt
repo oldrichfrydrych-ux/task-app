@@ -8,6 +8,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import cz.olda.tasks.AppContainer
 import cz.olda.tasks.TasksApplication
+import cz.olda.tasks.ui.today.TodayViewModel
 
 /**
  * Builds every ViewModel. A new one is two lines inside [Factory]:
@@ -15,6 +16,7 @@ import cz.olda.tasks.TasksApplication
  */
 object AppViewModelProvider {
     val Factory: ViewModelProvider.Factory = viewModelFactory {
+        initializer { TodayViewModel(container().taskRepository, container().clock) }
     }
 }
 

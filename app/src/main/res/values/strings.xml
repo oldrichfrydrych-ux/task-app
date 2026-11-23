@@ -17,6 +17,10 @@
     <string name="section_overdue">Overdue</string>
     <string name="section_tomorrow">Tomorrow</string>
 
+    <!-- Completion with undo -->
+    <string name="task_completed">Task completed</string>
+    <string name="undo">Undo</string>
+
     <!-- Placeholder screens, until Phase 1 fills them in -->
     <string name="list_detail">List</string>
     <string name="task_detail">Task</string>
