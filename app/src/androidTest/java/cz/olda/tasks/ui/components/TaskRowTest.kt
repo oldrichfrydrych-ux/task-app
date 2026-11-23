@@ -115,17 +115,23 @@ class TaskRowTest {
 
     private fun tag(t: String) = rule.onNodeWithTag(t, useUnmergedTree = true)
 
-    private fun assertSurvivesLargestFont(title: String, singleWord: Boolean) {
+    private fun assertSurvivesLargestFont(
+        title: String,
+        singleWord: Boolean,
+        widthDp: Int = 360,
+        bigScale: Float = 2f,
+        listName: String = sample.listName,
+    ) {
         val scale = mutableStateOf(1f)
-        val phone = sample.copy(task = sample.task.copy(title = title))
+        val phone = sample.copy(task = sample.task.copy(title = title), listName = listName)
         rule.setContent {
             CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, fontScale = scale.value)) {
-                AppTheme { TaskRow(phone, {}, {}, modifier = Modifier.width(360.dp)) }
+                AppTheme { TaskRow(phone, {}, {}, modifier = Modifier.width(widthDp.dp)) }
             }
         }
         val normalHeight = rule.onNodeWithTag("task-7").getBoundsInRoot().height
 
-        scale.value = 2f
+        scale.value = bigScale
         rule.waitForIdle()
         val rowBounds = rule.onNodeWithTag("task-7").getBoundsInRoot()
         val bigHeight = rowBounds.height
@@ -150,7 +156,7 @@ class TaskRowTest {
         assertTrue("title outside row", inside(tb, rowBounds))
         assertTrue("time outside row", inside(mb, rowBounds))
         assertTrue("list name outside row", inside(lb, rowBounds))
-        assertTrue("row must grow: $normalHeight -> $bigHeight", bigHeight > normalHeight)
+        if (bigScale > 1f) assertTrue("row must grow: $normalHeight -> $bigHeight", bigHeight > normalHeight)
     }
 
     @Test
@@ -160,6 +166,16 @@ class TaskRowTest {
     @Test
     fun rowSurvivesTheLargestFontSizeWithALongCzechWord() =
         assertSurvivesLargestFont("zkontrolovat", singleWord = true)
+
+    @Test
+    fun longCzechWordSurvivesAMidFontScaleWithALongListName() = assertSurvivesLargestFont(
+        "zkontrolovat", singleWord = true, bigScale = 1.4f, listName = "Household chores",
+    )
+
+    @Test
+    fun longCzechWordSurvivesANarrowScreenAtNormalFontScale() = assertSurvivesLargestFont(
+        "zkontrolovat", singleWord = true, widthDp = 320, bigScale = 1f, listName = "Household chores",
+    )
 
     private fun inside(inner: DpRect, outer: DpRect) =
         inner.left >= outer.left && inner.right <= outer.right &&
