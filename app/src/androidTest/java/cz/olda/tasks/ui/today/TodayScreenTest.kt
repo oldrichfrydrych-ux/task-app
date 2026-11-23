@@ -153,4 +153,29 @@ class TodayScreenTest {
         rule.onNodeWithTag("task-$parent").assertIsDisplayed()
         rule.onNodeWithTag("task-$child").assertIsDisplayed()
     }
+
+    @Test fun anEmptyDayHasAnEmptyStateWithWordingForTodayAndForOtherDays() {
+        show()
+        rule.onNodeWithText("Nothing due today").assertIsDisplayed()
+        rule.onNodeWithTag("day-2026-11-25").performClick()
+        rule.onNodeWithText("Nothing planned for this day").assertIsDisplayed()
+        rule.onNodeWithText("Nothing due today").assertDoesNotExist()
+    }
+
+    @Test fun aDayWithTasksHasNoEmptyState() {
+        runBlocking { add("something", today) }
+        show()
+        rule.onNodeWithText("something").assertIsDisplayed()
+        rule.onNodeWithTag("today-empty").assertDoesNotExist()
+    }
+
+    @Test fun backToTodayOnlyShowsOnOtherDaysAndReturns() {
+        show()
+        rule.onNodeWithTag("back-to-today").assertDoesNotExist()
+        rule.onNodeWithTag("day-2026-11-25").performClick()
+        rule.onNodeWithTag("day-2026-11-25").assertIsSelected()
+        rule.onNodeWithTag("back-to-today").performClick()
+        rule.onNodeWithTag("day-2026-11-23").assertIsSelected()
+        rule.onNodeWithTag("back-to-today").assertDoesNotExist()
+    }
 }

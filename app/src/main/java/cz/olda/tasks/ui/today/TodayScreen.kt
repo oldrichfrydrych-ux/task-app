@@ -2,6 +2,9 @@ package cz.olda.tasks.ui.today
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -31,7 +34,7 @@ fun TodayScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val complete = rememberCompletionUndo(
-        onComplete = viewModel::toggleDone,
+        onComplete = viewModel::complete,
         onUndo = viewModel::undoCompletion,
     )
     val sections = state.sections
@@ -44,17 +47,25 @@ fun TodayScreen(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(
-            text = if (state.isToday) {
-                stringResource(R.string.today)
-            } else {
-                state.shownDay.format(
-                    DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(Locale.getDefault()),
-                )
-            },
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.testTag("today-header"),
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = if (state.isToday) {
+                    stringResource(R.string.today)
+                } else {
+                    state.shownDay.format(
+                        DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(Locale.getDefault()),
+                    )
+                },
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.weight(1f).testTag("today-header"),
+            )
+            if (!state.isToday) {
+                TextButton(
+                    onClick = { viewModel.showToday() },
+                    modifier = Modifier.testTag("back-to-today"),
+                ) { Text(stringResource(R.string.back_to_today)) }
+            }
+        }
         WeekStrip(
             weekStart = state.weekStart,
             shownDay = state.shownDay,
@@ -65,5 +76,13 @@ fun TodayScreen(
         TaskListSection(null, sections.timed, complete, onOpenTask)
         TaskListSection(stringResource(R.string.section_anytime), sections.anytime, complete, onOpenTask)
         TaskListSection(stringResource(R.string.section_tomorrow), sections.tomorrow, complete, onOpenTask)
+        if (listOf(sections.overdue, sections.timed, sections.anytime, sections.tomorrow).all { it.isEmpty() }) {
+            Text(
+                text = stringResource(if (state.isToday) R.string.today_empty else R.string.day_empty),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("today-empty"),
+            )
+        }
     }
 }

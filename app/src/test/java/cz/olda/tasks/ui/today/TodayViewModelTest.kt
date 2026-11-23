@@ -142,17 +142,31 @@ class TodayViewModelTest {
         assertEquals(tomorrow.toEpochDay() to tomorrow.toEpochDay(), dao.dayQueries.last())
     }
 
-    @Test fun aPickedDayStaysPickedAcrossMidnight() = runTest {
-        val clock = MutableClock(startOfDay("2026-11-23T23:59"), zone)
+    /** Sunday into Monday: the pick falls in a week that no longer holds today. */
+    @Test fun aPickedDayDoesNotStrandTheUserAcrossAWeekBoundary() = runTest {
+        val clock = MutableClock(startOfDay("2026-11-29T23:59"), zone) // Sunday
         val vm = viewModel(clock)
-        vm.showDay(today.plusDays(3))
+        vm.showDay(LocalDate.parse("2026-11-27"))
         runCurrent()
+        assertEquals(LocalDate.parse("2026-11-27"), vm.state.value.shownDay)
+        assertFalse(vm.state.value.isToday)
 
         clock.advanceBy(Duration.ofMinutes(2))
         advanceTimeBy(Duration.ofMinutes(2).toMillis())
         runCurrent()
 
-        assertEquals(today.plusDays(3), vm.state.value.shownDay)
-        assertFalse(vm.state.value.isToday)
+        val monday = LocalDate.parse("2026-11-30")
+        assertEquals(monday, vm.state.value.shownDay)
+        assertTrue(vm.state.value.isToday)
+        assertEquals(monday, vm.state.value.weekStart)
+    }
+
+    @Test fun pickingTodayFollowsTheCalendarAgain() = runTest {
+        val clock = MutableClock(startOfDay("2026-11-23T23:59"), zone)
+        val vm = viewModel(clock)
+        vm.showDay(today.plusDays(1))
+        vm.showDay(today)
+        runCurrent()
+        assertTrue(vm.state.value.isToday)
     }
 }

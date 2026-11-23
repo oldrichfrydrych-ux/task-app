@@ -79,6 +79,7 @@ fun WeekStrip(
                     dots[date].orEmpty().take(MaxDots).forEach { hex ->
                         Box(
                             modifier = Modifier
+                                .testTag("dot-$date")
                                 .size(6.dp)
                                 .clip(CircleShape)
                                 .background(parseHex(hex) ?: content),

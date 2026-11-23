@@ -23,6 +23,8 @@ import java.time.LocalDate
 import java.time.ZonedDateTime
 import java.time.temporal.TemporalAdjusters
 
+private data class Pick(val day: LocalDate, val madeOn: LocalDate)
+
 /** What the Today screen shows: one day, the week around it and the dots on that week. */
 data class TodayState(
     val shownDay: LocalDate,
@@ -44,12 +46,16 @@ class TodayViewModel(
     private val clock: Clock,
 ) : ViewModel() {
 
-    /** Null follows today; a date is the day the user picked. */
-    private val picked = MutableStateFlow<LocalDate?>(null)
+    /**
+     * Null follows today. A pick remembers the date it was made on and only counts while that is
+     * still today, so crossing midnight returns to today instead of stranding the user on a day
+     * whose week may no longer hold today.
+     */
+    private val picked = MutableStateFlow<Pick?>(null)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val state: StateFlow<TodayState> = combine(todayTicker(), picked) { today, pick ->
-        today to (pick ?: today)
+        today to (pick?.takeIf { it.madeOn == today }?.day ?: today)
     }
         .flatMapLatest { (today, shown) ->
             val weekStart = shown.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
@@ -64,15 +70,19 @@ class TodayViewModel(
 
     /** Picking today itself goes back to following the calendar. */
     fun showDay(date: LocalDate) {
-        picked.value = if (date == LocalDate.now(clock)) null else date
+        val today = LocalDate.now(clock)
+        picked.value = if (date == today) null else Pick(date, madeOn = today)
     }
 
-    /** Every row on Today is open, so toggling a row completes it. Screens go through rememberCompletionUndo. */
-    fun toggleDone(id: Long) {
+    /** The way back from any picked day. */
+    fun showToday() = showDay(LocalDate.now(clock))
+
+    /** Completes the task. Screens call it through rememberCompletionUndo, never directly. */
+    fun complete(id: Long) {
         viewModelScope.launch { repository.setDone(id, true) }
     }
 
-    /** Reverses [toggleDone], subtasks included. */
+    /** Reverses [complete], subtasks included. */
     fun undoCompletion(id: Long) {
         viewModelScope.launch { repository.undoCompletion(id) }
     }
