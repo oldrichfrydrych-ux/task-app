@@ -13,6 +13,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -59,7 +60,24 @@ class InboxScreenTest {
 
     @After fun close() { db.close() }
 
+    /** Shows the screen and waits for its first load, so every later assertion sees real data. */
     private fun show() {
+        setScreen()
+        rule.waitUntil(timeoutMillis = 10_000) {
+            rule.onAllNodes(hasTestTag("inbox-empty")).fetchSemanticsNodes().isNotEmpty() ||
+                rule.onAllNodes(hasContentDescription("Complete task")).fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    private fun awaitGone(text: String) = rule.waitUntil(timeoutMillis = 10_000) {
+        rule.onAllNodes(hasText(text)).fetchSemanticsNodes().isEmpty()
+    }
+
+    private fun awaitShown(tag: String) = rule.waitUntil(timeoutMillis = 10_000) {
+        rule.onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isNotEmpty()
+    }
+
+    private fun setScreen() {
         val viewModel = InboxViewModel(repo, lists)
         rule.setContent {
             AppTheme {
@@ -84,6 +102,10 @@ class InboxScreenTest {
         show()
         rule.onNodeWithText("in the inbox").assertIsDisplayed()
         rule.onNodeWithText("elsewhere").assertDoesNotExist()
+    }
+
+    @Test fun stateIsNullBeforeTheFirstEmission() {
+        org.junit.Assert.assertNull(InboxViewModel(repo, lists).state.value)
     }
 
     @Test fun emptyInboxSaysSo() {
@@ -113,8 +135,10 @@ class InboxScreenTest {
         show()
         rule.onNode(hasContentDescription("Complete task") and hasAnyAncestor(hasTestTag("task-$id")))
             .performClick()
+        awaitGone("finish me")
         rule.onNodeWithText("finish me").assertDoesNotExist()
         rule.onNodeWithText("Undo").assertIsDisplayed().performClick()
+        awaitShown("task-$id")
         rule.onNodeWithTag("task-$id").assertIsDisplayed()
     }
 }

@@ -58,7 +58,6 @@ fun TodayContent(
     onBackToToday: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val complete = onToggleDone
     val sections = state.sections
 
     Column(
@@ -94,10 +93,10 @@ fun TodayContent(
             dots = state.dots,
             onPickDay = onPickDay,
         )
-        TaskListSection(stringResource(R.string.section_overdue), sections.overdue, complete, onOpenTask)
-        TaskListSection(null, sections.timed, complete, onOpenTask)
-        TaskListSection(stringResource(R.string.section_anytime), sections.anytime, complete, onOpenTask)
-        TaskListSection(stringResource(R.string.section_tomorrow), sections.tomorrow, complete, onOpenTask)
+        TaskListSection(stringResource(R.string.section_overdue), sections.overdue, onToggleDone, onOpenTask)
+        TaskListSection(null, sections.timed, onToggleDone, onOpenTask)
+        TaskListSection(stringResource(R.string.section_anytime), sections.anytime, onToggleDone, onOpenTask)
+        TaskListSection(stringResource(R.string.section_tomorrow), sections.tomorrow, onToggleDone, onOpenTask)
         if (state.isLoaded && listOf(sections.overdue, sections.timed, sections.anytime, sections.tomorrow).all { it.isEmpty() }) {
             Text(
                 text = stringResource(if (state.isToday) R.string.today_empty else R.string.day_empty),

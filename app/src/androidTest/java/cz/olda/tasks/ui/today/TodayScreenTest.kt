@@ -84,7 +84,7 @@ class TodayScreenTest {
     private fun top(tag: String) = rule.onNodeWithTag(tag).getUnclippedBoundsInRoot().top
 
     /** The shown day comes back from the database asynchronously, so wait for it instead of racing it. */
-    private fun awaitSelected(tag: String) = rule.waitUntil {
+    private fun awaitSelected(tag: String) = rule.waitUntil(timeoutMillis = 10_000) {
         rule.onAllNodes(hasTestTag(tag) and isSelected()).fetchSemanticsNodes().isNotEmpty()
     }
 

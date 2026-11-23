@@ -43,7 +43,7 @@ private class MutableClock(private var instant: Instant, private val zone: ZoneI
 }
 
 /** Serves only the day queries; every day query is keyed by the epoch day it is asked about. */
-private class FakeTaskDao(private val overdue: List<TaskWithList>) : TaskDao() {
+internal class FakeTaskDao(private val overdue: List<TaskWithList>) : TaskDao() {
     val dayQueries = mutableListOf<Pair<Long, Long>>()
 
     override fun observeOverdue(epochDay: Long): Flow<List<TaskWithList>> = flowOf(overdue)
@@ -54,7 +54,7 @@ private class FakeTaskDao(private val overdue: List<TaskWithList>) : TaskDao() {
 
     override fun observeDots(fromDay: Long, toDay: Long): Flow<List<DayDot>> = flowOf(emptyList())
 
-    override fun observeDueAfter(epochDay: Long): Flow<List<TaskWithList>> = TODO()
+    override fun observeDueAfter(epochDay: Long): Flow<List<TaskWithList>> = flowOf(emptyList())
     override fun observeInList(listId: Long): Flow<List<TaskWithList>> = TODO()
     override fun observeSubtasks(parentId: Long): Flow<List<TaskEntity>> = TODO()
     override fun observeTask(id: Long): Flow<TaskEntity?> = TODO()

@@ -10,10 +10,12 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -35,6 +37,9 @@ import org.junit.Test
 import java.time.Clock
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.util.Locale
 
 class UpcomingScreenTest {
     @get:Rule
@@ -61,7 +66,24 @@ class UpcomingScreenTest {
 
     private suspend fun add(title: String, due: LocalDate?) = repo.add(title, inbox, due, null, 4)
 
+    /** Shows the screen and waits for its first load, so every later assertion sees real data. */
     private fun show() {
+        setScreen()
+        rule.waitUntil(timeoutMillis = 10_000) {
+            rule.onAllNodes(hasTestTag("upcoming-empty")).fetchSemanticsNodes().isNotEmpty() ||
+                rule.onAllNodes(hasContentDescription("Complete task")).fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    private fun awaitGone(text: String) = rule.waitUntil(timeoutMillis = 10_000) {
+        rule.onAllNodes(hasText(text)).fetchSemanticsNodes().isEmpty()
+    }
+
+    private fun awaitShown(tag: String) = rule.waitUntil(timeoutMillis = 10_000) {
+        rule.onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isNotEmpty()
+    }
+
+    private fun setScreen() {
         val viewModel = UpcomingViewModel(repo)
         rule.setContent {
             AppTheme {
@@ -92,6 +114,9 @@ class UpcomingScreenTest {
         val firstHeader = "upcoming-day-${today.plusDays(1)}"
         val secondHeader = "upcoming-day-${today.plusDays(2)}"
         rule.onNodeWithTag(firstHeader).assertIsDisplayed()
+        rule.onNodeWithTag(firstHeader).assertTextEquals(
+            today.plusDays(1).format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(Locale.getDefault())),
+        )
         rule.onNodeWithTag(secondHeader).assertIsDisplayed()
         assertTrue(top(firstHeader) < top("task-$firstA"))
         assertTrue(top("task-$firstB") < top(secondHeader))
@@ -137,8 +162,10 @@ class UpcomingScreenTest {
         show()
         rule.onNode(hasContentDescription("Complete task") and hasAnyAncestor(hasTestTag("task-$id")))
             .performClick()
+        awaitGone("finish me")
         rule.onNodeWithText("finish me").assertDoesNotExist()
         rule.onNodeWithText("Undo").assertIsDisplayed().performClick()
+        awaitShown("task-$id")
         rule.onNodeWithTag("task-$id").assertIsDisplayed()
     }
 }
