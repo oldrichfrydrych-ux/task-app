@@ -27,7 +27,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.compositionLocalOf
@@ -71,15 +70,14 @@ fun AppShell(modifier: Modifier = Modifier) {
     // Saved by name, so the tab survives process death and not just rotation.
     var selectedName by rememberSaveable { mutableStateOf(Destination.Today.name) }
     var quickAddOpen by rememberSaveable { mutableStateOf(false) }
-    val selected = Destination.ofName(selectedName)
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Back can leave a tab for the one before it, so the bar follows the graph.
+    // The graph decides which tab is current, so Back and taps cannot disagree; the saved
+    // name covers detail screens, which belong to no tab.
     val route = navController.currentBackStackEntryAsState().value?.destination?.route
-    LaunchedEffect(route) {
-        Destination.entries.firstOrNull { it.route == route }?.let { selectedName = it.name }
-    }
+    val selected = Destination.entries.firstOrNull { it.route == route }
+        ?: Destination.ofName(selectedName)
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -103,7 +101,7 @@ fun AppShell(modifier: Modifier = Modifier) {
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
             CompositionLocalProvider(LocalSnackbarHostState provides snackbarHostState) {
-                AppNavHost(navController = navController, selected = selected)
+                AppNavHost(navController = navController)
             }
         }
     }

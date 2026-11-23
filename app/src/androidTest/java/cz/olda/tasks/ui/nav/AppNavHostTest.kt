@@ -1,6 +1,8 @@
 package cz.olda.tasks.ui.nav
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -33,12 +35,37 @@ class AppNavHostTest {
     }
 
     @Test
+    fun tabsDoNotPileUpOnTheBackStack() {
+        rule.setContent { AppTheme { AppShell() } }
+        rule.onNodeWithText("Lists").performClick()
+        rule.onNodeWithText("Today").performClick()
+        rule.onNodeWithText("Lists").performClick()
+        Espresso.pressBack()
+        rule.onNodeWithTag("screen-Today").assertIsDisplayed()
+        rule.onNodeWithText("Today").assertIsSelected()
+    }
+
+    /** The start destination used to follow the restored tab, which broke popping afterwards. */
+    @Test
+    fun tabsDoNotPileUpAfterRecreation() {
+        val restore = StateRestorationTester(rule)
+        restore.setContent { AppTheme { AppShell() } }
+        rule.onNodeWithText("Lists").performClick()
+        restore.emulateSavedInstanceStateRestore()
+        rule.onNodeWithText("Today").performClick()
+        rule.onNodeWithText("Inbox").performClick()
+        Espresso.pressBack()
+        rule.onNodeWithTag("screen-Today").assertIsDisplayed()
+        rule.onNodeWithText("Today").assertIsSelected()
+    }
+
+    @Test
     fun backFromADetailReturnsToItsTab() {
         lateinit var navController: NavHostController
         rule.setContent {
             AppTheme {
                 navController = rememberNavController()
-                AppNavHost(navController, selected = Destination.Today)
+                AppNavHost(navController)
             }
         }
         rule.runOnUiThread {

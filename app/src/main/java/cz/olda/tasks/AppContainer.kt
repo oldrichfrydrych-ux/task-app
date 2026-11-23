@@ -8,11 +8,11 @@ import cz.olda.tasks.data.TaskRepository
 import java.time.Clock
 
 /** Hand-wired dependencies, one instance for the life of the process. */
-class AppContainer(context: Context) {
+class AppContainer(context: Context, dbName: String = "tasks.db") {
     private val appContext = context.applicationContext
 
     val database: AppDatabase by lazy {
-        Room.databaseBuilder(appContext, AppDatabase::class.java, "tasks.db")
+        Room.databaseBuilder(appContext, AppDatabase::class.java, dbName)
             .addCallback(AppDatabase.seedInbox(appContext.getString(R.string.inbox)))
             .build()
     }

@@ -1,7 +1,6 @@
 package cz.olda.tasks.ui.nav
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavHostController
@@ -23,18 +22,15 @@ object Routes {
 }
 
 /**
- * The four top-level routes plus list, task and search. [selected] is the tab the
- * graph starts on; later changes go through the [navController].
+ * The four top-level routes plus list, task and search. The graph always starts on
+ * Today: a start that followed the restored tab would break popping to the start.
  */
 @Composable
 fun AppNavHost(
     navController: NavHostController,
-    selected: Destination,
     modifier: Modifier = Modifier,
 ) {
-    // The start destination is part of the graph's identity, so fix it at first use.
-    val start = remember { selected.route }
-    NavHost(navController = navController, startDestination = start, modifier = modifier) {
+    NavHost(navController = navController, startDestination = Destination.Today.route, modifier = modifier) {
         Destination.entries.forEach { destination ->
             composable(destination.route) { PlaceholderScreen(destination) }
         }
