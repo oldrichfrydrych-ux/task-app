@@ -120,11 +120,15 @@ abstract class TaskDao {
     @Query("UPDATE tasks SET deletedAt = NULL, updatedAt = :now WHERE (id = :id OR parentTaskId = :id) AND deletedAt = :stamp")
     abstract suspend fun clearDeleted(id: Long, stamp: Long, now: Long)
 
-    /** Deleting a parent deletes its live subtasks with the same timestamp. */
+    /**
+     * Deleting a parent deletes its live subtasks with the same timestamp. That shared stamp is the only
+     * link [restore] has: a subtask deleted on its own in the same millisecond as its parent would be
+     * revived with it. A real clock makes that effectively impossible; Phase 4 revisits it for sync.
+     */
     @Transaction
     open suspend fun softDelete(id: Long, now: Long) = stampDeleted(id, now)
 
-    /** Undoes [softDelete]: the task and the subtasks that went with it come back. */
+    /** Undoes [softDelete]: clears the task and every subtask carrying the same stamp (see [softDelete]). */
     @Transaction
     open suspend fun restore(id: Long, now: Long) {
         val stamp = deletedAtOf(id) ?: return
