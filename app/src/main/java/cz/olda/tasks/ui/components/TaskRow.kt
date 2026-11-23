@@ -2,7 +2,12 @@ package cz.olda.tasks.ui.components
 
 import android.text.format.DateFormat
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -48,6 +53,51 @@ fun TaskRow(
     val completeLabel = stringResource(R.string.complete_task)
     val timeText = task.dueMinute?.let { formatMinuteOfDay(it) }
 
+    // Above this font scale a single rail cannot fit time, title and list name side by side on
+    // a phone, so time and list name drop to a second line under the title.
+    val stacked = LocalDensity.current.fontScale >= 1.5f
+
+    val checkbox: @Composable () -> Unit = {
+        Checkbox(
+            checked = task.done,
+            onCheckedChange = { onToggleDone() },
+            modifier = Modifier.semantics { contentDescription = completeLabel },
+        )
+    }
+    val time: @Composable () -> Unit = {
+        if (timeText != null) {
+            Text(
+                text = timeText,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier.testTag("task-time-${task.id}"),
+            )
+        }
+    }
+    val title: @Composable (Modifier) -> Unit = { m ->
+        Text(
+            text = task.title,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            textDecoration = if (task.done) TextDecoration.LineThrough else null,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = m.padding(vertical = 8.dp).testTag("task-title-${task.id}"),
+        )
+    }
+    val listName: @Composable (Modifier) -> Unit = { m ->
+        Text(
+            text = item.listName,
+            style = MaterialTheme.typography.labelMedium,
+            color = listColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = m.testTag("task-list-${task.id}"),
+        )
+    }
+
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surface,
@@ -60,36 +110,28 @@ fun TaskRow(
                 .heightIn(min = 48.dp)
                 .padding(start = 4.dp, end = 12.dp),
         ) {
-            Checkbox(
-                checked = task.done,
-                onCheckedChange = { onToggleDone() },
-                modifier = Modifier.semantics { contentDescription = completeLabel },
-            )
-            if (timeText != null) {
-                Text(
-                    text = timeText,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(end = 10.dp).testTag("task-time-${task.id}"),
-                )
+            checkbox()
+            if (stacked) {
+                Column(modifier = Modifier.weight(1f)) {
+                    title(Modifier)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    ) {
+                        time()
+                        listName(Modifier.weight(1f, fill = false))
+                    }
+                }
+            } else {
+                if (timeText != null) {
+                    time()
+                    Spacer(Modifier.width(10.dp))
+                }
+                title(Modifier.weight(1f))
+                Spacer(Modifier.width(10.dp))
+                listName(Modifier.widthIn(max = 120.dp))
             }
-            Text(
-                text = task.title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                textDecoration = if (task.done) TextDecoration.LineThrough else null,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f).padding(vertical = 8.dp).testTag("task-title-${task.id}"),
-            )
-            Text(
-                text = item.listName,
-                style = MaterialTheme.typography.labelMedium,
-                color = listColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = 10.dp).widthIn(max = 120.dp).testTag("task-list-${task.id}"),
-            )
         }
     }
 }

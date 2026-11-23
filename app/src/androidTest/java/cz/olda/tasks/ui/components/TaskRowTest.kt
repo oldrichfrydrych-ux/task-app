@@ -1,40 +1,40 @@
 package cz.olda.tasks.ui.components
 
 import android.text.format.DateFormat
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
+import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onChildren
-import androidx.compose.ui.test.onParent
-import androidx.compose.ui.text.TextLayoutResult
-import androidx.compose.ui.unit.DpRect
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.height
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onParent
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.DpRect
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.height
 import androidx.test.platform.app.InstrumentationRegistry
 import cz.olda.tasks.data.TaskWithList
 import cz.olda.tasks.data.entity.TaskEntity
 import cz.olda.tasks.ui.theme.AppTheme
+import java.util.Calendar
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
-import java.util.Calendar
 
 class TaskRowTest {
 
@@ -115,39 +115,27 @@ class TaskRowTest {
 
     private fun tag(t: String) = rule.onNodeWithTag(t, useUnmergedTree = true)
 
-    private fun report(scale: Float, rowHeight: Float) {
-        val t = tag("task-title-7").textLayout()
-        val tm = tag("task-time-7").textLayout()
-        val l = tag("task-list-7").textLayout()
-        android.util.Log.e(
-            "TaskRowTest",
-            "fontScale=$scale rowHeightPx=$rowHeight title(lines=${t.lineCount},clipped=${clipped(t)}) " +
-                "time(lines=${tm.lineCount},clipped=${clipped(tm, true)}) list(lines=${l.lineCount},clipped=${clipped(l, true)})",
-        )
-    }
-
-    @Test
-    fun rowSurvivesTheLargestFontSize() {
+    private fun assertSurvivesLargestFont(title: String, singleWord: Boolean) {
         val scale = mutableStateOf(1f)
-        val phone = sample.copy(task = sample.task.copy(title = "Pay the bill"))
+        val phone = sample.copy(task = sample.task.copy(title = title))
         rule.setContent {
             CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, fontScale = scale.value)) {
                 AppTheme { TaskRow(phone, {}, {}, modifier = Modifier.width(360.dp)) }
             }
         }
         val normalHeight = rule.onNodeWithTag("task-7").getBoundsInRoot().height
-        report(1f, normalHeight.value)
 
         scale.value = 2f
         rule.waitForIdle()
-        val bigHeight = rule.onNodeWithTag("task-7").getBoundsInRoot().height
-        report(2f, bigHeight.value)
+        val rowBounds = rule.onNodeWithTag("task-7").getBoundsInRoot()
+        val bigHeight = rowBounds.height
 
-        val title = tag("task-title-7").textLayout()
+        val titleLayout = tag("task-title-7").textLayout()
         val time = tag("task-time-7").textLayout()
         val list = tag("task-list-7").textLayout()
-        assertFalse("title clipped or ellipsized", clipped(title))
-        assertTrue("title within 2 lines, was ${title.lineCount}", title.lineCount <= 2)
+        assertFalse("title clipped or ellipsized", clipped(titleLayout))
+        assertTrue("title within 2 lines, was ${titleLayout.lineCount}", titleLayout.lineCount <= 2)
+        if (singleWord) assertEquals("a single word must not break mid-word", 1, titleLayout.lineCount)
         assertFalse("time clipped", clipped(time, singleLine = true))
         assertEquals("time on one line", 1, time.lineCount)
         assertFalse("list name clipped", clipped(list, singleLine = true))
@@ -159,8 +147,23 @@ class TaskRowTest {
         assertFalse("title overlaps time", intersects(tb, mb))
         assertFalse("title overlaps list name", intersects(tb, lb))
         assertFalse("time overlaps list name", intersects(mb, lb))
+        assertTrue("title outside row", inside(tb, rowBounds))
+        assertTrue("time outside row", inside(mb, rowBounds))
+        assertTrue("list name outside row", inside(lb, rowBounds))
         assertTrue("row must grow: $normalHeight -> $bigHeight", bigHeight > normalHeight)
     }
+
+    @Test
+    fun rowSurvivesTheLargestFontSize() = assertSurvivesLargestFont("Pay the bill", singleWord = false)
+
+    // Czech compounds are long single words; one cannot wrap, so it must not break or ellipsize.
+    @Test
+    fun rowSurvivesTheLargestFontSizeWithALongCzechWord() =
+        assertSurvivesLargestFont("zkontrolovat", singleWord = true)
+
+    private fun inside(inner: DpRect, outer: DpRect) =
+        inner.left >= outer.left && inner.right <= outer.right &&
+            inner.top >= outer.top && inner.bottom <= outer.bottom
 
     private fun intersects(a: DpRect, b: DpRect) =
         a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
