@@ -10,6 +10,9 @@
     <!-- Quick add -->
     <string name="add_task">Add task</string>
     <string name="quick_add_hint">What needs doing?</string>
+    <string name="chip_priority_value">Priority: %1$s</string>
+    <string name="quick_add_choose_list">Choose a list</string>
+    <string name="quick_add_choose_priority">Choose a priority</string>
 
     <!-- Task rows and sections -->
     <string name="complete_task">Complete task</string>

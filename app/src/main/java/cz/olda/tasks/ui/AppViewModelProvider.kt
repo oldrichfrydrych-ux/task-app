@@ -12,6 +12,7 @@ import cz.olda.tasks.TasksApplication
 import cz.olda.tasks.ui.inbox.InboxViewModel
 import cz.olda.tasks.ui.lists.ListDetailViewModel
 import cz.olda.tasks.ui.lists.ListsViewModel
+import cz.olda.tasks.ui.quickadd.QuickAddViewModel
 import cz.olda.tasks.ui.task.TaskDetailViewModel
 import cz.olda.tasks.ui.today.TodayViewModel
 import cz.olda.tasks.ui.upcoming.UpcomingViewModel
@@ -24,6 +25,8 @@ object AppViewModelProvider {
     val Factory: ViewModelProvider.Factory = viewModelFactory {
         initializer { TodayViewModel(container().taskRepository, container().clock) }
         initializer { UpcomingViewModel(container().taskRepository) }
+        // Saved state lets a half-typed task survive the process being killed.
+        initializer { QuickAddViewModel(container().taskRepository, container().listRepository, createSavedStateHandle()) }
         initializer { InboxViewModel(container().taskRepository, container().listRepository) }
         initializer { ListsViewModel(container().listRepository, container().taskRepository) }
         // The list id is the route argument, which the nav back stack puts in the saved state.
