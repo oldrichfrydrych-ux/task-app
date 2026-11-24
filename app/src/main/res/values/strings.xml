@@ -10,7 +10,102 @@
     <!-- Quick add -->
     <string name="add_task">Add task</string>
     <string name="quick_add_hint">What needs doing?</string>
+    <string name="chip_priority_value">Priority: %1$s</string>
+    <string name="quick_add_choose_list">Choose a list</string>
+    <string name="quick_add_choose_priority">Choose a priority</string>
 
-    <!-- Placeholder screens, until Phase 1 fills them in -->
-    <string name="placeholder_screen">%1$s · coming soon</string>
+    <!-- Task rows and sections -->
+    <string name="complete_task">Complete task</string>
+    <string name="section_anytime">Anytime</string>
+    <string name="section_overdue">Overdue</string>
+    <string name="section_tomorrow">Tomorrow</string>
+
+    <!-- Completion with undo -->
+    <string name="task_completed">Task completed</string>
+    <string name="undo">Undo</string>
+
+    <!-- Today -->
+    <string name="today_empty">Nothing due today</string>
+    <string name="day_empty">Nothing planned for this day</string>
+    <string name="back_to_today">Back to today</string>
+
+    <!-- Upcoming and Inbox -->
+    <string name="upcoming_empty">Nothing coming up</string>
+    <string name="inbox_empty">Inbox is empty</string>
+
+    <!-- Lists -->
+    <string name="lists_empty">No lists yet</string>
+    <string name="new_list">New list</string>
+    <string name="new_group">New group</string>
+    <string name="edit_list">Edit list</string>
+    <string name="edit_group">Edit group</string>
+    <string name="list_name_hint">List name</string>
+    <string name="group_name_hint">Group name</string>
+    <string name="list_group_label">Group</string>
+    <string name="list_no_group">No group</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="delete_list_title">Delete this list?</string>
+    <string name="delete_list_moves_tasks">The tasks in this list are not deleted. They move to Inbox.</string>
+    <string name="delete_group_title">Delete this group?</string>
+    <string name="delete_group_keeps_lists">The lists in this group are not deleted. They stay, outside any group.</string>
+
+    <!-- A list and its headings -->
+    <string name="back">Back</string>
+    <string name="add_heading">Add heading</string>
+    <string name="heading_name_hint">Heading name</string>
+    <string name="rename">Rename</string>
+    <string name="rename_heading">Rename heading</string>
+    <string name="list_empty">No tasks in this list</string>
+    <string name="delete_heading_title">Delete this heading?</string>
+    <string name="delete_heading_keeps_tasks">The tasks under this heading are not deleted. They stay in the list, without a heading.</string>
+
+    <!-- Colour picker and settings -->
+    <string name="settings_colours">Colours</string>
+    <string name="color_picker_custom">Custom colour</string>
+    <string name="color_picker_hex_hint">#RRGGBB</string>
+    <string name="color_picker_hex_error">Enter a colour like #3D6BE0</string>
+    <string name="color_picker_low_contrast">Text in this colour may be hard to read. You can still use it.</string>
+    <string name="color_picker_preview_light">Light</string>
+    <string name="color_picker_preview_dark">Dark</string>
+    <string name="color_picker_preview_sample">Sample list</string>
+    <string name="color_blue">Blue</string>
+    <string name="color_orange">Orange</string>
+    <string name="color_green">Green</string>
+    <string name="color_purple">Purple</string>
+    <string name="color_teal">Teal</string>
+    <string name="color_red">Red</string>
+    <string name="color_pink">Pink</string>
+    <string name="color_amber">Amber</string>
+    <string name="color_olive">Olive</string>
+    <string name="color_brown">Brown</string>
+    <string name="color_slate">Slate</string>
+    <string name="color_cyan">Cyan</string>
+
+    <!-- Task detail -->
+    <string name="task_not_found">This task no longer exists</string>
+    <string name="task_screen_title">Task</string>
+    <string name="task_title_hint">Title</string>
+    <string name="task_notes">Notes</string>
+    <string name="no_heading">No heading</string>
+    <string name="no_date">No date</string>
+    <string name="no_time">No time</string>
+    <string name="clear">Clear</string>
+    <string name="add">Add</string>
+    <string name="priority">Priority</string>
+    <string name="priority_1">High</string>
+    <string name="priority_2">Medium</string>
+    <string name="priority_3">Low</string>
+    <string name="priority_4">None</string>
+    <string name="subtasks">Subtasks</string>
+    <string name="add_subtask_hint">Add a subtask</string>
+    <string name="delete_task_title">Delete this task?</string>
+    <string name="delete_task_with_subtasks">The task and its subtasks are deleted.</string>
+
+    <!-- Search -->
+    <string name="search">Search</string>
+    <string name="search_hint">Search tasks</string>
+    <string name="search_clear">Clear search</string>
+    <string name="search_no_results">Nothing found</string>
 </resources>

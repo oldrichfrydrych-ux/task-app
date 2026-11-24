@@ -1,0 +1,97 @@
+package cz.olda.tasks.ui.nav
+
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
+import androidx.lifecycle.viewmodel.compose.viewModel
+import cz.olda.tasks.ui.AppViewModelProvider
+import cz.olda.tasks.ui.Destination
+import cz.olda.tasks.ui.inbox.InboxScreen
+import cz.olda.tasks.ui.lists.ListDetailScreen
+import cz.olda.tasks.ui.lists.ListsScreen
+import cz.olda.tasks.ui.search.SearchScreen
+import cz.olda.tasks.ui.settings.SettingsScreen
+import cz.olda.tasks.ui.task.TaskDetailScreen
+import cz.olda.tasks.ui.today.TodayScreen
+import cz.olda.tasks.ui.upcoming.UpcomingScreen
+
+object Routes {
+    const val LIST = "list/{listId}"
+    const val TASK = "task/{taskId}"
+    const val SEARCH = "search"
+    const val SETTINGS = "settings"
+
+    fun list(id: Long) = "list/$id"
+    fun task(id: Long) = "task/$id"
+}
+
+/**
+ * The four top-level routes plus list, task and search. The graph always starts on
+ * Today: a start that followed the restored tab would break popping to the start.
+ */
+@Composable
+fun AppNavHost(
+    navController: NavHostController,
+    modifier: Modifier = Modifier,
+) {
+    NavHost(navController = navController, startDestination = Destination.Today.route, modifier = modifier) {
+        composable(Destination.Today.route) {
+            TodayScreen(
+                viewModel = viewModel(factory = AppViewModelProvider.Factory),
+                onOpenTask = { navController.navigate(Routes.task(it)) },
+            )
+        }
+        composable(Destination.Upcoming.route) {
+            UpcomingScreen(
+                viewModel = viewModel(factory = AppViewModelProvider.Factory),
+                onOpenTask = { navController.navigate(Routes.task(it)) },
+            )
+        }
+        composable(Destination.Inbox.route) {
+            InboxScreen(
+                viewModel = viewModel(factory = AppViewModelProvider.Factory),
+                onOpenTask = { navController.navigate(Routes.task(it)) },
+            )
+        }
+        composable(Destination.Lists.route) {
+            ListsScreen(
+                viewModel = viewModel(factory = AppViewModelProvider.Factory),
+                onOpenList = { navController.navigate(Routes.list(it)) },
+                onOpenSearch = { navController.navigate(Routes.SEARCH) },
+            )
+        }
+        composable(
+            Routes.LIST,
+            arguments = listOf(navArgument("listId") { type = NavType.LongType }),
+        ) {
+            ListDetailScreen(
+                viewModel = viewModel(factory = AppViewModelProvider.Factory),
+                onOpenTask = { navController.navigate(Routes.task(it)) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            Routes.TASK,
+            arguments = listOf(navArgument("taskId") { type = NavType.LongType }),
+        ) {
+            TaskDetailScreen(
+                viewModel = viewModel(factory = AppViewModelProvider.Factory),
+                onBack = { navController.popBackStack() },
+                onOpenTask = { navController.navigate(Routes.task(it)) },
+            )
+        }
+        // Phase 1: deliberately unreachable — the picker stores nothing yet
+        composable(Routes.SETTINGS) { SettingsScreen() }
+        composable(Routes.SEARCH) {
+            SearchScreen(
+                viewModel = viewModel(factory = AppViewModelProvider.Factory),
+                onOpenTask = { navController.navigate(Routes.task(it)) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+    }
+}
