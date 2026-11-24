@@ -17,6 +17,7 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.isOn
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -139,6 +140,11 @@ class TaskDetailScreenTest {
         rule.onNodeWithTag("subtask-done-$sub").assertIsOff()
         rule.onNodeWithTag("task-done").performClick()
         rule.waitUntil(timeoutMillis = 10_000) { task(sub)?.done == true }
+        // The database changed first; give the screen a moment to show it.
+        rule.waitUntil(timeoutMillis = 10_000) {
+            rule.onAllNodes(hasTestTag("task-done") and isOn()).fetchSemanticsNodes().isNotEmpty() &&
+                rule.onAllNodes(hasTestTag("subtask-done-$sub") and isOn()).fetchSemanticsNodes().isNotEmpty()
+        }
         rule.onNodeWithTag("task-done").assertIsOn()
         rule.onNodeWithTag("subtask-done-$sub").assertIsOn()
     }
@@ -159,6 +165,49 @@ class TaskDetailScreenTest {
         rule.onNodeWithTag("task-title-field").assertTextContains("Child")
         rule.onAllNodes(hasTestTag("subtask-field")).assertCountEquals(0)
         rule.onAllNodes(hasTestTag("subtask-add")).assertCountEquals(0)
+    }
+
+    @Test fun movingAParentMovesItsSubtasksToo() {
+        val other = runBlocking { lists.createList("Home", "#3D6BE0") }
+        val heading = runBlocking { lists.createHeading(other, "Chores") }
+        val id = runBlocking { repo.add("Parent", work, null, null, 4) }
+        val sub = runBlocking { repo.add("Child", work, null, null, 4, parentTaskId = id) }
+        val deleted = runBlocking { repo.add("Gone child", work, null, null, 4, parentTaskId = id) }
+        runBlocking { repo.softDelete(deleted) }
+        show(id)
+        rule.onNodeWithTag("task-list-picker").performClick()
+        rule.onNodeWithTag("task-list-option-$other").performClick()
+        rule.waitUntil(timeoutMillis = 10_000) { task(id)?.listId == other }
+        awaitShown("task-heading-picker")
+        rule.onNodeWithTag("task-heading-picker").performClick()
+        rule.onNodeWithTag("task-heading-option-$heading").performClick()
+        rule.waitUntil(timeoutMillis = 10_000) { task(id)?.headingId == heading }
+        // Read the subtask itself: the parent moving proves nothing about it.
+        rule.waitUntil(timeoutMillis = 10_000) { task(sub)?.headingId == heading }
+        assertEquals(other, task(sub)!!.listId)
+        assertEquals(heading, task(sub)!!.headingId)
+        // A soft-deleted subtask stays where it was.
+        val oldList = db.openHelper.readableDatabase.query("SELECT listId FROM tasks WHERE id = $deleted").use { it.moveToFirst(); it.getLong(0) }
+        assertEquals(work, oldList)
+    }
+
+    @Test fun aSubtaskHasNoListOrHeadingPicker() {
+        val id = runBlocking { repo.add("Parent", work, null, null, 4) }
+        val sub = runBlocking { repo.add("Child", work, null, null, 4, parentTaskId = id) }
+        runBlocking { lists.createHeading(work, "Any heading") }
+        show(sub)
+        rule.onNodeWithTag("task-title-field").assertTextContains("Child")
+        rule.onAllNodes(hasTestTag("task-list-picker")).assertCountEquals(0)
+        rule.onAllNodes(hasTestTag("task-heading-picker")).assertCountEquals(0)
+    }
+
+    @Test fun aParentHasListAndHeadingPickers() {
+        val id = runBlocking { repo.add("Parent", work, null, null, 4) }
+        runBlocking { lists.createHeading(work, "Any heading") }
+        show(id)
+        rule.onNodeWithTag("task-list-picker").assertIsDisplayed()
+        awaitShown("task-heading-picker")
+        rule.onNodeWithTag("task-heading-picker").assertIsDisplayed()
     }
 
     @Test fun deletingTheTaskGoesBack() {

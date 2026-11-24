@@ -120,6 +120,34 @@ abstract class TaskDao {
         now: Long,
     )
 
+    /** Puts every live subtask of [parentId] in the list and heading the parent now has. */
+    @Query(
+        "UPDATE tasks SET " +
+            "listId = (SELECT p.listId FROM tasks p WHERE p.id = :parentId), " +
+            "headingId = (SELECT p.headingId FROM tasks p WHERE p.id = :parentId), updatedAt = :now " +
+            "WHERE parentTaskId = :parentId AND deletedAt IS NULL",
+    )
+    abstract suspend fun followParent(parentId: Long, now: Long)
+
+    /** [updateEditable], then the live subtasks follow the task: they always sit where their parent sits. */
+    @Transaction
+    open suspend fun updateEditableAndFollow(
+        id: Long,
+        title: String,
+        titleNormalised: String,
+        notes: String,
+        notesNormalised: String,
+        listId: Long,
+        headingId: Long?,
+        dueDate: Long?,
+        dueMinute: Int?,
+        priority: Int,
+        now: Long,
+    ) {
+        updateEditable(id, title, titleNormalised, notes, notesNormalised, listId, headingId, dueDate, dueMinute, priority, now)
+        followParent(id, now)
+    }
+
     /** A no-op when the task is already in the requested state, so completedAt keeps its first value. */
     @Query(
         "UPDATE tasks SET done = :done, completedAt = :completedAt, updatedAt = :now WHERE id = :id AND done != :done",

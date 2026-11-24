@@ -75,12 +75,12 @@ class TaskDetailViewModel(
 
     fun setNotes(notes: String) = edit { it.copy(notes = notes) }
 
-    /** A heading belongs to one list, so moving the task to another list clears it. */
+    /** A heading belongs to one list, so moving to another list clears it; subtasks follow their parent instead. */
     fun setList(listId: Long) = edit {
-        if (it.listId == listId) it else it.copy(listId = listId, headingId = null)
+        if (it.parentTaskId != null || it.listId == listId) it else it.copy(listId = listId, headingId = null)
     }
 
-    fun setHeading(headingId: Long?) = edit { it.copy(headingId = headingId) }
+    fun setHeading(headingId: Long?) = edit { if (it.parentTaskId != null) it else it.copy(headingId = headingId) }
 
     fun setDueDate(epochDay: Long?) = edit { it.copy(dueDate = epochDay) }
 

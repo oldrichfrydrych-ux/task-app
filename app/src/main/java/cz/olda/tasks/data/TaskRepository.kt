@@ -118,8 +118,11 @@ class TaskRepository(
         ),
     )
 
-    /** Writes only the editable columns of a live task; a stale or deleted snapshot changes nothing else. */
-    suspend fun update(task: TaskEntity) = taskDao.updateEditable(
+    /**
+     * Writes only the editable columns of a live task; a stale or deleted snapshot changes nothing else.
+     * A parent's live subtasks follow it to its list and heading.
+     */
+    suspend fun update(task: TaskEntity) = taskDao.updateEditableAndFollow(
         id = task.id,
         title = task.title,
         titleNormalised = normalise(task.title),

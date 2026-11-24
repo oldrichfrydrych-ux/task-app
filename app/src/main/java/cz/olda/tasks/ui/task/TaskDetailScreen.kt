@@ -155,7 +155,8 @@ private fun TaskFields(task: TaskEntity, state: TaskDetailState, viewModel: Task
             modifier = Modifier.fillMaxWidth().testTag("task-notes-field"),
         )
 
-        ListPicker(task, state, viewModel)
+        // A subtask sits in its parent's list and heading, so it has no pickers of its own.
+        if (task.parentTaskId == null) ListPicker(task, state, viewModel)
         DateField(task.dueDate, viewModel::setDueDate)
         TimeField(task.dueMinute, viewModel::setDueMinute)
         PriorityRow(task.priority, viewModel::setPriority)

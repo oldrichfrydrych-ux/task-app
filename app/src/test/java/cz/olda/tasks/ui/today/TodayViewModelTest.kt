@@ -66,6 +66,7 @@ internal class FakeTaskDao(private val overdue: List<TaskWithList>) : TaskDao() 
         id: Long, title: String, titleNormalised: String, notes: String, notesNormalised: String,
         listId: Long, headingId: Long?, dueDate: Long?, dueMinute: Int?, priority: Int, now: Long,
     ): Unit = TODO()
+    override suspend fun followParent(parentId: Long, now: Long): Unit = TODO()
     override suspend fun markDone(id: Long, done: Boolean, completedAt: Long?, now: Long): Unit = TODO()
     override suspend fun completedAtOf(id: Long): Long? = TODO()
     override suspend fun reopenStamped(id: Long, stamp: Long, now: Long): Unit = TODO()
