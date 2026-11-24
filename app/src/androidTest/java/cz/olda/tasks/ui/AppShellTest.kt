@@ -20,6 +20,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.test.swipeUp
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
@@ -27,6 +30,7 @@ import androidx.test.espresso.Espresso
 import cz.olda.tasks.ui.nav.Routes
 import cz.olda.tasks.ui.theme.AppTheme
 import cz.olda.tasks.ui.theme.LocalAnimationsEnabled
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -152,6 +156,43 @@ class AppShellTest {
             "pill at ${pill.left}..${pill.right} is not over the Inbox tab at ${tab.left}..${tab.right}",
             pill.left <= tab.left && pill.right >= tab.right,
         )
+    }
+
+    @Test
+    fun theBarSlimsOnTheWayDownAndReturnsOnTheWayUp() {
+        rule.setContent { AppTheme { AppShell() } }
+        val tall = rule.onNodeWithTag("bottom-bar").getUnclippedBoundsInRoot().height
+        rule.onNodeWithTag("screen-Today").performTouchInput { swipeUp() }
+        rule.waitForIdle()
+        val slim = rule.onNodeWithTag("bottom-bar").getUnclippedBoundsInRoot().height
+        assertTrue("bar did not slim: $tall -> $slim", slim < tall)
+        rule.onNodeWithTag("screen-Today").performTouchInput { swipeDown() }
+        rule.waitForIdle()
+        assertEquals(tall, rule.onNodeWithTag("bottom-bar").getUnclippedBoundsInRoot().height)
+    }
+
+    /**
+     * The design reserves the bar's tall height precisely so the scrolling content never
+     * relayouts while it shrinks - 31 non-lazy rows reflowing every frame, with a feedback
+     * path back into the scroll deltas driving the animation, is how this janks.
+     */
+    @Test
+    fun theContentDoesNotMoveWhenTheBarSlims() {
+        rule.setContent { AppTheme { AppShell() } }
+        val slot = rule.onNodeWithTag("bottom-bar-slot").getUnclippedBoundsInRoot()
+        rule.onNodeWithTag("screen-Today").performTouchInput { swipeUp() }
+        rule.waitForIdle()
+        assertEquals(slot, rule.onNodeWithTag("bottom-bar-slot").getUnclippedBoundsInRoot())
+    }
+
+    /** Capture must never get harder, whatever the bar is doing. */
+    @Test
+    fun theAddButtonSurvivesTheSlimming() {
+        rule.setContent { AppTheme { AppShell() } }
+        rule.onNodeWithTag("screen-Today").performTouchInput { swipeUp() }
+        rule.waitForIdle()
+        rule.onNodeWithContentDescription("Add task").assertIsDisplayed().performClick()
+        rule.onNodeWithTag("quick-add-field").assertIsFocused()
     }
 
     /**

@@ -1,6 +1,13 @@
 package cz.olda.tasks.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
@@ -40,7 +48,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -92,12 +105,27 @@ fun AppShell(
     LaunchedEffect(routeTab) { if (routeTab != null) selectedName = routeTab.name }
     val selected = routeTab ?: Destination.ofName(selectedName)
 
+    // Scrolling down slims the bar, any upward scroll brings it back. Read from onPreScroll
+    // so it reacts to the gesture rather than to what the content managed to consume: a short
+    // list that cannot scroll should not leave the bar stuck.
+    val slimmed = remember { mutableStateOf(false) }
+    val slimOnScroll = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (available.y < -SlimThreshold) slimmed.value = true
+                else if (available.y > SlimThreshold) slimmed.value = false
+                return Offset.Zero
+            }
+        }
+    }
+
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().nestedScroll(slimOnScroll),
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             FloatingBottomBar(
                 selected = selected,
+                slimmed = slimmed.value,
                 onSelect = { destination ->
                     // Pop to the graph start so tabs do not pile up on the back stack.
                     navController.navigate(destination.route) {
@@ -123,38 +151,74 @@ fun AppShell(
     }
 }
 
+/** Pixels of drag before the bar reacts, so a finger resting on the screen cannot flutter it. */
+private const val SlimThreshold = 2f
+
 /** The dark rounded pill from docs/design.md, section Look. */
 @Composable
 private fun FloatingBottomBar(
     selected: Destination,
+    slimmed: Boolean,
     onSelect: (Destination) -> Unit,
     onAdd: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalBottomBarColors.current
-    Surface(
+    val density = LocalDensity.current
+
+    // The slot keeps the bar's full height for good, so Scaffold's innerPadding never changes
+    // and the scrolling content never relayouts while the bar shrinks inside it. The tall
+    // height is whatever the bar measures when it is not slimmed - taken as a maximum, because
+    // growing back through the un-slim animation would otherwise record intermediate heights.
+    var tallHeight by remember { mutableStateOf(0.dp) }
+
+    Box(
         modifier = modifier
             .fillMaxWidth()
             // The app draws edge to edge, so the bar floats above the system's own
             // bar instead of under it, whichever navigation the phone uses.
             .windowInsetsPadding(WindowInsets.navigationBars)
-            .padding(horizontal = 12.dp, vertical = 10.dp)
-            .testTag("bottom-bar"),
-        shape = CircleShape,
-        color = colors.container,
-        shadowElevation = 8.dp,
+            .then(if (tallHeight > 0.dp) Modifier.height(tallHeight) else Modifier)
+            .testTag("bottom-bar-slot"),
+        contentAlignment = Alignment.BottomCenter,
     ) {
-        Row(
-            modifier = Modifier.padding(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .onSizeChanged {
+                    if (!slimmed) {
+                        val measured = with(density) { it.height.toDp() }
+                        if (measured > tallHeight) tallHeight = measured
+                    }
+                }
+                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .testTag("bottom-bar"),
+            shape = CircleShape,
+            color = colors.container,
+            shadowElevation = 8.dp,
         ) {
-            TabStrip(
-                selected = selected,
-                onSelect = onSelect,
-                modifier = Modifier.weight(1f),
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            AddButton(onClick = onAdd)
+            // What actually slims the bar. The tabs themselves keep the 48dp touch target
+            // docs/design.md requires, so hiding their labels alone would change no height
+            // at all; the row's own padding is the part that can go.
+            val targetPadding = if (slimmed) 0.dp else 6.dp
+            val animatedPadding by animateDpAsState(targetPadding, AppMotion.spatial(), label = "bar-padding")
+            // Coerced because an expressive spring is underdamped: on the way to 0 it
+            // undershoots past it, and a negative padding throws.
+            val rowPadding = (if (LocalAnimationsEnabled.current) animatedPadding else targetPadding)
+                .coerceAtLeast(0.dp)
+            Row(
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = rowPadding),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TabStrip(
+                    selected = selected,
+                    slimmed = slimmed,
+                    onSelect = onSelect,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                AddButton(onClick = onAdd)
+            }
         }
     }
 }
@@ -172,6 +236,7 @@ private data class TabSlot(val x: Dp, val width: Dp, val height: Dp)
 @Composable
 private fun TabStrip(
     selected: Destination,
+    slimmed: Boolean,
     onSelect: (Destination) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -191,8 +256,9 @@ private fun TabStrip(
             modifier = Modifier
                 .offset(x = if (animate) animatedX else targetX)
                 .size(
-                    width = if (animate) animatedWidth else targetWidth,
-                    height = slot?.height ?: 0.dp,
+                    // Same reason as the bar's padding: a spring can undershoot below zero.
+                    width = (if (animate) animatedWidth else targetWidth).coerceAtLeast(0.dp),
+                    height = (slot?.height ?: 0.dp).coerceAtLeast(0.dp),
                 )
                 .clip(CircleShape)
                 .background(colors.selectedPill)
@@ -206,6 +272,7 @@ private fun TabStrip(
                 TabItem(
                     destination = destination,
                     selected = destination == selected,
+                    slimmed = slimmed,
                     onClick = { onSelect(destination) },
                     modifier = Modifier
                         .weight(1f)
@@ -227,11 +294,13 @@ private fun TabStrip(
 private fun TabItem(
     destination: Destination,
     selected: Boolean,
+    slimmed: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalBottomBarColors.current
     val content = if (selected) colors.onSelected else colors.onUnselected
+    val animate = LocalAnimationsEnabled.current
     Column(
         // No background of its own: TabStrip draws one pill behind whichever tab is selected.
         modifier = modifier
@@ -248,13 +317,27 @@ private fun TabItem(
             tint = content,
             modifier = Modifier.size(20.dp),
         )
-        Text(
-            text = stringResource(destination.label),
-            style = MaterialTheme.typography.labelSmall,
-            color = content,
-            maxLines = 1,
-            textAlign = TextAlign.Center,
-        )
+        AnimatedVisibility(
+            visible = !slimmed,
+            enter = if (animate) {
+                expandVertically(AppMotion.spatial()) + fadeIn(AppMotion.effects())
+            } else {
+                EnterTransition.None
+            },
+            exit = if (animate) {
+                shrinkVertically(AppMotion.spatial()) + fadeOut(AppMotion.effects())
+            } else {
+                ExitTransition.None
+            },
+        ) {
+            Text(
+                text = stringResource(destination.label),
+                style = MaterialTheme.typography.labelSmall,
+                color = content,
+                maxLines = 1,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 
