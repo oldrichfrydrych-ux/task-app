@@ -48,6 +48,14 @@
     <string name="delete_group_title">Delete this group?</string>
     <string name="delete_group_keeps_lists">The lists in this group are not deleted. They stay, outside any group.</string>
 
+    <!-- A list and its headings -->
+    <string name="back">Back</string>
+    <string name="add_heading">Add heading</string>
+    <string name="heading_name_hint">Heading name</string>
+    <string name="list_empty">No tasks in this list</string>
+    <string name="delete_heading_title">Delete this heading?</string>
+    <string name="delete_heading_keeps_tasks">The tasks under this heading are not deleted. They stay in the list, without a heading.</string>
+
     <!-- Colour picker and settings -->
     <string name="settings_colours">Colours</string>
     <string name="color_picker_custom">Custom colour</string>
@@ -71,7 +79,6 @@
     <string name="color_cyan">Cyan</string>
 
     <!-- Placeholder screens, until Phase 1 fills them in -->
-    <string name="list_detail">List</string>
     <string name="task_detail">Task</string>
     <string name="search">Search</string>
     <string name="placeholder_screen">%1$s · coming soon</string>

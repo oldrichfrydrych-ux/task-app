@@ -83,7 +83,7 @@ class AppNavHostTest {
             navController.navigate(Destination.Lists.route)
             navController.navigate(Routes.list(1))
         }
-        rule.onNodeWithTag("screen-list").assertIsDisplayed()
+        rule.onNodeWithTag("screen-ListDetail").assertIsDisplayed()
         Espresso.pressBack()
         rule.onNodeWithTag("screen-Lists").assertIsDisplayed()
     }

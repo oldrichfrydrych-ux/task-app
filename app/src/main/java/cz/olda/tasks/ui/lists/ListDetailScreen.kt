@@ -1,0 +1,159 @@
+package cz.olda.tasks.ui.lists
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import cz.olda.tasks.R
+import cz.olda.tasks.ui.AppIcons
+import cz.olda.tasks.ui.components.TaskListSection
+import cz.olda.tasks.ui.components.rememberCompletionUndo
+
+/** One list: its loose tasks first, then each heading with the tasks filed under it. */
+@Composable
+fun ListDetailScreen(
+    viewModel: ListDetailViewModel,
+    onOpenTask: (Long) -> Unit,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val complete = rememberCompletionUndo(
+        onComplete = viewModel::complete,
+        onUndo = viewModel::undoCompletion,
+    )
+    var addingHeading by rememberSaveable { mutableStateOf(false) }
+    var deletingHeadingId by rememberSaveable { mutableStateOf<Long?>(null) }
+
+    Column(modifier = modifier.fillMaxSize().testTag("screen-ListDetail")) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onBack, modifier = Modifier.testTag("list-back")) {
+                Icon(AppIcons.Back, contentDescription = stringResource(R.string.back))
+            }
+            val list = state.list
+            if (list != null) {
+                Text(
+                    text = list.name,
+                    style = MaterialTheme.typography.titleLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f).testTag("list-title"),
+                )
+                TextButton(onClick = { addingHeading = true }, modifier = Modifier.testTag("add-heading")) {
+                    Text(stringResource(R.string.add_heading))
+                }
+            }
+        }
+        // Nothing below shows until the list has loaded, so no empty message flashes on start.
+        if (state.list != null) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                TaskListSection(null, state.unheaded, complete, onOpenTask)
+                state.sections.forEach { section ->
+                    val heading = section.heading
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().testTag("heading-${heading.id}"),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = heading.name,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = 4.dp, vertical = 4.dp)
+                                    .testTag("heading-title-${heading.name}"),
+                            )
+                            TextButton(
+                                onClick = { deletingHeadingId = heading.id },
+                                modifier = Modifier.testTag("heading-delete-${heading.id}"),
+                            ) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
+                        }
+                        TaskListSection(null, section.tasks, complete, onOpenTask)
+                    }
+                }
+                if (state.unheaded.isEmpty() && state.sections.all { it.tasks.isEmpty() }) {
+                    Text(
+                        text = stringResource(R.string.list_empty),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.testTag("list-empty"),
+                    )
+                }
+            }
+        }
+    }
+
+    if (addingHeading) {
+        NewHeadingDialog(
+            onSave = { viewModel.addHeading(it); addingHeading = false },
+            onDismiss = { addingHeading = false },
+        )
+    }
+    deletingHeadingId?.let { id ->
+        ConfirmDeleteDialog(
+            title = stringResource(R.string.delete_heading_title),
+            message = stringResource(R.string.delete_heading_keeps_tasks),
+            onConfirm = { viewModel.deleteHeading(id); deletingHeadingId = null },
+            onDismiss = { deletingHeadingId = null },
+        )
+    }
+}
+
+@Composable
+private fun NewHeadingDialog(onSave: (String) -> Unit, onDismiss: () -> Unit) {
+    var name by rememberSaveable { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.add_heading)) },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                placeholder = { Text(stringResource(R.string.heading_name_hint)) },
+                singleLine = true,
+                modifier = Modifier.testTag("heading-name-field"),
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(name.trim()) },
+                enabled = name.isNotBlank(),
+                modifier = Modifier.testTag("heading-save"),
+            ) { Text(stringResource(R.string.save)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
+}

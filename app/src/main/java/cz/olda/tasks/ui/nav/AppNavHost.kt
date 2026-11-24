@@ -13,6 +13,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import cz.olda.tasks.ui.AppViewModelProvider
 import cz.olda.tasks.ui.Destination
 import cz.olda.tasks.ui.inbox.InboxScreen
+import cz.olda.tasks.ui.lists.ListDetailScreen
 import cz.olda.tasks.ui.lists.ListsScreen
 import cz.olda.tasks.ui.settings.SettingsScreen
 import cz.olda.tasks.ui.today.TodayScreen
@@ -66,7 +67,13 @@ fun AppNavHost(
         composable(
             Routes.LIST,
             arguments = listOf(navArgument("listId") { type = NavType.LongType }),
-        ) { PlaceholderScreen(stringResource(R.string.list_detail), "screen-list") }
+        ) {
+            ListDetailScreen(
+                viewModel = viewModel(factory = AppViewModelProvider.Factory),
+                onOpenTask = { navController.navigate(Routes.task(it)) },
+                onBack = { navController.popBackStack() },
+            )
+        }
         composable(
             Routes.TASK,
             arguments = listOf(navArgument("taskId") { type = NavType.LongType }),
