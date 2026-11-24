@@ -39,6 +39,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.cancel
 import org.junit.Rule
 import org.junit.Test
 import java.time.Clock
@@ -69,11 +71,22 @@ class TaskDetailScreenTest {
         work = lists.createList("Work", "#E85A4F")
     }
 
-    @After fun close() { db.close() }
+    /**
+     * The ViewModel debounces title and notes writes, so a save can still be pending when the
+     * test body ends. Closing the database under it throws "connection pool has been closed"
+     * from a coroutine nobody is waiting on, which kills the Activity and takes every later
+     * test in this class with it. Cancel the scope first.
+     */
+    @After fun close() {
+        shown?.viewModelScope?.cancel()
+        db.close()
+    }
+
+    private var shown: TaskDetailViewModel? = null
 
     /** Shows the screen and waits for the task to load, so later assertions see real data. */
     private fun show(taskId: Long) {
-        val viewModel = TaskDetailViewModel(taskId, repo, lists)
+        val viewModel = TaskDetailViewModel(taskId, repo, lists).also { shown = it }
         rule.setContent {
             AppTheme {
                 val hostState = remember { SnackbarHostState() }
