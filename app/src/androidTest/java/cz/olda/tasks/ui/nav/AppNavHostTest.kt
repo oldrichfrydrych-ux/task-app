@@ -22,6 +22,7 @@ import cz.olda.tasks.ui.AppShell
 import cz.olda.tasks.ui.Destination
 import cz.olda.tasks.ui.theme.AppTheme
 import cz.olda.tasks.ui.theme.LocalAnimationsEnabled
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -31,6 +32,15 @@ class AppNavHostTest {
 
     @get:Rule
     val rule = createComposeRule()
+
+    /**
+     * A test that pauses the clock to watch a transition must hand it back, or the teardown
+     * that follows has no frames to run in and the next test opens on a dead hierarchy.
+     */
+    @After
+    fun letTheClockRunAgain() {
+        rule.mainClock.autoAdvance = true
+    }
 
     /** The tab, not the Today screen header that carries the same word. */
     private fun todayTab() = rule.onNode(hasText("Today") and hasAnyAncestor(hasTestTag("bottom-bar")))
