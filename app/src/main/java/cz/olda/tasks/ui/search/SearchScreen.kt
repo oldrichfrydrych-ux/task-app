@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cz.olda.tasks.R
 import cz.olda.tasks.ui.AppIcons
+import cz.olda.tasks.ui.components.EmptyStateText
 import cz.olda.tasks.ui.components.TaskListSection
 import cz.olda.tasks.ui.components.rememberCompletionUndo
 
@@ -102,10 +103,8 @@ fun SearchScreen(
             TaskListSection(null, state.results, complete, onOpenTask, showDate = true)
             // Only once the results for what is typed have arrived, so it never flashes mid-typing.
             if (text.isNotBlank() && state.query == text && state.results.isEmpty()) {
-                Text(
+                EmptyStateText(
                     text = stringResource(R.string.search_no_results),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.testTag("search-no-results"),
                 )
             }

@@ -70,6 +70,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import cz.olda.tasks.R
 import cz.olda.tasks.ui.nav.AppNavHost
+import cz.olda.tasks.ui.components.CompletionTracker
+import cz.olda.tasks.ui.components.LocalCompletionTracker
 import cz.olda.tasks.ui.quickadd.QuickAddSheet
 import cz.olda.tasks.ui.theme.LocalBottomBarColors
 
@@ -96,6 +98,9 @@ fun AppShell(
     var selectedName by rememberSaveable { mutableStateOf(Destination.Today.name) }
     var quickAddOpen by rememberSaveable { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+    // Lives beside the snackbar host for the same reason: every screen that lists tasks needs
+    // it, and none of them should have to own it.
+    val completionTracker = remember { CompletionTracker() }
 
     // The graph decides which tab is current, so Back and taps cannot disagree. Detail screens
     // belong to no tab and keep the last top-level one, which is the only thing written to the
@@ -140,7 +145,10 @@ fun AppShell(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         Box(modifier = Modifier.padding(innerPadding)) {
-            CompositionLocalProvider(LocalSnackbarHostState provides snackbarHostState) {
+            CompositionLocalProvider(
+                LocalSnackbarHostState provides snackbarHostState,
+                LocalCompletionTracker provides completionTracker,
+            ) {
                 AppNavHost(navController = navController)
             }
         }

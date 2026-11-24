@@ -143,8 +143,8 @@ class AppShellTest {
     @Test
     fun thePillStillLandsOnTheTabWithAnimationsOff() {
         rule.setContent {
-            CompositionLocalProvider(LocalAnimationsEnabled provides false) {
-                AppTheme { AppShell() }
+            run {
+                AppTheme(animationsEnabled = false) { AppShell() }
             }
         }
         val inbox = hasText("Inbox") and hasAnyAncestor(hasTestTag("bottom-bar"))

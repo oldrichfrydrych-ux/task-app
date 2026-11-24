@@ -51,28 +51,39 @@ internal val DarkColorScheme = darkColorScheme(
 @Composable
 fun AppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    animationsEnabled: Boolean = systemAnimationsEnabled(),
     content: @Composable () -> Unit,
 ) {
-    // Read once: "Remove animations" is a setting people set and leave, and a restart picks up
-    // a change. An observer would cost a listener on every composition for no real benefit.
+    CompositionLocalProvider(
+        LocalBottomBarColors provides if (darkTheme) DarkBottomBarColors else LightBottomBarColors,
+        LocalAnimationsEnabled provides animationsEnabled,
+    ) {
+        MaterialTheme(
+            colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
+            typography = Typography,
+            content = content,
+        )
+    }
+}
+
+/**
+ * Whether the phone allows animations: false when Accessibility -> Remove animations has set
+ * the animator duration scale to 0.
+ *
+ * Read once rather than observed: it is a setting people set and leave, and a restart picks
+ * up a change. It is a default of [AppTheme] rather than something the theme imposes, so a
+ * caller - a test, or a screen with its own reason - can still say no.
+ */
+@Composable
+fun systemAnimationsEnabled(): Boolean {
     val context = LocalContext.current
-    val animations = remember(context) {
+    return remember(context) {
         animationsEnabled(
             Settings.Global.getFloat(
                 context.contentResolver,
                 Settings.Global.ANIMATOR_DURATION_SCALE,
                 1f,
             ),
-        )
-    }
-    CompositionLocalProvider(
-        LocalBottomBarColors provides if (darkTheme) DarkBottomBarColors else LightBottomBarColors,
-        LocalAnimationsEnabled provides animations,
-    ) {
-        MaterialTheme(
-            colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
-            typography = Typography,
-            content = content,
         )
     }
 }

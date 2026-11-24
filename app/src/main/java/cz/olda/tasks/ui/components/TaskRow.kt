@@ -67,6 +67,7 @@ fun TaskRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     showDate: Boolean = false,
+    showAsDone: Boolean = false,
 ) {
     val task = item.task
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -80,11 +81,17 @@ fun TaskRow(
     val timeText = listOfNotNull(dayText, clock).joinToString(" ").ifEmpty { null }
     val priorityColor = priorityBarColor(task.priority, darkTheme)
 
+    // A row that is folding away has already been written as done, but the copy still being
+    // drawn is the one from before the write. showAsDone lets the fold show what happened.
+    val done = task.done || showAsDone
+
     val checkbox: @Composable () -> Unit = {
         Checkbox(
-            checked = task.done,
+            checked = done,
             onCheckedChange = { onToggleDone() },
-            modifier = Modifier.semantics { contentDescription = completeLabel },
+            modifier = Modifier
+                .testTag("task-checkbox-${task.id}")
+                .semantics { contentDescription = completeLabel },
         )
     }
     val time: @Composable () -> Unit = {
@@ -104,7 +111,7 @@ fun TaskRow(
             text = task.title,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface,
-            textDecoration = if (task.done) TextDecoration.LineThrough else null,
+            textDecoration = if (done) TextDecoration.LineThrough else null,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             modifier = m.padding(vertical = 8.dp).testTag("task-title-${task.id}"),

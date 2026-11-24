@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cz.olda.tasks.R
 import cz.olda.tasks.data.UpcomingDay
+import cz.olda.tasks.ui.components.EmptyStateText
 import cz.olda.tasks.ui.components.ScreenHeader
 import cz.olda.tasks.ui.components.TaskListSection
 import cz.olda.tasks.ui.components.rememberCompletionUndo
@@ -69,10 +70,8 @@ fun UpcomingContent(
                 )
             }
             if (days != null && days.isEmpty()) {
-                Text(
+                EmptyStateText(
                     text = stringResource(R.string.upcoming_empty),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.testTag("upcoming-empty"),
                 )
             }

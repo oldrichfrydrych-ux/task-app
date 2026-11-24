@@ -3,14 +3,34 @@ package cz.olda.tasks.ui.components
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.res.stringResource
 import cz.olda.tasks.R
 import cz.olda.tasks.ui.LocalSnackbarHostState
 import kotlinx.coroutines.launch
+
+/**
+ * The id of the task completed most recently, so a list can tell a completion apart from the
+ * many other reasons a row leaves it - a search re-querying on every keystroke, the week strip
+ * swapping the day, a task re-filed on its detail screen. Only a completion folds; everything
+ * else simply goes.
+ */
+class CompletionTracker {
+    var justCompleted: Long? by mutableStateOf(null)
+}
+
+private val NoCompletions = CompletionTracker()
+
+/** Provided by the shell, beside [LocalSnackbarHostState], for the same reason. */
+val LocalCompletionTracker: ProvidableCompositionLocal<CompletionTracker> =
+    staticCompositionLocalOf { NoCompletions }
 
 /**
  * The single place "completed, with undo" lives: every screen that lists tasks completes one
@@ -30,13 +50,16 @@ fun rememberCompletionUndo(
     onUndo: (Long) -> Unit,
 ): (Long) -> Unit {
     val host = LocalSnackbarHostState.current
+    val tracker = LocalCompletionTracker.current
     val scope = rememberCoroutineScope()
     val message = stringResource(R.string.task_completed)
     val undoLabel = stringResource(R.string.undo)
     val currentOnComplete by rememberUpdatedState(onComplete)
     val currentOnUndo by rememberUpdatedState(onUndo)
-    return remember(host, scope, message, undoLabel) {
+    return remember(host, tracker, scope, message, undoLabel) {
         { id: Long ->
+            // Stamped before the write, so the list already knows why the row is about to go.
+            tracker.justCompleted = id
             currentOnComplete(id)
             scope.launch {
                 host.currentSnackbarData?.dismiss()
@@ -45,7 +68,10 @@ fun rememberCompletionUndo(
                     actionLabel = undoLabel,
                     duration = SnackbarDuration.Short,
                 )
-                if (result == SnackbarResult.ActionPerformed) currentOnUndo(id)
+                if (result == SnackbarResult.ActionPerformed) {
+                    tracker.justCompleted = null
+                    currentOnUndo(id)
+                }
             }
             Unit
         }
