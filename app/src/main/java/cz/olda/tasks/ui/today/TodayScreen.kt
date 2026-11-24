@@ -2,9 +2,7 @@ package cz.olda.tasks.ui.today
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.TextButton
-import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -19,6 +17,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cz.olda.tasks.R
+import cz.olda.tasks.ui.components.ScreenHeader
 import cz.olda.tasks.ui.components.TaskListSection
 import cz.olda.tasks.ui.components.rememberCompletionUndo
 import java.time.LocalDate
@@ -64,46 +63,48 @@ fun TodayContent(
         modifier = modifier
             .fillMaxSize()
             .testTag("screen-Today")
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .verticalScroll(rememberScrollState()),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = if (state.isToday) {
-                    stringResource(R.string.today)
-                } else {
-                    state.shownDay.format(
-                        DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(Locale.getDefault()),
-                    )
-                },
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.weight(1f).testTag("today-header"),
-            )
-            if (!state.isToday) {
-                TextButton(
-                    onClick = onBackToToday,
-                    modifier = Modifier.testTag("back-to-today"),
-                ) { Text(stringResource(R.string.back_to_today)) }
-            }
-        }
-        WeekStrip(
-            weekStart = state.weekStart,
-            shownDay = state.shownDay,
-            dots = state.dots,
-            onPickDay = onPickDay,
+        ScreenHeader(
+            title = if (state.isToday) {
+                stringResource(R.string.today)
+            } else {
+                state.shownDay.format(
+                    DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(Locale.getDefault()),
+                )
+            },
+            titleModifier = Modifier.testTag("today-header"),
+            trailing = {
+                if (!state.isToday) {
+                    TextButton(
+                        onClick = onBackToToday,
+                        modifier = Modifier.testTag("back-to-today"),
+                    ) { Text(stringResource(R.string.back_to_today)) }
+                }
+            },
         )
-        TaskListSection(stringResource(R.string.section_overdue), sections.overdue, onToggleDone, onOpenTask)
-        TaskListSection(null, sections.timed, onToggleDone, onOpenTask)
-        TaskListSection(stringResource(R.string.section_anytime), sections.anytime, onToggleDone, onOpenTask)
-        TaskListSection(stringResource(R.string.section_tomorrow), sections.tomorrow, onToggleDone, onOpenTask)
-        if (state.isLoaded && listOf(sections.overdue, sections.timed, sections.anytime).all { it.isEmpty() }) {
-            Text(
-                text = stringResource(if (state.isToday) R.string.today_empty else R.string.day_empty),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.testTag("today-empty"),
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp).padding(top = 4.dp, bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            WeekStrip(
+                weekStart = state.weekStart,
+                shownDay = state.shownDay,
+                dots = state.dots,
+                onPickDay = onPickDay,
             )
+            TaskListSection(stringResource(R.string.section_overdue), sections.overdue, onToggleDone, onOpenTask)
+            TaskListSection(null, sections.timed, onToggleDone, onOpenTask)
+            TaskListSection(stringResource(R.string.section_anytime), sections.anytime, onToggleDone, onOpenTask)
+            TaskListSection(stringResource(R.string.section_tomorrow), sections.tomorrow, onToggleDone, onOpenTask)
+            if (state.isLoaded && listOf(sections.overdue, sections.timed, sections.anytime).all { it.isEmpty() }) {
+                Text(
+                    text = stringResource(if (state.isToday) R.string.today_empty else R.string.day_empty),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("today-empty"),
+                )
+            }
         }
     }
 }

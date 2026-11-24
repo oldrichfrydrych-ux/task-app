@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cz.olda.tasks.R
 import cz.olda.tasks.data.UpcomingDay
+import cz.olda.tasks.ui.components.ScreenHeader
 import cz.olda.tasks.ui.components.TaskListSection
 import cz.olda.tasks.ui.components.rememberCompletionUndo
 import java.time.format.DateTimeFormatter
@@ -51,26 +52,30 @@ fun UpcomingContent(
         modifier = modifier
             .fillMaxSize()
             .testTag("screen-Upcoming")
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .verticalScroll(rememberScrollState()),
     ) {
-        days?.forEach { day ->
-            TaskListSection(
-                title = day.date.format(formatter),
-                items = day.tasks,
-                onToggleDone = onToggleDone,
-                onClick = onOpenTask,
-                headerModifier = Modifier.testTag("upcoming-day-${day.date}"),
-            )
-        }
-        if (days != null && days.isEmpty()) {
-            Text(
-                text = stringResource(R.string.upcoming_empty),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.testTag("upcoming-empty"),
-            )
+        ScreenHeader(title = stringResource(R.string.upcoming), titleModifier = Modifier.testTag("upcoming-header"))
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp).padding(top = 4.dp, bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            days?.forEach { day ->
+                TaskListSection(
+                    title = day.date.format(formatter),
+                    items = day.tasks,
+                    onToggleDone = onToggleDone,
+                    onClick = onOpenTask,
+                    headerModifier = Modifier.testTag("upcoming-day-${day.date}"),
+                )
+            }
+            if (days != null && days.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.upcoming_empty),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("upcoming-empty"),
+                )
+            }
         }
     }
 }

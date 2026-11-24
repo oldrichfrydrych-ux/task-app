@@ -127,6 +127,12 @@ class ListsScreenTest {
         count(hasText(text)) > 0
     }
 
+    @Test fun listsHasAHeaderWithSearchBesideIt() {
+        show()
+        rule.onNodeWithTag("lists-header").assertTextEquals("Lists")
+        rule.onNodeWithTag("open-search").assertIsDisplayed()
+    }
+
     @Test fun showsGroupsWithTheirLists() {
         runBlocking {
             val home = lists.createGroup("Home")

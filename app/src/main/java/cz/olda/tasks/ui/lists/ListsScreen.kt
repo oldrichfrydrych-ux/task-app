@@ -37,6 +37,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cz.olda.tasks.R
+import cz.olda.tasks.ui.components.ConfirmDeleteDialog
+import cz.olda.tasks.ui.components.ScreenHeader
 import cz.olda.tasks.ui.AppIcons
 import cz.olda.tasks.data.entity.GroupEntity
 import cz.olda.tasks.data.entity.ListEntity
@@ -64,60 +66,62 @@ fun ListsScreen(
         modifier = modifier
             .fillMaxSize()
             .testTag("screen-Lists")
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .verticalScroll(rememberScrollState()),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = stringResource(R.string.lists),
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.weight(1f),
-            )
-            IconButton(onClick = onOpenSearch, modifier = Modifier.testTag("open-search")) {
-                Icon(AppIcons.Search, contentDescription = stringResource(R.string.search))
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(onClick = { creatingList = true }, modifier = Modifier.testTag("new-list")) {
-                Text(stringResource(R.string.new_list))
-            }
-            TextButton(onClick = { creatingGroup = true }, modifier = Modifier.testTag("new-group")) {
-                Text(stringResource(R.string.new_group))
-            }
-        }
-        groups?.forEach { entry ->
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                entry.group?.let { group ->
-                    Text(
-                        text = group.name,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 48.dp)
-                            .clickable { editingGroupId = group.id }
-                            .padding(horizontal = 4.dp, vertical = 12.dp)
-                            .testTag("group-${group.id}"),
-                    )
+        ScreenHeader(
+            title = stringResource(R.string.lists),
+            titleModifier = Modifier.testTag("lists-header"),
+            trailing = {
+                IconButton(onClick = onOpenSearch, modifier = Modifier.testTag("open-search")) {
+                    Icon(AppIcons.Search, contentDescription = stringResource(R.string.search))
                 }
-                entry.lists.forEach { list ->
-                    ListRow(
-                        list = list,
-                        openCount = counts?.let { it[list.id] ?: 0 },
-                        onOpen = { onOpenList(list.id) },
-                        onEdit = { editingListId = list.id },
-                    )
+            },
+        )
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp).padding(top = 4.dp, bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = { creatingList = true }, modifier = Modifier.testTag("new-list")) {
+                    Text(stringResource(R.string.new_list))
+                }
+                TextButton(onClick = { creatingGroup = true }, modifier = Modifier.testTag("new-group")) {
+                    Text(stringResource(R.string.new_group))
                 }
             }
-        }
-        if (groups != null && groups.isEmpty()) {
-            Text(
-                text = stringResource(R.string.lists_empty),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.testTag("lists-empty"),
-            )
+            groups?.forEach { entry ->
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    entry.group?.let { group ->
+                        Text(
+                            text = group.name,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp)
+                                .clickable { editingGroupId = group.id }
+                                .padding(horizontal = 4.dp, vertical = 12.dp)
+                                .testTag("group-${group.id}"),
+                        )
+                    }
+                    entry.lists.forEach { list ->
+                        ListRow(
+                            list = list,
+                            openCount = counts?.let { it[list.id] ?: 0 },
+                            onOpen = { onOpenList(list.id) },
+                            onEdit = { editingListId = list.id },
+                        )
+                    }
+                }
+            }
+            if (groups != null && groups.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.lists_empty),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("lists-empty"),
+                )
+            }
         }
     }
 

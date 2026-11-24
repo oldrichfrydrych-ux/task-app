@@ -10,6 +10,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
@@ -116,6 +117,11 @@ class InboxScreenTest {
 
     @Test fun stateIsNullBeforeTheFirstEmission() {
         org.junit.Assert.assertNull(InboxViewModel(repo, lists).state.value)
+    }
+
+    @Test fun theInboxHasAHeader() {
+        show()
+        rule.onNodeWithTag("inbox-header").assertTextEquals("Inbox")
     }
 
     @Test fun emptyInboxSaysSo() {

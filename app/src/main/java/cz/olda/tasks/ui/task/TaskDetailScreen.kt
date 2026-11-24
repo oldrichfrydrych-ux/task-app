@@ -51,7 +51,8 @@ import cz.olda.tasks.R
 import cz.olda.tasks.data.entity.TaskEntity
 import cz.olda.tasks.ui.AppIcons
 import cz.olda.tasks.ui.components.formatMinuteOfDay
-import cz.olda.tasks.ui.lists.ConfirmDeleteDialog
+import cz.olda.tasks.ui.components.ConfirmDeleteDialog
+import cz.olda.tasks.ui.components.ScreenHeader
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -73,23 +74,21 @@ fun TaskDetailScreen(
     val task = state.task
 
     Column(modifier = modifier.fillMaxSize().testTag("screen-TaskDetail")) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack, modifier = Modifier.testTag("task-back")) {
-                Icon(AppIcons.Back, contentDescription = stringResource(R.string.back))
-            }
-            Box(modifier = Modifier.weight(1f))
-            if (task != null) {
-                TextButton(onClick = { confirmingDelete = true }, modifier = Modifier.testTag("task-delete")) {
-                    Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
-                }
-            }
-        }
+        ScreenHeader(
+            title = stringResource(R.string.task_screen_title),
+            titleModifier = Modifier.testTag("task-header"),
+            onBack = onBack,
+            backModifier = Modifier.testTag("task-back"),
+        )
         // Nothing below shows until the task has loaded; a task that does not exist says so.
         if (task != null) {
-            TaskFields(task = task, state = state, viewModel = viewModel, onOpenTask = onOpenTask)
+            TaskFields(
+                task = task,
+                state = state,
+                viewModel = viewModel,
+                onOpenTask = onOpenTask,
+                onDelete = { confirmingDelete = true },
+            )
         } else if (state.loaded) {
             Text(
                 text = stringResource(R.string.task_not_found),
@@ -122,6 +121,7 @@ private fun TaskFields(
     state: TaskDetailState,
     viewModel: TaskDetailViewModel,
     onOpenTask: (Long) -> Unit,
+    onDelete: () -> Unit,
 ) {
     // Local text, seeded once: the field must not be rewritten by its own saves mid-typing.
     var title by rememberSaveable { mutableStateOf(task.title) }
@@ -172,6 +172,11 @@ private fun TaskFields(
 
         // One level only: a subtask has no subtasks section and nothing to add one with.
         if (task.parentTaskId == null) Subtasks(state, viewModel, onOpenTask)
+
+        // Last on the page, away from the title and the back arrow: the most prominent control is no longer destructive.
+        TextButton(onClick = onDelete, modifier = Modifier.testTag("task-delete")) {
+            Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
+        }
     }
 }
 

@@ -30,6 +30,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import cz.olda.tasks.R
+import cz.olda.tasks.ui.components.ConfirmDeleteDialog
 import cz.olda.tasks.data.entity.GroupEntity
 import cz.olda.tasks.data.entity.ListEntity
 import cz.olda.tasks.ui.components.ColorPicker

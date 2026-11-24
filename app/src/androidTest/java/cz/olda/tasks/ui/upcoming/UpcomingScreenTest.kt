@@ -135,6 +135,11 @@ class UpcomingScreenTest {
         rule.onNodeWithText("overdue").assertDoesNotExist()
     }
 
+    @Test fun upcomingHasAHeader() {
+        show()
+        rule.onNodeWithTag("upcoming-header").assertTextEquals("Upcoming")
+    }
+
     @Test fun emptyUpcomingSaysSo() {
         show()
         rule.onNodeWithText("Nothing coming up").assertIsDisplayed()

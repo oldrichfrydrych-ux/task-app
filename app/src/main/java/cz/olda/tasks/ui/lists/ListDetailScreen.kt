@@ -28,6 +28,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cz.olda.tasks.R
+import cz.olda.tasks.ui.components.ConfirmDeleteDialog
+import cz.olda.tasks.ui.components.ScreenHeader
 import cz.olda.tasks.ui.AppIcons
 import cz.olda.tasks.ui.components.TaskListSection
 import cz.olda.tasks.ui.components.rememberCompletionUndo
@@ -50,34 +52,28 @@ fun ListDetailScreen(
     var renamingHeadingId by rememberSaveable { mutableStateOf<Long?>(null) }
 
     Column(modifier = modifier.fillMaxSize().testTag("screen-ListDetail")) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack, modifier = Modifier.testTag("list-back")) {
-                Icon(AppIcons.Back, contentDescription = stringResource(R.string.back))
-            }
-            val list = state.list
-            if (list != null) {
-                Text(
-                    text = list.name,
-                    style = MaterialTheme.typography.titleLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f).testTag("list-title"),
-                )
-                TextButton(onClick = { addingHeading = true }, modifier = Modifier.testTag("add-heading")) {
-                    Text(stringResource(R.string.add_heading))
+        val list = state.list
+        ScreenHeader(
+            title = list?.name,
+            onBack = onBack,
+            backModifier = Modifier.testTag("list-back"),
+            titleModifier = Modifier.testTag("list-title"),
+            trailing = {
+                if (list != null) {
+                    TextButton(onClick = { addingHeading = true }, modifier = Modifier.testTag("add-heading")) {
+                        Text(stringResource(R.string.add_heading))
+                    }
                 }
-            }
-        }
+            },
+        )
         // Nothing below shows until the list has loaded, so no empty message flashes on start.
         if (state.list != null) {
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 4.dp, bottom = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 TaskListSection(null, state.unheaded, complete, onOpenTask, showDate = true)

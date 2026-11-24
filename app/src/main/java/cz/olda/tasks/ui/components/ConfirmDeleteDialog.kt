@@ -1,4 +1,4 @@
-package cz.olda.tasks.ui.lists
+package cz.olda.tasks.ui.components
 
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme

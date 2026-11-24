@@ -16,6 +16,7 @@ import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.isOn
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -147,7 +148,22 @@ class TaskDetailScreenTest {
         openedTask = null
         rule.onNodeWithTag("subtask-done-$sub").performClick()
         rule.waitUntil(timeoutMillis = 10_000) { task(sub)?.done == true }
+        // The database changed first; let the screen show it before the test ends and closes the database under it.
+        rule.waitUntil(timeoutMillis = 10_000) {
+            rule.onAllNodes(hasTestTag("subtask-done-$sub") and isOn()).fetchSemanticsNodes().isNotEmpty()
+        }
         assertNull(openedTask)
+    }
+
+    @Test fun deleteSitsBelowTheFieldsNotInTheHeader() {
+        val id = runBlocking { repo.add("Keep me", work, null, null, 4) }
+        show(id)
+        rule.onNodeWithTag("task-header").assertTextEquals("Task")
+        val delete = rule.onNodeWithTag("task-delete").getUnclippedBoundsInRoot()
+        val title = rule.onNodeWithTag("task-title-field").getUnclippedBoundsInRoot()
+        val back = rule.onNodeWithTag("task-back").getUnclippedBoundsInRoot()
+        assertTrue("delete must come after the title field", delete.top > title.bottom)
+        assertTrue("delete must not share the back arrow's row", delete.top > back.bottom)
     }
 
     @Test fun completingTheParentChecksItsSubtasks() {

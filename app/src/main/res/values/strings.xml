@@ -85,6 +85,7 @@
 
     <!-- Task detail -->
     <string name="task_not_found">This task no longer exists</string>
+    <string name="task_screen_title">Task</string>
     <string name="task_title_hint">Title</string>
     <string name="task_notes">Notes</string>
     <string name="no_heading">No heading</string>
@@ -102,10 +103,9 @@
     <string name="delete_task_title">Delete this task?</string>
     <string name="delete_task_with_subtasks">The task and its subtasks are deleted.</string>
 
-    <!-- Placeholder screens, until Phase 1 fills them in -->
+    <!-- Search -->
     <string name="search">Search</string>
     <string name="search_hint">Search tasks</string>
     <string name="search_clear">Clear search</string>
     <string name="search_no_results">Nothing found</string>
-    <string name="placeholder_screen">%1$s · coming soon</string>
 </resources>

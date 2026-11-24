@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cz.olda.tasks.R
 import cz.olda.tasks.data.TaskWithList
+import cz.olda.tasks.ui.components.ScreenHeader
 import cz.olda.tasks.ui.components.TaskListSection
 import cz.olda.tasks.ui.components.rememberCompletionUndo
 
@@ -47,18 +48,22 @@ fun InboxContent(
         modifier = modifier
             .fillMaxSize()
             .testTag("screen-Inbox")
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .verticalScroll(rememberScrollState()),
     ) {
-        TaskListSection(null, tasks.orEmpty(), onToggleDone, onOpenTask, showDate = true)
-        if (tasks != null && tasks.isEmpty()) {
-            Text(
-                text = stringResource(R.string.inbox_empty),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.testTag("inbox-empty"),
-            )
+        ScreenHeader(title = stringResource(R.string.inbox), titleModifier = Modifier.testTag("inbox-header"))
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp).padding(top = 4.dp, bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            TaskListSection(null, tasks.orEmpty(), onToggleDone, onOpenTask, showDate = true)
+            if (tasks != null && tasks.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.inbox_empty),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("inbox-empty"),
+                )
+            }
         }
     }
 }
