@@ -7,7 +7,8 @@ Olda's personal Android task app. He is new to Android development: you write mo
 - Work through the plan task by task, in order. Don't start a later phase's work early.
 
 ## Fixed choices
-- Kotlin, Jetpack Compose, Material 3, Gradle Kotlin DSL, one `app` module.
+- Kotlin, Jetpack Compose, Material 3, Gradle Kotlin DSL, one `app` module (until Phase 8).
+- Keep the core ready for Windows (Phase 8): no `android.*` imports and no `Context` in `data/` or the parser. Android-only work goes in its own small files.
 - Package `cz.olda.tasks`, minimum SDK 29.
 - Code identifiers in English; user-facing text only in `res/values/strings.xml`.
 - No dynamic colour. No `INTERNET` permission before Phase 4.

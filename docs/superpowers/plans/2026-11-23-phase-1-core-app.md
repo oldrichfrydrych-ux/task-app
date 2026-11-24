@@ -13,6 +13,7 @@
 ## Global Constraints
 
 - Package `cz.olda.tasks`, minimum SDK 29, one `app` module, Gradle Kotlin DSL.
+- **Ready for Windows (Phase 8):** entities, DAOs, repositories and `TextNormaliser` use no `android.*` imports and no `Context`. Only `AppContainer` (and the Android tests) builds the database with `Room.databaseBuilder(context, …)`.
 - Code identifiers in English. Every user-facing string in `res/values/strings.xml`.
 - No dynamic colour. **No `INTERNET` permission** — Phase 4 adds it, not this phase.
 - Only these libraries may be added, and nothing else without asking Olda: `androidx.room:room-runtime`, `room-ktx`, `room-compiler` (+ the KSP Gradle plugin), `androidx.navigation:navigation-compose`, `androidx.lifecycle:lifecycle-viewmodel-compose`, `lifecycle-runtime-compose`, `androidx.room:room-testing`, `kotlinx-coroutines-test`.

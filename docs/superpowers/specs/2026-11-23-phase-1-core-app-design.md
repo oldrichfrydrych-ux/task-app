@@ -59,6 +59,7 @@ It fails even if it technically works when:
 From `CLAUDE.md` and `docs/design.md`:
 
 - Kotlin, Jetpack Compose, Material 3, Gradle Kotlin DSL, one `app` module.
+- The core stays free of Android-only APIs so Phase 8 (Windows) can move it into a shared module.
 - Package `cz.olda.tasks`, minimum SDK 29.
 - Code identifiers in English; every user-facing string in `res/values/strings.xml`.
 - No dynamic colour. No `INTERNET` permission before Phase 4.

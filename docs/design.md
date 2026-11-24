@@ -22,10 +22,12 @@ A personal Android task app that is a pleasure to use, with natural-language qui
 - A focus timer and time tracker like TickTick's, tied to tasks.
 - Recurring tasks can be hidden when they clutter the day.
 - Learn how to build an Android app with AI.
+- A Windows version later (Phase 8), built from the same Kotlin code rather than as a separate app.
+- Animations that feel good and explain what happened: quick, springy and never in the way (see Motion).
 
 **Non-goals**
 
-- iOS, desktop or web versions. On the desktop, Google's own Tasks panel in Gmail and Calendar already shows the tasks.
+- iOS and web versions. Until the Windows version arrives, Google's own Tasks panel in Gmail and Calendar shows the tasks on a computer.
 - Sharing, teams or collaboration.
 - A Play Store release. The app goes straight from Android Studio onto Olda's phone.
 - Matching TickTick feature for feature (habits, Eisenhower matrix). The focus timer is the exception: it is in, as Phase 5.
@@ -56,6 +58,8 @@ Olda picked A: build from scratch.
 | B. Fork Tasks.org and restyle it | Google Tasks sync, reminders and widgets work on day one | A Todoist or Memorigi look touches almost every screen of a large, mature codebase | Rejected |
 | C. Cross-platform or web app | Could also run on the desktop | Not what was asked; the desktop is already covered by Google's Tasks panel | Dropped |
 
+**Update 24 November:** Olda wants a Windows version eventually. That stays inside approach A: Kotlin Multiplatform with Compose Multiplatform builds a Windows app from the same Kotlin code, so no web app is needed (Phase 8).
+
 ## Design
 
 One Kotlin app with three parts: a database on the phone holds everything, a parser turns Czech or English sentences into tasks, and a background job syncs the basics with Google Tasks. Only title, notes, date and done status travel to Google.
@@ -65,6 +69,7 @@ One Kotlin app with three parts: a database on the phone holds everything, a par
 - Kotlin and Jetpack Compose, with Material 3 as the base under a custom theme.
 - Room (SQLite) for the database, WorkManager for background sync, scheduled notifications for reminders.
 - Google sign-in through Google Identity Services; Google Tasks API over REST.
+- **Ready for Windows (Phase 8):** the code stays in one `app` module until then, but the core (database entities, DAOs and repositories, text normalising, the quick-add parser, sync logic) uses no Android-only APIs: no `android.*` imports and no `Context`. Android-only work (building the database, WorkManager, notifications, Google sign-in) sits in its own small files. Phase 8 then moves the core into a shared Kotlin Multiplatform module instead of rewriting it.
 
 ### Structure
 
@@ -172,6 +177,19 @@ Chosen on 23 November: the warm "rail" direction. Today shows the same tasks in 
 
 These are presets: any of them can be swapped for a custom colour (see Colours). Text written in a list's colour uses a darker shade in light mode so it keeps 4.5:1 contrast.
 
+### Motion
+
+Olda wants cool, intuitive animations in this app and in the companion calendar; the details are Claude's proposal.
+
+- **Springs, not timers:** movement uses spring physics (Compose `spring()`), so it settles naturally and the next touch can interrupt it midway.
+- **Fast:** most transitions finish in 200–350 ms. Nothing makes you wait before you can keep working.
+- **Cause and effect:** things grow from where you tapped and go where they belong. The quick-add sheet rises out of the add button, a new task slides into its list or day, and a completed task's circle fills, its title strikes through and the row folds away.
+- **Live quick-add:** recognised words light up with a small pop as you type; tapping a highlight to undo it fades it back into plain text.
+- **Dragging:** a task dragged to another day or into a free slot in the Day view lifts with a shadow, the other items make room, and it snaps in with a light haptic tick.
+- **List ↔ Day:** switching views morphs each task row into its time block instead of cutting between screens.
+- **Bottom bar:** the selected-tab pill slides between tabs; the bar slims down while you scroll down and comes back when you scroll up.
+- **The phone's setting wins:** with Android's "Remove animations" on, everything still works, with simple fades.
+
 ### Colours: presets plus any hex code
 
 Every colour (lists, tags, priorities) starts as a preset and can be changed to any colour by hex code, as Olda asked. The details are Claude's proposal; built in Phase 1 with the lists.
@@ -195,6 +213,7 @@ Every colour (lists, tags, priorities) starts as a preset and can be changed to 
 | 5 · Focus timer and time tracking | Pomodoro and stopwatch, sessions per task and list, stats | A week of focus time tracked in the app | 1–2 weekends |
 | 6 · Switch and polish | TickTick import, backups, widget, quick-add from anywhere | TickTick uninstalled | ongoing |
 | 7 · Long-term planning | Yearly goals and big projects, local only; tasks link to them | Scope set once Phase 6 is in use | later |
+| 8 · Windows app | Shared Kotlin Multiplatform module, desktop screens, browser sign-in, sync while open, Windows notifications | The same tasks on the PC as on the phone for a week | 3–5 weekends |
 
 ## Later: long-term planning
 
@@ -204,6 +223,15 @@ Phase 7 adds a space for yearly goals and big projects that stays on the phone a
 - **Storage:** only in the app's own database, covered by the same backup as tags and priorities.
 - **Decided now:** every task has an optional goal or project link from the first database version, and the navigation leaves room for the module (inside Lists at first; it can become a fifth tab).
 - **Decided later:** its screens, timeline and milestone views, periodic reviews, and how goals break down into tasks.
+
+## Later: Windows app
+
+Phase 8 brings the app to Windows with Kotlin Multiplatform and Compose Multiplatform (Windows 10 and 11). Windows' own way of running Android apps ended in March 2025, so this is the route.
+
+- **Shared:** the database, the parser, Google Tasks sync and most screens and theme.
+- **Windows-only:** signing in to Google through the browser, syncing on a timer while the app is open (WorkManager is Android-only), Windows notifications, and a layout that uses a wide window.
+- **Decided now:** the core stays free of Android-only APIs from Phase 1 on (see Stack), so Phase 8 is mostly a move plus new screens, not a rewrite.
+- **Decided later:** window layout, keyboard shortcuts, whether the companion calendar comes to Windows too.
 
 ## Answers and builder's calls
 
