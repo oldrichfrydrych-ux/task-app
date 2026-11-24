@@ -115,7 +115,7 @@ class AppShellTest {
         Espresso.pressBack()
         rule.onNodeWithTag("screen-Today").assertIsDisplayed()
         rule.runOnUiThread { navController.navigate(Routes.task(1)) }
-        rule.onNodeWithTag("screen-task").assertIsDisplayed()
+        rule.onNodeWithTag("screen-TaskDetail").assertIsDisplayed()
         todayTab().assertIsSelected()
     }
 

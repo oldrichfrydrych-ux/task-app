@@ -16,6 +16,7 @@ import cz.olda.tasks.ui.inbox.InboxScreen
 import cz.olda.tasks.ui.lists.ListDetailScreen
 import cz.olda.tasks.ui.lists.ListsScreen
 import cz.olda.tasks.ui.settings.SettingsScreen
+import cz.olda.tasks.ui.task.TaskDetailScreen
 import cz.olda.tasks.ui.today.TodayScreen
 import cz.olda.tasks.ui.upcoming.UpcomingScreen
 import cz.olda.tasks.ui.screens.PlaceholderScreen
@@ -77,7 +78,12 @@ fun AppNavHost(
         composable(
             Routes.TASK,
             arguments = listOf(navArgument("taskId") { type = NavType.LongType }),
-        ) { PlaceholderScreen(stringResource(R.string.task_detail), "screen-task") }
+        ) {
+            TaskDetailScreen(
+                viewModel = viewModel(factory = AppViewModelProvider.Factory),
+                onBack = { navController.popBackStack() },
+            )
+        }
         composable(Routes.SETTINGS) { SettingsScreen() }
         composable(Routes.SEARCH) {
             PlaceholderScreen(stringResource(R.string.search), "screen-search")

@@ -12,6 +12,7 @@ import cz.olda.tasks.TasksApplication
 import cz.olda.tasks.ui.inbox.InboxViewModel
 import cz.olda.tasks.ui.lists.ListDetailViewModel
 import cz.olda.tasks.ui.lists.ListsViewModel
+import cz.olda.tasks.ui.task.TaskDetailViewModel
 import cz.olda.tasks.ui.today.TodayViewModel
 import cz.olda.tasks.ui.upcoming.UpcomingViewModel
 
@@ -31,6 +32,13 @@ object AppViewModelProvider {
                 checkNotNull(createSavedStateHandle().get<Long>("listId")),
                 container().listRepository,
                 container().taskRepository,
+            )
+        }
+        initializer {
+            TaskDetailViewModel(
+                checkNotNull(createSavedStateHandle().get<Long>("taskId")),
+                container().taskRepository,
+                container().listRepository,
             )
         }
     }

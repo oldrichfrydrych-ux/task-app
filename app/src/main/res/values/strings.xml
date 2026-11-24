@@ -80,8 +80,26 @@
     <string name="color_slate">Slate</string>
     <string name="color_cyan">Cyan</string>
 
+    <!-- Task detail -->
+    <string name="task_not_found">This task no longer exists</string>
+    <string name="task_title_hint">Title</string>
+    <string name="task_notes">Notes</string>
+    <string name="no_heading">No heading</string>
+    <string name="no_date">No date</string>
+    <string name="no_time">No time</string>
+    <string name="clear">Clear</string>
+    <string name="add">Add</string>
+    <string name="priority">Priority</string>
+    <string name="priority_1">High</string>
+    <string name="priority_2">Medium</string>
+    <string name="priority_3">Low</string>
+    <string name="priority_4">None</string>
+    <string name="subtasks">Subtasks</string>
+    <string name="add_subtask_hint">Add a subtask</string>
+    <string name="delete_task_title">Delete this task?</string>
+    <string name="delete_task_with_subtasks">The task and its subtasks are deleted.</string>
+
     <!-- Placeholder screens, until Phase 1 fills them in -->
-    <string name="task_detail">Task</string>
     <string name="search">Search</string>
     <string name="placeholder_screen">%1$s · coming soon</string>
 </resources>

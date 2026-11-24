@@ -169,7 +169,7 @@ fun TaskRow(
 
 /** Formats minutes since midnight with the device's locale and 12/24-hour setting. */
 @Composable
-private fun formatMinuteOfDay(minute: Int): String {
+internal fun formatMinuteOfDay(minute: Int): String {
     val context = LocalContext.current
     return remember(minute, context) {
         val cal = Calendar.getInstance().apply {
