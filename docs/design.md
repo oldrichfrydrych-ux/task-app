@@ -23,6 +23,7 @@ A personal Android task app that is a pleasure to use, with natural-language qui
 - Recurring tasks can be hidden when they clutter the day.
 - Learn how to build an Android app with AI.
 - A Windows version later (Phase 8), built from the same Kotlin code rather than as a separate app.
+- Share tasks and the Inbox with Do-day, Olda's companion calendar app (Phase 4b).
 - Animations that feel good and explain what happened: quick, springy and never in the way (see Motion).
 
 **Non-goals**
@@ -210,10 +211,21 @@ Every colour (lists, tags, priorities) starts as a preset and can be changed to 
 | 2 · Czech and English quick-add | Parser, live highlighting, 100+ phrase test suite | Nearly all real captures parse correctly | 1–2 weekends |
 | 3 · Reminders and repeats | Notifications with Done/Snooze; recurring tasks; hide recurring | A week with no missed reminder | 1 weekend |
 | 4 · Google Tasks sync | Cloud project, sign-in, import, two-way sync, time in notes | A week, nothing lost or duplicated; tasks in Calendar | 2–4 weekends |
+| 4b · Share with Do-day | Tasks and the Inbox shared with Do-day; Inbox goals (every week or month, N times, with a length) | Do-day shows today's tasks, and a task ticked in either app is done in both | 1–2 weekends |
 | 5 · Focus timer and time tracking | Pomodoro and stopwatch, sessions per task and list, stats | A week of focus time tracked in the app | 1–2 weekends |
 | 6 · Switch and polish | TickTick import, backups, widget, quick-add from anywhere | TickTick uninstalled | ongoing |
 | 7 · Long-term planning | Yearly goals and big projects, local only; tasks link to them | Scope set once Phase 6 is in use | later |
 | 8 · Windows app | Shared Kotlin Multiplatform module, desktop screens, browser sign-in, sync while open, Windows notifications | The same tasks on the PC as on the phone for a week | 3–5 weekends |
+
+## Later: sharing with Do-day
+
+Decided on 24 November: the Inbox lives in this app, and Do-day (`oldrichfrydrych-ux/calendar`, spec in its `docs/design.md`) reads it. Phase 4b builds the sharing.
+
+- **What Do-day sees:** tasks with a date (title, date, time, length, list colour, done), Inbox items without a date, and Inbox goals.
+- **Inbox goals:** a new kind of Inbox item that should happen every week or every month a number of times, with a length, such as "Běh, 2× týdně, 45 min". Google Tasks sees it as an ordinary undated task with a line in its notes. Do-day counts progress from the events it plans for it.
+- **How:** a content provider in this app, protected by a signature permission, so only apps signed with Olda's key can read it. Both apps use the debug key on Olda's PC and must share one release key later.
+- **Writing back:** ticking a task in Do-day marks it done here, through the same provider.
+- **Until then:** Do-day works against its own stand-in, so neither app waits for the other.
 
 ## Later: long-term planning
 
