@@ -13,6 +13,7 @@ import cz.olda.tasks.ui.inbox.InboxViewModel
 import cz.olda.tasks.ui.lists.ListDetailViewModel
 import cz.olda.tasks.ui.lists.ListsViewModel
 import cz.olda.tasks.ui.quickadd.QuickAddViewModel
+import cz.olda.tasks.ui.search.SearchViewModel
 import cz.olda.tasks.ui.task.TaskDetailViewModel
 import cz.olda.tasks.ui.today.TodayViewModel
 import cz.olda.tasks.ui.upcoming.UpcomingViewModel
@@ -28,6 +29,7 @@ object AppViewModelProvider {
         // Saved state lets a half-typed task survive the process being killed.
         initializer { QuickAddViewModel(container().taskRepository, container().listRepository, createSavedStateHandle()) }
         initializer { InboxViewModel(container().taskRepository, container().listRepository) }
+        initializer { SearchViewModel(container().taskRepository) }
         initializer { ListsViewModel(container().listRepository, container().taskRepository) }
         // The list id is the route argument, which the nav back stack puts in the saved state.
         initializer {

@@ -16,6 +16,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -35,6 +37,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cz.olda.tasks.R
+import cz.olda.tasks.ui.AppIcons
 import cz.olda.tasks.data.entity.GroupEntity
 import cz.olda.tasks.data.entity.ListEntity
 import cz.olda.tasks.ui.theme.parseHex
@@ -44,6 +47,7 @@ import cz.olda.tasks.ui.theme.parseHex
 fun ListsScreen(
     viewModel: ListsViewModel,
     onOpenList: (Long) -> Unit,
+    onOpenSearch: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -64,7 +68,16 @@ fun ListsScreen(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Text(text = stringResource(R.string.lists), style = MaterialTheme.typography.headlineSmall)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = stringResource(R.string.lists),
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(onClick = onOpenSearch, modifier = Modifier.testTag("open-search")) {
+                Icon(AppIcons.Search, contentDescription = stringResource(R.string.search))
+            }
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(onClick = { creatingList = true }, modifier = Modifier.testTag("new-list")) {
                 Text(stringResource(R.string.new_list))

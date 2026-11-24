@@ -2,24 +2,22 @@ package cz.olda.tasks.ui.nav
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import cz.olda.tasks.R
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cz.olda.tasks.ui.AppViewModelProvider
 import cz.olda.tasks.ui.Destination
 import cz.olda.tasks.ui.inbox.InboxScreen
 import cz.olda.tasks.ui.lists.ListDetailScreen
 import cz.olda.tasks.ui.lists.ListsScreen
+import cz.olda.tasks.ui.search.SearchScreen
 import cz.olda.tasks.ui.settings.SettingsScreen
 import cz.olda.tasks.ui.task.TaskDetailScreen
 import cz.olda.tasks.ui.today.TodayScreen
 import cz.olda.tasks.ui.upcoming.UpcomingScreen
-import cz.olda.tasks.ui.screens.PlaceholderScreen
 
 object Routes {
     const val LIST = "list/{listId}"
@@ -63,6 +61,7 @@ fun AppNavHost(
             ListsScreen(
                 viewModel = viewModel(factory = AppViewModelProvider.Factory),
                 onOpenList = { navController.navigate(Routes.list(it)) },
+                onOpenSearch = { navController.navigate(Routes.SEARCH) },
             )
         }
         composable(
@@ -86,7 +85,11 @@ fun AppNavHost(
         }
         composable(Routes.SETTINGS) { SettingsScreen() }
         composable(Routes.SEARCH) {
-            PlaceholderScreen(stringResource(R.string.search), "screen-search")
+            SearchScreen(
+                viewModel = viewModel(factory = AppViewModelProvider.Factory),
+                onOpenTask = { navController.navigate(Routes.task(it)) },
+                onBack = { navController.popBackStack() },
+            )
         }
     }
 }

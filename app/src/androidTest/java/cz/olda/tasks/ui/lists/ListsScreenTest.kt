@@ -84,6 +84,8 @@ class ListsScreenTest {
     private fun groupId() = runBlocking { db.groupDao().observeAll().first().single().id }
 
     /** Shows the screen and waits for its first load: a row, a group header or the empty state. */
+    private var searchOpened = 0
+
     private fun show(withInbox: Boolean = false) {
         val viewModel = ListsViewModel(lists, repo)
         rule.setContent {
@@ -92,7 +94,7 @@ class ListsScreenTest {
                 CompositionLocalProvider(LocalSnackbarHostState provides hostState) {
                     Scaffold(snackbarHost = { SnackbarHost(hostState) }) { padding ->
                         Column(Modifier.padding(padding)) {
-                            Box(Modifier.weight(1f)) { ListsScreen(viewModel = viewModel, onOpenList = {}) }
+                            Box(Modifier.weight(1f)) { ListsScreen(viewModel = viewModel, onOpenList = {}, onOpenSearch = { searchOpened++ }) }
                             if (withInbox) {
                                 Box(Modifier.weight(1f)) {
                                     InboxScreen(InboxViewModel(repo, lists), onOpenTask = {})
@@ -305,5 +307,11 @@ class ListsScreenTest {
         rule.onNodeWithTag("delete-confirm").performClick()
         awaitGone("Errands")
         rule.onNodeWithText("Shop").assertIsDisplayed()
+    }
+
+    @Test fun theSearchIconOpensSearch() {
+        show()
+        rule.onNodeWithTag("open-search").performClick()
+        org.junit.Assert.assertEquals(1, searchOpened)
     }
 }
