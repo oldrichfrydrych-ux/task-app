@@ -121,6 +121,7 @@ class ListDetailScreenTest {
         rule.onNodeWithTag("add-heading").performClick()
         rule.onNodeWithTag("heading-name-field").performTextInput("Later")
         rule.onNodeWithTag("heading-save").performClick()
+        awaitGone("heading-name-field")
         rule.waitUntil(timeoutMillis = 10_000) {
             rule.onAllNodes(hasText("Later")).fetchSemanticsNodes().isNotEmpty()
         }
@@ -173,8 +174,9 @@ class ListDetailScreenTest {
         rule.onNodeWithTag("heading-title-$b").assertIsDisplayed()
     }
 
-    @Test fun completingATaskHereCanBeUndone() {
+    @Test fun completingAParentHereCanBeUndoneSubtasksIncluded() {
         val id = runBlocking { repo.add("finish me", work, null, null, 4) }
+        val sub = runBlocking { repo.add("and me", work, null, null, 4, parentTaskId = id) }
         show()
         awaitShown("task-$id")
         rule.onNode(hasContentDescription("Complete task") and hasAnyAncestor(hasTestTag("task-$id")))
@@ -184,5 +186,7 @@ class ListDetailScreenTest {
         awaitShown("task-$id")
         rule.onNodeWithTag("task-$id").assertIsDisplayed()
         assertEquals(listOf("finish me"), runBlocking { repo.observeInList(work).first() }.map { it.task.title })
+        // Only undoCompletion reopens the subtask; setDone(parent, false) would leave it done.
+        assertEquals(false, runBlocking { repo.observeTask(sub).first() }!!.done)
     }
 }
