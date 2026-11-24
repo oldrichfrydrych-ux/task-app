@@ -60,9 +60,9 @@ fun QuickAddSheet(
     val focusRequester = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
     val state by viewModel.state.collectAsStateWithLifecycle()
-    // The field keeps its own saved text, so typing never waits on the ViewModel, and the draft
-    // in the ViewModel is the same text; closing the sheet throws both away.
-    var text by rememberSaveable { mutableStateOf(viewModel.state.value.title) }
+    // The field keeps its own saved text, so typing never waits on the ViewModel; it starts from the draft
+    // stored there, and closing the sheet throws both away.
+    var text by rememberSaveable { mutableStateOf(viewModel.draftTitle) }
     var picker by rememberSaveable { mutableStateOf(Picker.None) }
 
     fun close() {
@@ -73,8 +73,7 @@ fun QuickAddSheet(
     fun save() {
         if (!state.canSave) return
         scope.launch {
-            viewModel.save()
-            onDismiss()
+            if (viewModel.save()) onDismiss()
         }
     }
 

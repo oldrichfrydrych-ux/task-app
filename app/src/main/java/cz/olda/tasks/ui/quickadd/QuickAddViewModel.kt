@@ -6,11 +6,14 @@ import androidx.lifecycle.viewModelScope
 import cz.olda.tasks.data.ListRepository
 import cz.olda.tasks.data.TaskRepository
 import cz.olda.tasks.data.entity.ListEntity
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
 
 /** What the sheet shows. [listId] is 0 only until the lists have loaded. */
@@ -45,19 +48,7 @@ class QuickAddViewModel(
         savedState.getStateFlow(PRIORITY, DEFAULT_PRIORITY),
         listRepository.observeLists(),
     ) { title, epochDay, chosenList, priority, lists ->
-        // A list that was deleted since it was picked falls back to Inbox, like its tasks do.
-        val listId = lists.firstOrNull { it.id == chosenList }?.id
-            ?: lists.firstOrNull { it.isInbox }?.id
-            ?: 0L
-        QuickAddState(
-            title = title,
-            dueDate = if (epochDay == NO_DATE) null else LocalDate.ofEpochDay(epochDay),
-            dueMinute = null,
-            listId = listId,
-            priority = priority,
-            lists = lists,
-            canSave = title.isNotBlank() && listId != 0L,
-        )
+        build(title, epochDay, chosenList, priority, lists)
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
@@ -80,22 +71,62 @@ class QuickAddViewModel(
         savedState[PRIORITY] = DEFAULT_PRIORITY
     }
 
-    /** Writes the task and clears the draft. Does nothing while [QuickAddState.canSave] is false. */
-    suspend fun save() {
-        // Waits for the lists, so a save with nobody collecting [state] still sees the real draft.
-        val current = state.first { it.listId != 0L }
-        if (!current.canSave) return
-        taskRepository.add(
-            title = current.title.trim(),
-            listId = current.listId,
-            dueDate = current.dueDate,
-            dueMinute = current.dueMinute,
-            priority = current.priority,
+    /** The title as stored, for the field to start from after a restart (the [state] flow may not have collected yet). */
+    val draftTitle: String get() = savedState[TITLE] ?: ""
+
+    // One write at a time: a second tap, or a tap plus IME Done, waits here and then finds the draft gone.
+    private val saveLock = Mutex()
+
+    private fun build(title: String, epochDay: Long, chosenList: Long, priority: Int, lists: List<ListEntity>): QuickAddState {
+        // A list that was deleted since it was picked falls back to Inbox, like its tasks do.
+        val listId = lists.firstOrNull { it.id == chosenList }?.id
+            ?: lists.firstOrNull { it.isInbox }?.id
+            ?: 0L
+        return QuickAddState(
+            title = title,
+            dueDate = if (epochDay == NO_DATE) null else LocalDate.ofEpochDay(epochDay),
+            dueMinute = null,
+            listId = listId,
+            priority = priority,
+            lists = lists,
+            canSave = title.isNotBlank() && listId != 0L,
         )
-        clear()
     }
 
-    private companion object {
+    /**
+     * Writes the task and clears the draft; true only if a task was written. The write runs in
+     * [viewModelScope], so leaving the screen or rotating mid-write cannot cancel it half way.
+     * A second call while one is running waits, then finds no draft and returns false. A failed
+     * write keeps the draft and returns false.
+     */
+    suspend fun save(): Boolean = viewModelScope.async {
+        saveLock.withLock {
+            // Read straight from the handle, not [state], which may not have caught up with a clear().
+            val current = build(
+                savedState[TITLE] ?: "",
+                savedState[DATE] ?: NO_DATE,
+                savedState[LIST] ?: NO_LIST,
+                savedState[PRIORITY] ?: DEFAULT_PRIORITY,
+                listRepository.observeLists().first(),
+            )
+            if (!current.canSave) return@withLock false
+            try {
+                taskRepository.add(
+                    title = current.title.trim(),
+                    listId = current.listId,
+                    dueDate = current.dueDate,
+                    dueMinute = current.dueMinute,
+                    priority = current.priority,
+                )
+            } catch (e: Exception) {
+                return@withLock false
+            }
+            clear()
+            true
+        }
+    }.await()
+
+    internal companion object {
         const val TITLE = "title"
         const val DATE = "date"
         const val LIST = "list"
