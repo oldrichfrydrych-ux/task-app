@@ -61,14 +61,9 @@ fun QuickAddSheet(
     val scope = rememberCoroutineScope()
     val state by viewModel.state.collectAsStateWithLifecycle()
     // The field keeps its own saved text, so typing never waits on the ViewModel; it starts from the draft
-    // stored there, and closing the sheet throws both away.
+    // stored there. Dismissing the sheet keeps the draft; only a successful save clears it.
     var text by rememberSaveable { mutableStateOf(viewModel.draftTitle) }
     var picker by rememberSaveable { mutableStateOf(Picker.None) }
-
-    fun close() {
-        viewModel.clear()
-        onDismiss()
-    }
 
     fun save() {
         if (!state.canSave) return
@@ -77,7 +72,7 @@ fun QuickAddSheet(
         }
     }
 
-    ModalBottomSheet(onDismissRequest = ::close, sheetState = sheetState) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
             modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),

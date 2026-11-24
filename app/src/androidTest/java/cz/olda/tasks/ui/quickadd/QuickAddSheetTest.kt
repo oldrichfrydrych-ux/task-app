@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasTestTag
@@ -82,8 +83,8 @@ class QuickAddSheetTest {
         awaitLoaded()
     }
 
-    private fun awaitLoaded() = rule.waitUntil(timeoutMillis = 10_000) {
-        rule.onAllNodes(hasTestTag("chip-list") and hasText("Inbox", substring = true))
+    private fun awaitLoaded(list: String = "Inbox") = rule.waitUntil(timeoutMillis = 10_000) {
+        rule.onAllNodes(hasTestTag("chip-list") and hasText(list, substring = true))
             .fetchSemanticsNodes().isNotEmpty()
     }
 
@@ -138,11 +139,12 @@ class QuickAddSheetTest {
         waitGone("quick-add-priority-option-1")
     }
 
-    private fun reopen() {
+    /** [list] is the list chip text to wait for: the draft may have come back with another list chosen. */
+    private fun reopen(list: String = "Inbox") {
         // The closed sheet must be gone first, or the load check and the field read see the old one.
         waitGone("quick-add-field")
         rule.runOnUiThread { open = true }
-        awaitLoaded()
+        awaitLoaded(list)
     }
 
     @Test fun chipsStartAtNoDateInboxAndPriorityFour() {
@@ -287,7 +289,7 @@ class QuickAddSheetTest {
         assertChipsAtDefaults()
     }
 
-    @Test fun aDismissedDraftDoesNotComeBackInTheNextQuickAdd() {
+    @Test fun aDismissedDraftComesBackInTheNextQuickAdd() {
         show()
         rule.onNodeWithTag("quick-add-field").performTextInput("Never mind")
         pickWorkAndPriorityOne()
@@ -298,8 +300,9 @@ class QuickAddSheetTest {
         rule.waitUntil(timeoutMillis = 10_000) { dismissed }
         assertTrue(allTasks().isEmpty())
 
-        reopen()
-        assertEquals("", fieldText())
-        assertChipsAtDefaults()
+        reopen(list = "Work")
+        assertEquals("Never mind", fieldText())
+        rule.onNodeWithTag("chip-list").assertTextContains("Work")
+        rule.onNodeWithTag("chip-priority").assert(!hasText("None", substring = true))
     }
 }

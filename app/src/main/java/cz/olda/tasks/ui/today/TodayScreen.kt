@@ -97,7 +97,7 @@ fun TodayContent(
         TaskListSection(null, sections.timed, onToggleDone, onOpenTask)
         TaskListSection(stringResource(R.string.section_anytime), sections.anytime, onToggleDone, onOpenTask)
         TaskListSection(stringResource(R.string.section_tomorrow), sections.tomorrow, onToggleDone, onOpenTask)
-        if (state.isLoaded && listOf(sections.overdue, sections.timed, sections.anytime, sections.tomorrow).all { it.isEmpty() }) {
+        if (state.isLoaded && listOf(sections.overdue, sections.timed, sections.anytime).all { it.isEmpty() }) {
             Text(
                 text = stringResource(if (state.isToday) R.string.today_empty else R.string.day_empty),
                 style = MaterialTheme.typography.bodyLarge,

@@ -79,6 +79,23 @@ class TodayScreenTest {
                 }
             }
         }
+        // Like the sibling screens: wait for the first load, so the assertions never run against a screen that has not loaded.
+        rule.waitUntil(timeoutMillis = 10_000) {
+            rule.onAllNodes(hasTestTag("today-empty")).fetchSemanticsNodes().isNotEmpty() ||
+                rule.onAllNodes(hasContentDescription("Complete task")).fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    private fun awaitGoneTag(tag: String) = rule.waitUntil(timeoutMillis = 10_000) {
+        rule.onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isEmpty()
+    }
+
+    private fun awaitShownTag(tag: String) = rule.waitUntil(timeoutMillis = 10_000) {
+        rule.onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isNotEmpty()
+    }
+
+    private fun awaitGone(text: String) = rule.waitUntil(timeoutMillis = 10_000) {
+        rule.onAllNodes(androidx.compose.ui.test.hasText(text)).fetchSemanticsNodes().isEmpty()
     }
 
     private fun top(tag: String) = rule.onNodeWithTag(tag).getUnclippedBoundsInRoot().top
@@ -145,10 +162,11 @@ class TodayScreenTest {
         rule.onNode(hasContentDescription("Complete task") and hasAnyAncestor(hasTestTag("task-$id")))
             .performClick()
 
+        awaitGone("finish me")
         rule.onNodeWithText("finish me").assertDoesNotExist()
         rule.onNodeWithText("Task completed").assertIsDisplayed()
         rule.onNodeWithText("Undo").assertIsDisplayed().performClick()
-
+        awaitShownTag("task-$id")
         rule.onNodeWithTag("task-$id").assertIsDisplayed()
     }
 
@@ -158,10 +176,12 @@ class TodayScreenTest {
         show()
         rule.onNode(hasContentDescription("Complete task") and hasAnyAncestor(hasTestTag("task-$parent")))
             .performClick()
+        awaitGoneTag("task-$child")
         rule.onNodeWithTag("task-$child").assertDoesNotExist()
 
         rule.onNodeWithText("Undo").performClick()
-
+        awaitShownTag("task-$parent")
+        awaitShownTag("task-$child")
         rule.onNodeWithTag("task-$parent").assertIsDisplayed()
         rule.onNodeWithTag("task-$child").assertIsDisplayed()
     }
@@ -172,6 +192,16 @@ class TodayScreenTest {
         pickDay("day-2026-11-25")
         rule.onNodeWithText("Nothing planned for this day").assertIsDisplayed()
         rule.onNodeWithText("Nothing due today").assertDoesNotExist()
+    }
+
+    @Test fun aDayWithNothingOfItsOwnButSomethingTomorrowStillShowsTheEmptyState() {
+        runBlocking { add("for tomorrow", today.plusDays(1)) }
+        show()
+        // Control: the Tomorrow section really is on screen, so this is the case under test.
+        rule.onNodeWithText("Tomorrow").assertIsDisplayed()
+        rule.onNodeWithText("for tomorrow").assertIsDisplayed()
+        rule.onNodeWithTag("today-empty").assertIsDisplayed()
+        rule.onNodeWithText("Nothing due today").assertIsDisplayed()
     }
 
     @Test fun noEmptyTextBeforeTheFirstEmission() {

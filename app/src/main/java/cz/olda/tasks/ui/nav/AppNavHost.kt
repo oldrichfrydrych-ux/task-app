@@ -81,8 +81,10 @@ fun AppNavHost(
             TaskDetailScreen(
                 viewModel = viewModel(factory = AppViewModelProvider.Factory),
                 onBack = { navController.popBackStack() },
+                onOpenTask = { navController.navigate(Routes.task(it)) },
             )
         }
+        // Phase 1: deliberately unreachable — the picker stores nothing yet
         composable(Routes.SETTINGS) { SettingsScreen() }
         composable(Routes.SEARCH) {
             SearchScreen(

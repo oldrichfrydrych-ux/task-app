@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import cz.olda.tasks.data.ListRepository
 import cz.olda.tasks.data.TaskRepository
 import cz.olda.tasks.data.entity.ListEntity
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -33,7 +34,8 @@ private const val DEFAULT_PRIORITY = 4
 
 /**
  * The draft of the task being typed. The draft lives in [savedState], so it survives the process
- * being killed; the sheet calls [clear] when it closes, so the next one starts empty.
+ * being killed, and it also survives the sheet being dismissed: a stray tap on the scrim must not
+ * destroy what was typed. Only a successful [save] clears it.
  */
 class QuickAddViewModel(
     private val taskRepository: TaskRepository,
@@ -63,8 +65,8 @@ class QuickAddViewModel(
 
     fun setPriority(priority: Int) { savedState[PRIORITY] = priority }
 
-    /** Throws the draft away. */
-    fun clear() {
+    /** Throws the draft away; [save] calls it after the task is written. */
+    private fun clear() {
         savedState[TITLE] = ""
         savedState[DATE] = NO_DATE
         savedState[LIST] = NO_LIST
@@ -118,6 +120,8 @@ class QuickAddViewModel(
                     dueMinute = current.dueMinute,
                     priority = current.priority,
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 return@withLock false
             }

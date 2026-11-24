@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import cz.olda.tasks.data.TaskWithList
 
-/** A header (tagged with [headerModifier]) and its rows. Renders nothing at all when [items] is empty. */
+/** A header (tagged with [headerModifier]) and its rows, each showing its date when [showDate]. Renders nothing at all when [items] is empty. */
 @Composable
 fun TaskListSection(
     title: String?,
@@ -19,6 +19,7 @@ fun TaskListSection(
     onClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
     headerModifier: Modifier = Modifier,
+    showDate: Boolean = false,
 ) {
     if (items.isEmpty()) return
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -35,6 +36,7 @@ fun TaskListSection(
                 item = item,
                 onToggleDone = { onToggleDone(item.task.id) },
                 onClick = { onClick(item.task.id) },
+                showDate = showDate,
             )
         }
     }

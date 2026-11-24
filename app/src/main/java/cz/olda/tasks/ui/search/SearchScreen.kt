@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
@@ -25,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -51,6 +53,7 @@ fun SearchScreen(
     // The field keeps its own text so typing never waits on the database; the ViewModel follows it.
     var text by rememberSaveable { mutableStateOf(state.query) }
     val focus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
     LaunchedEffect(Unit) { focus.requestFocus() }
     LaunchedEffect(text) { viewModel.setQuery(text) }
 
@@ -75,6 +78,8 @@ fun SearchScreen(
                 placeholder = { Text(stringResource(R.string.search_hint)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                // The results already follow the text as it is typed, so the key only has to put the keyboard away.
+                keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
                 trailingIcon = {
                     if (text.isNotEmpty()) {
                         IconButton(onClick = { text = "" }, modifier = Modifier.testTag("search-clear")) {
@@ -94,7 +99,7 @@ fun SearchScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            TaskListSection(null, state.results, complete, onOpenTask)
+            TaskListSection(null, state.results, complete, onOpenTask, showDate = true)
             // Only once the results for what is typed have arrived, so it never flashes mid-typing.
             if (text.isNotBlank() && state.query == text && state.results.isEmpty()) {
                 Text(

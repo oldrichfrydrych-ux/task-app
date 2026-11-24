@@ -4,6 +4,13 @@ import android.text.format.DateFormat
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onFirst
+import cz.olda.tasks.ui.theme.ListPalette
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import cz.olda.tasks.ui.theme.contrastRatio
@@ -140,12 +147,13 @@ class TaskRowTest {
         widthDp: Int = 360,
         bigScale: Float = 2f,
         listName: String = sample.listName,
+        showDate: Boolean = false,
     ) {
         val scale = mutableStateOf(1f)
         val phone = sample.copy(task = sample.task.copy(title = title), listName = listName)
         rule.setContent {
             CompositionLocalProvider(LocalDensity provides Density(LocalDensity.current.density, fontScale = scale.value)) {
-                AppTheme { TaskRow(phone, {}, {}, modifier = Modifier.width(widthDp.dp)) }
+                AppTheme { TaskRow(phone, {}, {}, modifier = Modifier.width(widthDp.dp), showDate = showDate) }
             }
         }
         val normalHeight = rule.onNodeWithTag("task-7").getBoundsInRoot().height
@@ -195,6 +203,80 @@ class TaskRowTest {
     fun longCzechWordSurvivesANarrowScreenAtNormalFontScale() = assertSurvivesLargestFont(
         "zkontrolovat", singleWord = true, widthDp = 320, bigScale = 1f, listName = "Household chores",
     )
+
+    // The due day takes width in the same slot as the time, so the stacking maths must still hold.
+    @Test
+    fun rowWithADateSurvivesTheLargestFontSize() =
+        assertSurvivesLargestFont("Pay the bill", singleWord = false, showDate = true)
+
+    @Test
+    fun longCzechWordWithADateSurvivesTheLargestFontSize() =
+        assertSurvivesLargestFont("zkontrolovat", singleWord = true, showDate = true)
+
+    @Test
+    fun longCzechWordWithADateSurvivesANarrowScreenAndALongListName() = assertSurvivesLargestFont(
+        "zkontrolovat", singleWord = true, widthDp = 320, bigScale = 1f, listName = "Household chores", showDate = true,
+    )
+
+    private fun timeText(): String =
+        tag("task-time-7").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].joinToString("") { it.text }
+
+    @Test
+    fun theDueDayShowsOnlyWhenAsked() {
+        var asked by mutableStateOf(false)
+        rule.setContent { AppTheme { TaskRow(sample, {}, {}, showDate = asked) } }
+        val withoutDate = timeText()
+        assertFalse("no date by default: $withoutDate", withoutDate.contains("2024"))
+
+        asked = true
+        rule.waitForIdle()
+        val withDate = timeText()
+        // 20000 is 4 October 2024; the year shows because it is not this one.
+        assertTrue("date missing: $withDate", withDate.contains("2024") && withDate.endsWith(withoutDate))
+    }
+
+    @Test
+    fun anUndatedRowShowsNothingEvenWhenAskedForDates() {
+        val undated = sample.copy(task = sample.task.copy(dueDate = null, dueMinute = null))
+        rule.setContent { AppTheme { TaskRow(undated, {}, {}, showDate = true) } }
+        rule.onNodeWithText(undated.task.title).assertIsDisplayed()
+        rule.onNodeWithTag("task-time-7").assertDoesNotExist()
+    }
+
+    private fun barColour(priority: Int, darkTheme: Boolean): Color? {
+        val row = sample.copy(task = sample.task.copy(priority = priority))
+        rule.setContent { AppTheme(darkTheme = darkTheme) { TaskRow(row, {}, {}) } }
+        val bar = rule.onAllNodesWithTag("task-priority-bar-7")
+        if (bar.fetchSemanticsNodes().isEmpty()) return null
+        val pixels = bar.onFirst().captureToImage().toPixelMap()
+        return pixels[pixels.width / 2, pixels.height / 2]
+    }
+
+    @Test
+    fun priorityOneIsRed() {
+        assertEquals(ListPalette.first { it.name == "Red" }.light, barColour(1, darkTheme = false))
+    }
+
+    @Test
+    fun priorityTwoIsOrange() {
+        assertEquals(ListPalette.first { it.name == "Orange" }.light, barColour(2, darkTheme = false))
+    }
+
+    @Test
+    fun priorityThreeIsBlue() {
+        assertEquals(ListPalette.first { it.name == "Blue" }.light, barColour(3, darkTheme = false))
+    }
+
+    @Test
+    fun theBarUsesTheDarkShadeInDarkTheme() {
+        assertEquals(ListPalette.first { it.name == "Red" }.dark, barColour(1, darkTheme = true))
+    }
+
+    @Test
+    fun priorityFourHasNoBar() {
+        // The tests above are the control: with a priority the same lookup finds a bar.
+        assertEquals(null, barColour(4, darkTheme = false))
+    }
 
     private fun inside(inner: DpRect, outer: DpRect) =
         inner.left >= outer.left && inner.right <= outer.right &&

@@ -104,6 +104,16 @@ class InboxScreenTest {
         rule.onNodeWithText("elsewhere").assertDoesNotExist()
     }
 
+    @Test fun aDatedInboxTaskShowsItsDayAndAnUndatedOneDoesNot() {
+        val dated = runBlocking { repo.add("dated", inbox, today.plusDays(20), null, 4) }
+        val undated = runBlocking { repo.add("undated", inbox, null, null, 4) }
+        show()
+        rule.onNodeWithTag("task-$undated").assertIsDisplayed()
+        // The dated row has no time of day, so anything in the time slot is the due day.
+        rule.onNodeWithTag("task-time-$dated", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithTag("task-time-$undated", useUnmergedTree = true).assertDoesNotExist()
+    }
+
     @Test fun stateIsNullBeforeTheFirstEmission() {
         org.junit.Assert.assertNull(InboxViewModel(repo, lists).state.value)
     }

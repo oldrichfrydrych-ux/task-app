@@ -53,6 +53,7 @@ class TaskDetailScreenTest {
     private lateinit var lists: ListRepository
     private var work = 0L
     private var wentBack = false
+    private var openedTask: Long? = null
 
     private val zone = ZoneId.of("Europe/Prague")
     private val clock = Clock.fixed(LocalDate.of(2026, 11, 23).atTime(10, 0).atZone(zone).toInstant(), zone)
@@ -78,7 +79,7 @@ class TaskDetailScreenTest {
                 CompositionLocalProvider(LocalSnackbarHostState provides hostState) {
                     Scaffold(snackbarHost = { SnackbarHost(hostState) }) { padding ->
                         Box(Modifier.padding(padding)) {
-                            TaskDetailScreen(viewModel = viewModel, onBack = { wentBack = true })
+                            TaskDetailScreen(viewModel = viewModel, onBack = { wentBack = true }, onOpenTask = { openedTask = it })
                         }
                     }
                 }
@@ -130,6 +131,23 @@ class TaskDetailScreenTest {
         rule.onNodeWithTag("subtask-title-$sub").assertTextEquals("Child step")
         assertEquals(id, task(sub!!)!!.parentTaskId)
         assertEquals(work, task(sub!!)!!.listId)
+    }
+
+    @Test fun tappingAnUndatedSubtaskOpensItsDetail() {
+        val id = runBlocking { repo.add("Parent", work, null, null, 4) }
+        val sub = runBlocking { repo.add("Child", work, null, null, 4, parentTaskId = id) }
+        show(id)
+        awaitShown("subtask-title-$sub")
+        // Control: nothing opens until the subtask is tapped.
+        assertNull(openedTask)
+        rule.onNodeWithTag("subtask-title-$sub").performClick()
+        rule.waitUntil(timeoutMillis = 10_000) { openedTask == sub }
+        assertEquals(sub, openedTask)
+        // Ticking the checkbox is still its own tap and does not open anything else.
+        openedTask = null
+        rule.onNodeWithTag("subtask-done-$sub").performClick()
+        rule.waitUntil(timeoutMillis = 10_000) { task(sub)?.done == true }
+        assertNull(openedTask)
     }
 
     @Test fun completingTheParentChecksItsSubtasks() {

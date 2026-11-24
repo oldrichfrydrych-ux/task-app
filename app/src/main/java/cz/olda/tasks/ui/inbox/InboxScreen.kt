@@ -51,7 +51,7 @@ fun InboxContent(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        TaskListSection(null, tasks.orEmpty(), onToggleDone, onOpenTask)
+        TaskListSection(null, tasks.orEmpty(), onToggleDone, onOpenTask, showDate = true)
         if (tasks != null && tasks.isEmpty()) {
             Text(
                 text = stringResource(R.string.inbox_empty),

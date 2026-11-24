@@ -1,13 +1,16 @@
 package cz.olda.tasks.ui.task
 
 import android.text.format.DateFormat
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -61,6 +64,7 @@ private const val MILLIS_PER_DAY = 86_400_000L
 fun TaskDetailScreen(
     viewModel: TaskDetailViewModel,
     onBack: () -> Unit,
+    onOpenTask: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -85,7 +89,7 @@ fun TaskDetailScreen(
         }
         // Nothing below shows until the task has loaded; a task that does not exist says so.
         if (task != null) {
-            TaskFields(task = task, state = state, viewModel = viewModel)
+            TaskFields(task = task, state = state, viewModel = viewModel, onOpenTask = onOpenTask)
         } else if (state.loaded) {
             Text(
                 text = stringResource(R.string.task_not_found),
@@ -113,7 +117,12 @@ fun TaskDetailScreen(
 }
 
 @Composable
-private fun TaskFields(task: TaskEntity, state: TaskDetailState, viewModel: TaskDetailViewModel) {
+private fun TaskFields(
+    task: TaskEntity,
+    state: TaskDetailState,
+    viewModel: TaskDetailViewModel,
+    onOpenTask: (Long) -> Unit,
+) {
     // Local text, seeded once: the field must not be rewritten by its own saves mid-typing.
     var title by rememberSaveable { mutableStateOf(task.title) }
     var notes by rememberSaveable { mutableStateOf(task.notes) }
@@ -162,7 +171,7 @@ private fun TaskFields(task: TaskEntity, state: TaskDetailState, viewModel: Task
         PriorityRow(task.priority, viewModel::setPriority)
 
         // One level only: a subtask has no subtasks section and nothing to add one with.
-        if (task.parentTaskId == null) Subtasks(state, viewModel)
+        if (task.parentTaskId == null) Subtasks(state, viewModel, onOpenTask)
     }
 }
 
@@ -314,7 +323,7 @@ private fun PriorityRow(priority: Int, onChange: (Int) -> Unit) {
 }
 
 @Composable
-private fun Subtasks(state: TaskDetailState, viewModel: TaskDetailViewModel) {
+private fun Subtasks(state: TaskDetailState, viewModel: TaskDetailViewModel, onOpenTask: (Long) -> Unit) {
     var newTitle by rememberSaveable { mutableStateOf("") }
     val completeLabel = stringResource(R.string.complete_task)
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -337,7 +346,13 @@ private fun Subtasks(state: TaskDetailState, viewModel: TaskDetailViewModel) {
                     text = sub.title,
                     style = MaterialTheme.typography.bodyLarge,
                     textDecoration = if (sub.done) TextDecoration.LineThrough else null,
-                    modifier = Modifier.weight(1f).testTag("subtask-title-${sub.id}"),
+                    // Tapping the title opens the subtask, the only way to reach an undated one.
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
+                        .clickable { onOpenTask(sub.id) }
+                        .wrapContentHeight(Alignment.CenterVertically)
+                        .testTag("subtask-title-${sub.id}"),
                 )
             }
         }
