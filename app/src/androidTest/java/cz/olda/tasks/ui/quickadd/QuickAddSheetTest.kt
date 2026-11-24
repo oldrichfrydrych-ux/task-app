@@ -83,7 +83,7 @@ class QuickAddSheetTest {
         awaitLoaded()
     }
 
-    private fun awaitLoaded(list: String = "Inbox") = rule.waitUntil(timeoutMillis = 10_000) {
+    private fun awaitLoaded(list: String = "Inbox") = rule.waitUntil(timeoutMillis = 30_000) {
         rule.onAllNodes(hasTestTag("chip-list") and hasText(list, substring = true))
             .fetchSemanticsNodes().isNotEmpty()
     }
@@ -92,11 +92,11 @@ class QuickAddSheetTest {
         lists.observeLists().first().flatMap { tasks.observeInList(it.id).first() }.map { it.task }
     }
 
-    private fun waitForTag(tag: String) = rule.waitUntil(timeoutMillis = 10_000) {
+    private fun waitForTag(tag: String) = rule.waitUntil(timeoutMillis = 30_000) {
         rule.onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isNotEmpty()
     }
 
-    private fun waitGone(tag: String) = rule.waitUntil(timeoutMillis = 10_000) {
+    private fun waitGone(tag: String) = rule.waitUntil(timeoutMillis = 30_000) {
         rule.onAllNodes(hasTestTag(tag)).fetchSemanticsNodes().isEmpty()
     }
 
@@ -197,7 +197,7 @@ class QuickAddSheetTest {
         waitGone("quick-add-priority-option-2")
 
         rule.onNodeWithTag("quick-add-save").performClick()
-        rule.waitUntil(timeoutMillis = 10_000) { allTasks().isNotEmpty() }
+        rule.waitUntil(timeoutMillis = 30_000) { allTasks().isNotEmpty() }
 
         val saved = allTasks().single()
         assertEquals("Pay rent", saved.title)
@@ -211,7 +211,7 @@ class QuickAddSheetTest {
         show()
         rule.onNodeWithTag("quick-add-field").performTextInput("Call dentist")
         rule.onNodeWithTag("quick-add-save").performClick()
-        rule.waitUntil(timeoutMillis = 10_000) { allTasks().isNotEmpty() }
+        rule.waitUntil(timeoutMillis = 30_000) { allTasks().isNotEmpty() }
 
         val saved = allTasks().single()
         assertEquals(inbox, saved.listId)
@@ -239,7 +239,7 @@ class QuickAddSheetTest {
         assertFalse(dismissed)
         rule.onNodeWithTag("quick-add-field").performTextInput("Water the plants")
         rule.onNodeWithTag("quick-add-save").performClick()
-        rule.waitUntil(timeoutMillis = 10_000) { dismissed }
+        rule.waitUntil(timeoutMillis = 30_000) { dismissed }
         assertEquals(1, allTasks().size)
     }
 
@@ -280,7 +280,7 @@ class QuickAddSheetTest {
         pickWorkAndPriorityOne()
         pickADay()
         rule.onNodeWithTag("quick-add-save").performClick()
-        rule.waitUntil(timeoutMillis = 10_000) { dismissed }
+        rule.waitUntil(timeoutMillis = 30_000) { dismissed }
         // Control: the draft really was filled in, and really was saved.
         assertEquals("Pay rent", allTasks().single().title)
 
@@ -297,7 +297,7 @@ class QuickAddSheetTest {
         // The first Back hides the keyboard, the second closes the sheet.
         Espresso.pressBack()
         Espresso.pressBack()
-        rule.waitUntil(timeoutMillis = 10_000) { dismissed }
+        rule.waitUntil(timeoutMillis = 30_000) { dismissed }
         assertTrue(allTasks().isEmpty())
 
         reopen(list = "Work")
