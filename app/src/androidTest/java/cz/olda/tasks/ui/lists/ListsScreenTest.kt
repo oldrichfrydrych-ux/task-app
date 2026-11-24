@@ -239,6 +239,29 @@ class ListsScreenTest {
         awaitGone("Old")
     }
 
+    private fun colourOf(id: Long) = runBlocking { lists.observeLists().first().single { it.id == id }.colorHex }
+
+    @Test fun aPickedPresetRecoloursTheListFromTheSheet() {
+        val id = runBlocking { lists.createList("Paint", "#3D6BE0") }
+        show()
+        rule.onNodeWithTag("list-edit-$id").performClick()
+        rule.onNodeWithTag("swatch-#D43D3D").performClick()
+        rule.onNodeWithTag("list-save").performClick()
+        awaitSheetClosed("list-name-field")
+        rule.waitUntil(10_000) { colourOf(id) == "#D43D3D" }
+    }
+
+    @Test fun aBadHexInTheSheetIsNeverSaved() {
+        val id = runBlocking { lists.createList("Paint", "#3D6BE0") }
+        show()
+        rule.onNodeWithTag("list-edit-$id").performClick()
+        rule.onNodeWithTag("hex-field").performTextClearance()
+        rule.onNodeWithTag("hex-field").performTextInput("#GGGGGG")
+        rule.onNodeWithTag("list-save").performClick()
+        awaitSheetClosed("list-name-field")
+        assertEquals("#3D6BE0", colourOf(id))
+    }
+
     @Test fun anExistingListMovesBetweenGroupsFromTheSheet() {
         val gid = runBlocking { lists.createGroup("Home") }
         val id = runBlocking { lists.createList("Mover") }

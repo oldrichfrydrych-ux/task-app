@@ -14,6 +14,7 @@ import cz.olda.tasks.ui.AppViewModelProvider
 import cz.olda.tasks.ui.Destination
 import cz.olda.tasks.ui.inbox.InboxScreen
 import cz.olda.tasks.ui.lists.ListsScreen
+import cz.olda.tasks.ui.settings.SettingsScreen
 import cz.olda.tasks.ui.today.TodayScreen
 import cz.olda.tasks.ui.upcoming.UpcomingScreen
 import cz.olda.tasks.ui.screens.PlaceholderScreen
@@ -22,6 +23,7 @@ object Routes {
     const val LIST = "list/{listId}"
     const val TASK = "task/{taskId}"
     const val SEARCH = "search"
+    const val SETTINGS = "settings"
 
     fun list(id: Long) = "list/$id"
     fun task(id: Long) = "task/$id"
@@ -69,6 +71,7 @@ fun AppNavHost(
             Routes.TASK,
             arguments = listOf(navArgument("taskId") { type = NavType.LongType }),
         ) { PlaceholderScreen(stringResource(R.string.task_detail), "screen-task") }
+        composable(Routes.SETTINGS) { SettingsScreen() }
         composable(Routes.SEARCH) {
             PlaceholderScreen(stringResource(R.string.search), "screen-search")
         }
