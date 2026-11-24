@@ -29,7 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
+
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -39,21 +39,15 @@ import androidx.compose.ui.unit.dp
 import cz.olda.tasks.R
 import cz.olda.tasks.ui.theme.ListColor
 import cz.olda.tasks.ui.theme.ListPalette
-import cz.olda.tasks.ui.theme.contrastRatio
+import cz.olda.tasks.ui.theme.TextBackgroundDark
+import cz.olda.tasks.ui.theme.TextBackgroundLight
+import cz.olda.tasks.ui.theme.isReadableAsText
+import cz.olda.tasks.ui.theme.textShade
 import cz.olda.tasks.ui.theme.parseHex
 import cz.olda.tasks.ui.theme.toHex
 
-private val LightCard = Color(0xFFFFFFFF)
-private val DarkCard = Color(0xFF1C1B1F)
-private const val MinTextContrast = 4.5f
-private const val DarkShadeLift = 0.5f
-
-/**
- * The dark-mode shade of a custom colour, as presets have one: the colour lifted halfway to white.
- * It is judged against the dark card; the colour itself is judged against the light card.
- * (docs/design.md lets a second hex override this later.)
- */
-internal fun darkShadeOf(color: Color): Color = lerp(color, Color.White, DarkShadeLift)
+private val LightCard = TextBackgroundLight
+private val DarkCard = TextBackgroundDark
 
 /**
  * Picks a list colour: the 12 presets plus a custom `#RRGGBB` field. [onPick] is called only with
@@ -68,15 +62,10 @@ fun ColorPicker(selected: String, onPick: (String) -> Unit, modifier: Modifier =
     var edited by rememberSaveable { mutableStateOf(false) }
     val typed = parseHex(text)
     val shown = typed ?: parseHex(selected)
-    // A preset has its own dark shade; a custom colour gets one derived by [darkShadeOf].
-    val preset = shown?.let { color -> ListPalette.firstOrNull { it.light.toHex() == color.toHex() } }
-    val onDark = preset?.dark ?: shown?.let(::darkShadeOf)
     val showError = typed == null && (edited || text.isNotEmpty())
-    // Presets are the app's own colours and never warn (four of them are under 4.5:1 on white).
-    val lowContrast = typed != null && preset == null && (
-        contrastRatio(typed, LightCard) < MinTextContrast ||
-            (onDark != null && contrastRatio(onDark, DarkCard) < MinTextContrast)
-        )
+    // Text in the colour is drawn in a derived shade per theme (see [textShade]); warn when a
+    // shade still cannot reach 4.5:1 on its card. Presets are judged like any other colour.
+    val lowContrast = typed != null && !(isReadableAsText(typed, false) && isReadableAsText(typed, true))
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         FlowRow(
@@ -114,8 +103,8 @@ fun ColorPicker(selected: String, onPick: (String) -> Unit, modifier: Modifier =
         )
         if (shown != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                PreviewCard(R.string.color_picker_preview_light, shown, LightCard, Color.Black, Modifier.weight(1f))
-                PreviewCard(R.string.color_picker_preview_dark, onDark ?: shown, DarkCard, Color.White, Modifier.weight(1f))
+                PreviewCard(R.string.color_picker_preview_light, shown, textShade(shown, false), LightCard, Color.Black, Modifier.weight(1f))
+                PreviewCard(R.string.color_picker_preview_dark, shown, textShade(shown, true), DarkCard, Color.White, Modifier.weight(1f))
             }
         }
         if (lowContrast) {
@@ -150,7 +139,7 @@ private fun Swatch(entry: ListColor, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun PreviewCard(@StringRes label: Int, colour: Color, card: Color, plain: Color, modifier: Modifier) {
+private fun PreviewCard(@StringRes label: Int, dot: Color, text: Color, card: Color, plain: Color, modifier: Modifier) {
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
@@ -160,8 +149,8 @@ private fun PreviewCard(@StringRes label: Int, colour: Color, card: Color, plain
     ) {
         Text(stringResource(label), style = MaterialTheme.typography.labelSmall, color = plain)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(Modifier.size(12.dp).clip(CircleShape).background(colour))
-            Text(stringResource(R.string.color_picker_preview_sample), style = MaterialTheme.typography.bodyMedium, color = colour)
+            Box(Modifier.size(12.dp).clip(CircleShape).background(dot))
+            Text(stringResource(R.string.color_picker_preview_sample), style = MaterialTheme.typography.bodyMedium, color = text)
         }
     }
 }

@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import cz.olda.tasks.R
 import cz.olda.tasks.data.TaskWithList
 import cz.olda.tasks.ui.theme.parseHex
+import cz.olda.tasks.ui.theme.textShade
 import java.util.Calendar
 
 /**
@@ -54,7 +56,10 @@ fun TaskRow(
     modifier: Modifier = Modifier,
 ) {
     val task = item.task
-    val listColor = parseHex(item.listColorHex) ?: MaterialTheme.colorScheme.onSurfaceVariant
+    val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    // The list colour is its identity; text in it uses a shade that keeps 4.5:1 contrast.
+    val listColor = parseHex(item.listColorHex)?.let { textShade(it, darkTheme) }
+        ?: MaterialTheme.colorScheme.onSurfaceVariant
     val completeLabel = stringResource(R.string.complete_task)
     val timeText = task.dueMinute?.let { formatMinuteOfDay(it) }
 

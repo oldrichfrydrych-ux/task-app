@@ -77,10 +77,10 @@ class ColorPickerTest {
     @Test
     fun lowContrastWarnsButStillSaves() {
         show()
-        typeHex("#FFFF00")
+        typeHex("#111111")
         rule.waitUntil(10_000) { exists("contrast-warning") }
         rule.onNodeWithTag("contrast-warning").assertIsDisplayed()
-        assertEquals("#FFFF00", picked.last())
+        assertEquals("#111111", picked.last())
         assertTrue(!exists("hex-error"))
     }
 
@@ -113,6 +113,15 @@ class ColorPickerTest {
         assertTrue(!exists("hex-error"))
     }
 
+
+    @Test
+    fun aPaleColourIsDarkenedForTextSoItDoesNotWarn() {
+        show()
+        typeHex("#FFFF00") // unreadable raw on white, but its darker text shade clears 4.5:1
+        rule.waitUntil(10_000) { picked.lastOrNull() == "#FFFF00" }
+        rule.waitForIdle()
+        assertTrue(!exists("contrast-warning"))
+    }
     @Test
     fun aColourThatOnlyFailsOnTheDarkCardWarns() {
         show()

@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import cz.olda.tasks.ui.theme.contrastRatio
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsNodeInteraction
@@ -67,6 +69,23 @@ class TaskRowTest {
         rule.onNodeWithText(expected).assertIsDisplayed()
         rule.onNodeWithText("Home").assertIsDisplayed()
         rule.onNodeWithTag("task-7").assertIsDisplayed()
+    }
+
+    private val orange = sample.copy(listName = "Garden", listColorHex = "#E07B39")
+
+    @Test
+    fun listNameIsNotDrawnInTheRawColourWhenThatIsTooFaint() {
+        rule.setContent { AppTheme(darkTheme = false) { TaskRow(orange, {}, {}) } }
+        val drawn = tag("task-list-7").textLayout().layoutInput.style.color
+        assertTrue("raw Orange is only 3:1, the name must be darker", drawn != Color(0xFFE07B39))
+        assertTrue(contrastRatio(drawn, Color(0xFFFAF7F3)) >= 4.5f)
+    }
+
+    @Test
+    fun listNameUsesThePresetsDarkShadeInDarkTheme() {
+        rule.setContent { AppTheme(darkTheme = true) { TaskRow(orange, {}, {}) } }
+        val drawn = tag("task-list-7").textLayout().layoutInput.style.color
+        assertEquals(Color(0xFFFF9F5A), drawn)
     }
 
     @Test
