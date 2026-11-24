@@ -6,7 +6,7 @@ import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "tasks",
-    indices = [Index("listId"), Index("headingId"), Index("parentTaskId"), Index("dueDate")],
+    indices = [Index("listId"), Index("headingId"), Index("parentTaskId"), Index("dueDate"), Index(value = ["googleId"], unique = true)],
 )
 data class TaskEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

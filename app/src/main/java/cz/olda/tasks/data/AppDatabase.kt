@@ -48,6 +48,7 @@ abstract class AppDatabase : RoomDatabase() {
                         put("colorHex", ListPalette[0].light.toHex())
                         put("position", 0)
                         put("isInbox", 1)
+                        put("updatedAt", 0)
                     },
                 )
             }

@@ -29,4 +29,27 @@ class AppDatabaseTest {
         listOf("groups", "lists", "headings", "tags", "task_tags", "tasks")
             .forEach { assertTrue("$it missing", tables.contains(it)) }
     }
+
+    /** [sql] inserts one row with `'%s'` as the sync id; NULL ids may repeat, a repeated real one may not. */
+    private fun assertSyncIdUnique(sql: String) {
+        val sqlite = db.openHelper.writableDatabase
+        sqlite.execSQL(sql.format("'g1'"))
+        sqlite.execSQL(sql.format("NULL"))
+        sqlite.execSQL(sql.format("NULL"))
+        sqlite.execSQL(sql.format("'g2'"))
+        try {
+            sqlite.execSQL(sql.format("'g1'"))
+            org.junit.Assert.fail("duplicate sync id accepted")
+        } catch (_: android.database.sqlite.SQLiteConstraintException) {
+        }
+    }
+
+    @Test fun googleListIdIsUnique() = assertSyncIdUnique(
+        "INSERT INTO lists (name, colorHex, position, isInbox, updatedAt, googleListId) VALUES ('n', '#000000', 0, 0, 0, %s)",
+    )
+
+    @Test fun googleIdIsUnique() = assertSyncIdUnique(
+        "INSERT INTO tasks (title, notes, titleNormalised, notesNormalised, listId, priority, done, position, updatedAt, googleId) " +
+            "VALUES ('t', '', 't', '', 1, 4, 0, 0, 0, %s)",
+    )
 }

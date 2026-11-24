@@ -166,4 +166,37 @@ class ListRepositoryTest {
         assertEquals(listOf(inGroup), result[1].lists.map { it.id })
         assertTrue(result[2].lists.isEmpty())
     }
+
+    private fun listRow(id: Long): Pair<Long?, Long> =
+        db.openHelper.readableDatabase.query("SELECT deletedAt, updatedAt FROM lists WHERE id = $id").use {
+            assertTrue("row must still exist", it.moveToFirst())
+            (if (it.isNull(0)) null else it.getLong(0)) to it.getLong(1)
+        }
+
+    @Test fun deletingAListKeepsTheRowAsATombstone() = runBlocking {
+        val clock = java.time.Clock.fixed(java.time.Instant.ofEpochMilli(777), java.time.ZoneOffset.UTC)
+        val stamped = ListRepository(db.listDao(), db.groupDao(), db.headingDao(), clock)
+        val listId = stamped.createList("Work", "#112233", null)
+        assertNull(listRow(listId).first)
+        stamped.deleteList(listId)
+        assertEquals(777L to 777L, listRow(listId))
+        assertTrue(stamped.observeLists().first().none { it.id == listId })
+        // A tombstone is never renamed, regrouped or deleted again.
+        val later = ListRepository(db.listDao(), db.groupDao(), db.headingDao(), java.time.Clock.fixed(java.time.Instant.ofEpochMilli(999), java.time.ZoneOffset.UTC))
+        later.renameList(listId, "Zombie")
+        later.deleteList(listId)
+        assertEquals(777L to 777L, listRow(listId))
+    }
+
+    @Test fun renameRecolourAndMoveStampUpdatedAt() = runBlocking {
+        fun at(ms: Long) = ListRepository(db.listDao(), db.groupDao(), db.headingDao(), java.time.Clock.fixed(java.time.Instant.ofEpochMilli(ms), java.time.ZoneOffset.UTC))
+        val id = at(10).createList("L", "#112233", null)
+        assertEquals(10L, listRow(id).second)
+        at(20).renameList(id, "M")
+        assertEquals(20L, listRow(id).second)
+        at(30).recolourList(id, "#445566")
+        assertEquals(30L, listRow(id).second)
+        at(40).moveListToGroup(id, null)
+        assertEquals(40L, listRow(id).second)
+    }
 }

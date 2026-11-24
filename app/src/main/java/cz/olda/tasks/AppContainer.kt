@@ -18,7 +18,7 @@ class AppContainer(context: Context, dbName: String = "tasks.db") {
     }
 
     val listRepository: ListRepository by lazy {
-        ListRepository(database.listDao(), database.groupDao(), database.headingDao())
+        ListRepository(database.listDao(), database.groupDao(), database.headingDao(), clock)
     }
 
     /** One clock for everything that reads "today", so the repository and the ViewModels agree. */

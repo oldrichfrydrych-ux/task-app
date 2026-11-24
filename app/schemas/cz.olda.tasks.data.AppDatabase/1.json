@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "0f7eb8d0324b2e472a1c8408ae14880f",
+    "identityHash": "f1c2a12fee61341e8032d8c2cf6c9d93",
     "entities": [
       {
         "tableName": "groups",
@@ -36,7 +36,7 @@
       },
       {
         "tableName": "lists",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `colorHex` TEXT NOT NULL, `icon` TEXT, `groupId` INTEGER, `position` INTEGER NOT NULL, `isInbox` INTEGER NOT NULL, `googleListId` TEXT)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `colorHex` TEXT NOT NULL, `icon` TEXT, `groupId` INTEGER, `position` INTEGER NOT NULL, `isInbox` INTEGER NOT NULL, `googleListId` TEXT, `deletedAt` INTEGER, `updatedAt` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -82,6 +82,17 @@
             "fieldPath": "googleListId",
             "columnName": "googleListId",
             "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "deletedAt",
+            "columnName": "deletedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
           }
         ],
         "primaryKey": {
@@ -99,6 +110,15 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_lists_groupId` ON `${TABLE_NAME}` (`groupId`)"
+          },
+          {
+            "name": "index_lists_googleListId",
+            "unique": true,
+            "columnNames": [
+              "googleListId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_lists_googleListId` ON `${TABLE_NAME}` (`googleListId`)"
           }
         ]
       },
@@ -367,13 +387,22 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_tasks_dueDate` ON `${TABLE_NAME}` (`dueDate`)"
+          },
+          {
+            "name": "index_tasks_googleId",
+            "unique": true,
+            "columnNames": [
+              "googleId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_tasks_googleId` ON `${TABLE_NAME}` (`googleId`)"
           }
         ]
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '0f7eb8d0324b2e472a1c8408ae14880f')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'f1c2a12fee61341e8032d8c2cf6c9d93')"
     ]
   }
 }

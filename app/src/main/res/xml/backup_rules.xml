@@ -1,13 +1,13 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Auto Backup rules for Android 11 and older (API 30-).
+    The task database is excluded on purpose: a live SQLite file copied while its
+    write-ahead log is unmerged is not a safe backup and could restore as a corrupt
+    or stale database. Real backup and restore is Phase 6.
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <exclude domain="database" path="tasks.db" />
+    <exclude domain="database" path="tasks.db-wal" />
+    <exclude domain="database" path="tasks.db-shm" />
+    <exclude domain="database" path="tasks.db-journal" />
 </full-backup-content>

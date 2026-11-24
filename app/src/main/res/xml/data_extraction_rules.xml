@@ -1,19 +1,21 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Auto Backup and device-transfer rules for Android 12 and newer.
+    The task database is excluded on purpose: a live SQLite file copied while its
+    write-ahead log is unmerged is not a safe backup and could restore as a corrupt
+    or stale database. Real backup and restore is Phase 6.
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <exclude domain="database" path="tasks.db" />
+        <exclude domain="database" path="tasks.db-wal" />
+        <exclude domain="database" path="tasks.db-shm" />
+        <exclude domain="database" path="tasks.db-journal" />
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <exclude domain="database" path="tasks.db" />
+        <exclude domain="database" path="tasks.db-wal" />
+        <exclude domain="database" path="tasks.db-shm" />
+        <exclude domain="database" path="tasks.db-journal" />
     </device-transfer>
-    -->
 </data-extraction-rules>

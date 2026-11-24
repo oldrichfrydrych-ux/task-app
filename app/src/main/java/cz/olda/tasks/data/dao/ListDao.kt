@@ -11,30 +11,30 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 abstract class ListDao {
-    @Query("SELECT * FROM lists ORDER BY isInbox DESC, position, id")
+    @Query("SELECT * FROM lists WHERE deletedAt IS NULL ORDER BY isInbox DESC, position, id")
     abstract fun observeAll(): Flow<List<ListEntity>>
 
-    @Query("SELECT id FROM lists WHERE isInbox = 1 LIMIT 1")
+    @Query("SELECT id FROM lists WHERE isInbox = 1 AND deletedAt IS NULL LIMIT 1")
     abstract suspend fun inboxId(): Long
 
-    @Query("SELECT COALESCE(MAX(position), -1) + 1 FROM lists")
+    @Query("SELECT COALESCE(MAX(position), -1) + 1 FROM lists WHERE deletedAt IS NULL")
     abstract suspend fun nextPosition(): Int
 
-    @Query("SELECT isInbox FROM lists WHERE id = :id")
+    @Query("SELECT isInbox FROM lists WHERE id = :id AND deletedAt IS NULL")
     abstract suspend fun isInbox(id: Long): Boolean?
 
     @Insert
     abstract suspend fun insert(list: ListEntity): Long
 
-    @Query("UPDATE lists SET name = :name WHERE id = :id")
-    abstract suspend fun rename(id: Long, name: String)
+    @Query("UPDATE lists SET name = :name, updatedAt = :now WHERE id = :id AND deletedAt IS NULL")
+    abstract suspend fun rename(id: Long, name: String, now: Long)
 
-    @Query("UPDATE lists SET colorHex = :colorHex WHERE id = :id")
-    abstract suspend fun recolour(id: Long, colorHex: String)
+    @Query("UPDATE lists SET colorHex = :colorHex, updatedAt = :now WHERE id = :id AND deletedAt IS NULL")
+    abstract suspend fun recolour(id: Long, colorHex: String, now: Long)
 
     /** Inbox never joins a group, so the guard is in the statement itself. */
-    @Query("UPDATE lists SET groupId = :groupId WHERE id = :id AND isInbox = 0")
-    abstract suspend fun setGroup(id: Long, groupId: Long?)
+    @Query("UPDATE lists SET groupId = :groupId, updatedAt = :now WHERE id = :id AND isInbox = 0 AND deletedAt IS NULL")
+    abstract suspend fun setGroup(id: Long, groupId: Long?, now: Long)
 
     /** Moves, never cascades: live tasks only; trashed ones are left alone. */
     @Query("UPDATE tasks SET listId = :toListId, headingId = NULL WHERE listId = :fromListId AND deletedAt IS NULL")
@@ -43,22 +43,23 @@ abstract class ListDao {
     @Query("DELETE FROM headings WHERE listId = :listId")
     abstract suspend fun deleteHeadingsOf(listId: Long)
 
-    @Query("DELETE FROM lists WHERE id = :id AND isInbox = 0")
-    abstract suspend fun deleteRow(id: Long)
+    /** Soft delete: the row stays so the sync phase can see the deletion. */
+    @Query("UPDATE lists SET deletedAt = :now, updatedAt = :now WHERE id = :id AND isInbox = 0 AND deletedAt IS NULL")
+    abstract suspend fun markDeleted(id: Long, now: Long)
 
     /** A null [colorHex] takes the next preset, chosen by position; a non-null one is stored as given. */
     @Transaction
-    open suspend fun create(name: String, colorHex: String?, groupId: Long?): Long {
+    open suspend fun create(name: String, colorHex: String?, groupId: Long?, now: Long): Long {
         val position = nextPosition()
         val colour = colorHex ?: ListPalette[position % ListPalette.size].light.toHex()
-        return insert(ListEntity(name = name, colorHex = colour, groupId = groupId, position = position))
+        return insert(ListEntity(name = name, colorHex = colour, groupId = groupId, position = position, updatedAt = now))
     }
 
     @Transaction
-    open suspend fun deleteAndMoveTasksToInbox(id: Long) {
+    open suspend fun deleteAndMoveTasksToInbox(id: Long, now: Long) {
         if (isInbox(id) != false) return
         moveTasks(id, inboxId())
         deleteHeadingsOf(id)
-        deleteRow(id)
+        markDeleted(id, now)
     }
 }

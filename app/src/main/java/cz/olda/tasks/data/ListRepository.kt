@@ -9,6 +9,7 @@ import cz.olda.tasks.data.entity.ListEntity
 import cz.olda.tasks.ui.theme.parseHex
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import java.time.Clock
 
 /** A group and its lists; a null [group] holds the ungrouped lists. */
 data class GroupWithLists(val group: GroupEntity?, val lists: List<ListEntity>)
@@ -17,6 +18,7 @@ class ListRepository(
     private val listDao: ListDao,
     private val groupDao: GroupDao,
     private val headingDao: HeadingDao,
+    private val clock: Clock = Clock.systemUTC(),
 ) {
     fun observeGroupsWithLists(): Flow<List<GroupWithLists>> =
         combine(groupDao.observeAll(), listDao.observeAll()) { groups, lists ->
@@ -33,20 +35,20 @@ class ListRepository(
 
     /** A null [colorHex] takes the next preset colour; a non-null one is stored as given. */
     suspend fun createList(name: String, colorHex: String? = null, groupId: Long? = null): Long =
-        listDao.create(name, colorHex, groupId)
+        listDao.create(name, colorHex, groupId, clock.millis())
 
-    suspend fun renameList(id: Long, name: String) = listDao.rename(id, name)
+    suspend fun renameList(id: Long, name: String) = listDao.rename(id, name, clock.millis())
 
     suspend fun recolourList(id: Long, colorHex: String) {
         require(parseHex(colorHex) != null) { "Not a #RRGGBB colour: $colorHex" }
-        listDao.recolour(id, colorHex)
+        listDao.recolour(id, colorHex, clock.millis())
     }
 
     /** Moves the list's tasks to Inbox first; the Inbox itself is never deleted. */
-    suspend fun deleteList(id: Long) = listDao.deleteAndMoveTasksToInbox(id)
+    suspend fun deleteList(id: Long) = listDao.deleteAndMoveTasksToInbox(id, clock.millis())
 
     /** Moves the list into [groupId], or out of any group when null. The Inbox is left where it is. */
-    suspend fun moveListToGroup(id: Long, groupId: Long?) = listDao.setGroup(id, groupId)
+    suspend fun moveListToGroup(id: Long, groupId: Long?) = listDao.setGroup(id, groupId, clock.millis())
 
     suspend fun createGroup(name: String): Long = groupDao.create(name)
 
