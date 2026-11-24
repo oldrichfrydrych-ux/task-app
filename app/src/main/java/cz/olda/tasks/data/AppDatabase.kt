@@ -1,7 +1,5 @@
 package cz.olda.tasks.data
 
-import android.content.ContentValues
-import android.database.sqlite.SQLiteDatabase
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
@@ -37,19 +35,22 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
 
     companion object {
-        /** Seeds the undeletable Inbox list when the database is first created. */
+        /**
+         * Seeds the undeletable Inbox list when the database is first created.
+         *
+         * Written as SQL rather than with `ContentValues`, which would pull
+         * `android.content` into this package: CLAUDE.md keeps `data/` free of
+         * Android-only APIs so Phase 8 can move it to a shared module unchanged.
+         * `DataLayerIsPlatformFreeTest` holds that line, and
+         * `AppContainerTest.theSeededInboxCarriesEveryColumnTheAppReliesOn` checks every
+         * column this statement writes, since nothing type-checks hand-written SQL.
+         */
         fun seedInbox(inboxName: String): Callback = object : Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
-                db.insert(
-                    "lists",
-                    SQLiteDatabase.CONFLICT_NONE,
-                    ContentValues().apply {
-                        put("name", inboxName)
-                        put("colorHex", ListPalette[0].light.toHex())
-                        put("position", 0)
-                        put("isInbox", 1)
-                        put("updatedAt", 0)
-                    },
+                db.execSQL(
+                    "INSERT INTO lists (name, colorHex, position, isInbox, updatedAt) " +
+                        "VALUES (?, ?, 0, 1, 0)",
+                    arrayOf(inboxName, ListPalette[0].light.toHex()),
                 )
             }
         }
