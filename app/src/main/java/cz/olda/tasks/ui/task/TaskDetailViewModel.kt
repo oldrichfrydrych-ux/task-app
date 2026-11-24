@@ -7,12 +7,17 @@ import cz.olda.tasks.data.TaskRepository
 import cz.olda.tasks.data.entity.HeadingEntity
 import cz.olda.tasks.data.entity.ListEntity
 import cz.olda.tasks.data.entity.TaskEntity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -20,6 +25,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /**
  * [loaded] tells "not loaded yet" from "loaded, and there is no such task" ([task] null in both).
@@ -39,6 +45,8 @@ class TaskDetailViewModel(
     private val taskId: Long,
     private val taskRepository: TaskRepository,
     private val listRepository: ListRepository,
+    /** Outlives the ViewModel, so text typed just before leaving the screen is still written. */
+    private val flushScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) : ViewModel() {
 
     private val task = taskRepository.observeTask(taskId)
@@ -62,18 +70,47 @@ class TaskDetailViewModel(
     // notes) cannot write each other's old values back.
     private val editLock = Mutex()
 
-    private fun edit(change: (TaskEntity) -> TaskEntity) {
-        viewModelScope.launch {
-            editLock.withLock {
-                val current = taskRepository.observeTask(taskId).first() ?: return@withLock
-                taskRepository.update(change(current))
-            }
+    private suspend fun applyEdit(change: (TaskEntity) -> TaskEntity) {
+        editLock.withLock {
+            val current = taskRepository.getTask(taskId) ?: return@withLock
+            val changed = change(current)
+            if (changed != current) taskRepository.update(changed)
         }
     }
 
-    fun setTitle(title: String) = edit { it.copy(title = title) }
+    private fun edit(change: (TaskEntity) -> TaskEntity) {
+        viewModelScope.launch { applyEdit(change) }
+    }
 
-    fun setNotes(notes: String) = edit { it.copy(notes = notes) }
+    // Text is written once typing pauses, not per character: a 200-character note would otherwise
+    // be 200 transactions. What has not been written yet is [pendingTitle] / [pendingNotes]; they
+    // are touched on the main thread only.
+    private var pendingTitle: String? = null
+    private var pendingNotes: String? = null
+    private var titleJob: Job? = null
+    private var notesJob: Job? = null
+
+    fun setTitle(title: String) {
+        pendingTitle = title
+        titleJob?.cancel()
+        titleJob = viewModelScope.launch {
+            delay(TYPING_PAUSE_MS)
+            val text = pendingTitle ?: return@launch
+            pendingTitle = null
+            withContext(NonCancellable) { applyEdit { it.copy(title = text) } }
+        }
+    }
+
+    fun setNotes(notes: String) {
+        pendingNotes = notes
+        notesJob?.cancel()
+        notesJob = viewModelScope.launch {
+            delay(TYPING_PAUSE_MS)
+            val text = pendingNotes ?: return@launch
+            pendingNotes = null
+            withContext(NonCancellable) { applyEdit { it.copy(notes = text) } }
+        }
+    }
 
     /** A heading belongs to one list, so moving to another list clears it; subtasks follow their parent instead. */
     fun setList(listId: Long) = edit {
@@ -118,6 +155,21 @@ class TaskDetailViewModel(
         }
     }
 
+    /** Leaving the screen inside the typing pause must not lose the last keystrokes. */
+    override fun onCleared() {
+        val title = pendingTitle
+        val notes = pendingNotes
+        if (title == null && notes == null) return
+        flushScope.launch {
+            applyEdit { task ->
+                task.copy(title = title ?: task.title, notes = notes ?: task.notes)
+            }
+        }
+    }
+
     /** Deletes the task and its subtasks; the screen goes back once this returns. */
     suspend fun delete() = taskRepository.softDelete(taskId)
 }
+
+/** How long typing must pause before the title or notes are written. */
+private const val TYPING_PAUSE_MS = 300L

@@ -63,6 +63,9 @@ abstract class TaskDao {
     @Query("SELECT * FROM tasks WHERE id = :id AND deletedAt IS NULL")
     abstract fun observeTask(id: Long): Flow<TaskEntity?>
 
+    @Query("SELECT * FROM tasks WHERE id = :id AND deletedAt IS NULL")
+    abstract suspend fun getTask(id: Long): TaskEntity?
+
     @Query(
         "SELECT DISTINCT tasks.dueDate AS dueDate, lists.colorHex AS colorHex FROM tasks " +
             "JOIN lists ON lists.id = tasks.listId " +
@@ -120,12 +123,17 @@ abstract class TaskDao {
         now: Long,
     )
 
-    /** Puts every live subtask of [parentId] in the list and heading the parent now has. */
+    /**
+     * Puts every live subtask of [parentId] in the list and heading the parent now has. Only subtasks
+     * that are somewhere else are touched, so an edit that leaves the place alone rewrites nothing.
+     */
     @Query(
         "UPDATE tasks SET " +
             "listId = (SELECT p.listId FROM tasks p WHERE p.id = :parentId), " +
             "headingId = (SELECT p.headingId FROM tasks p WHERE p.id = :parentId), updatedAt = :now " +
-            "WHERE parentTaskId = :parentId AND deletedAt IS NULL",
+            "WHERE parentTaskId = :parentId AND deletedAt IS NULL AND (" +
+            "listId IS NOT (SELECT p.listId FROM tasks p WHERE p.id = :parentId) OR " +
+            "headingId IS NOT (SELECT p.headingId FROM tasks p WHERE p.id = :parentId))",
     )
     abstract suspend fun followParent(parentId: Long, now: Long)
 

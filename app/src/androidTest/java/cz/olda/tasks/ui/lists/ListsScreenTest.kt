@@ -83,9 +83,9 @@ class ListsScreenTest {
 
     private fun groupId() = runBlocking { db.groupDao().observeAll().first().single().id }
 
-    /** Shows the screen and waits for its first load: a row, a group header or the empty state. */
     private var searchOpened = 0
 
+    /** Shows the screen and waits for its first load: a row, a group header or the empty state. */
     private fun show(withInbox: Boolean = false) {
         val viewModel = ListsViewModel(lists, repo)
         rule.setContent {

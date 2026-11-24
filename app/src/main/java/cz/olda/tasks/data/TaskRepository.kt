@@ -72,6 +72,9 @@ class TaskRepository(
 
     fun observeTask(id: Long): Flow<TaskEntity?> = taskDao.observeTask(id)
 
+    /** One read of a live task, without opening a flow: for code that needs the current row once. */
+    suspend fun getTask(id: Long): TaskEntity? = taskDao.getTask(id)
+
     /** The distinct list colours with an open task (subtasks included) on each day in [from]..[to] inclusive. */
     fun observeDots(from: LocalDate, to: LocalDate): Flow<Map<LocalDate, List<String>>> =
         taskDao.observeDots(from.toEpochDay(), to.toEpochDay()).map { rows ->
@@ -139,7 +142,6 @@ class TaskRepository(
     /** Completing also completes open subtasks; reopening touches only the task itself. */
     suspend fun setDone(id: Long, done: Boolean) = taskDao.setDone(id, done, now())
 
-    /** Also deletes the live subtasks; [restore] brings back exactly those. */
     /**
      * Undo for [setDone] with done = true: reopens the task and the subtasks completed with it (same
      * completedAt stamp), so a cascade completion is reversed in full. [setDone] with false still
@@ -147,6 +149,7 @@ class TaskRepository(
      */
     suspend fun undoCompletion(id: Long) = taskDao.undoCompletion(id, now())
 
+    /** Also deletes the live subtasks; [restore] brings back exactly those. */
     suspend fun softDelete(id: Long) = taskDao.softDelete(id, now())
 
     suspend fun restore(id: Long) = taskDao.restore(id, now())

@@ -86,6 +86,43 @@ class TaskRepositoryTest {
         assertEquals(listOf("a1", "a2"), upcoming[0].tasks.map { it.task.title })
     }
 
+    /** A clock the test moves by hand, so a rewritten row shows up as a new updatedAt. */
+    private class SteppingClock : Clock() {
+        var ms = 1_000L
+        override fun getZone(): ZoneId = ZoneId.of("UTC")
+        override fun withZone(zone: ZoneId): Clock = this
+        override fun instant(): java.time.Instant = java.time.Instant.ofEpochMilli(ms)
+        override fun millis(): Long = ms
+    }
+
+    @Test fun editingAParentThatStaysPutLeavesItsSubtasksUntouched() = runBlocking {
+        val stepping = SteppingClock()
+        val r = TaskRepository(db.taskDao(), stepping)
+        val parent = r.add("p", inbox, null, null, 4)
+        val child = r.add("c", inbox, null, null, 4, parentTaskId = parent)
+        val stamp = r.getTask(child)!!.updatedAt
+
+        stepping.ms += 5_000
+        r.update(r.getTask(parent)!!.copy(title = "renamed"))
+        assertEquals("renamed", r.getTask(parent)!!.title)
+        assertEquals("a subtask that is already in place is not rewritten", stamp, r.getTask(child)!!.updatedAt)
+
+        // Control: when the parent really moves, the subtask follows and is stamped.
+        val work = lists.createList("Work", "#112233", null)
+        stepping.ms += 5_000
+        r.update(r.getTask(parent)!!.copy(listId = work))
+        assertEquals(work, r.getTask(child)!!.listId)
+        assertEquals(stepping.ms, r.getTask(child)!!.updatedAt)
+    }
+
+    @Test fun getTaskReadsALiveTaskOnceAndNeverASoftDeletedOne() = runBlocking {
+        val id = add("here")
+        assertEquals("here", repo.getTask(id)!!.title)
+        assertNull(repo.getTask(id + 999))
+        repo.softDelete(id)
+        assertNull(repo.getTask(id))
+    }
+
     @Test fun completingAParentCompletesItsSubtasks() = runBlocking {
         val parent = add("p")
         val child = add("c", parent = parent)

@@ -1,10 +1,12 @@
 package cz.olda.tasks.ui.lists
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cz.olda.tasks.data.GroupWithLists
 import cz.olda.tasks.data.ListRepository
 import cz.olda.tasks.data.TaskRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -34,39 +36,56 @@ class ListsViewModel(
     val openCounts: StateFlow<Map<Long, Int>?> = taskRepository.observeOpenCounts()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    /**
+     * Launches a write without letting a failure take the app down:
+     * a failed write (say a colour that cannot be parsed) is logged and the screen simply shows the
+     * unchanged data, which the database flows keep up to date.
+     */
+    private fun guarded(block: suspend () -> Unit) {
+        viewModelScope.launch {
+            try {
+                block()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e("ListsViewModel", "Write failed", e)
+            }
+        }
+    }
+
     /** A null [colorHex] takes the next preset colour. */
     fun createList(name: String, colorHex: String?, groupId: Long?) {
-        viewModelScope.launch { listRepository.createList(name.trim(), colorHex, groupId) }
+        guarded { listRepository.createList(name.trim(), colorHex, groupId) }
     }
 
     fun renameList(id: Long, name: String) {
-        viewModelScope.launch { listRepository.renameList(id, name.trim()) }
+        guarded { listRepository.renameList(id, name.trim()) }
     }
 
     fun recolourList(id: Long, colorHex: String) {
-        viewModelScope.launch { listRepository.recolourList(id, colorHex) }
+        guarded { listRepository.recolourList(id, colorHex) }
+    }
+
+    /** Moves the list into a group, or out of any with null; the Inbox is refused by the repository. */
+    fun moveListToGroup(id: Long, groupId: Long?) {
+        guarded { listRepository.moveListToGroup(id, groupId) }
     }
 
     /** The list's tasks move to Inbox; the screen says so before asking for this. */
-    /** Moves the list into a group, or out of any with null; the Inbox is refused by the repository. */
-    fun moveListToGroup(id: Long, groupId: Long?) {
-        viewModelScope.launch { listRepository.moveListToGroup(id, groupId) }
-    }
-
     fun deleteList(id: Long) {
-        viewModelScope.launch { listRepository.deleteList(id) }
+        guarded { listRepository.deleteList(id) }
     }
 
     fun createGroup(name: String) {
-        viewModelScope.launch { listRepository.createGroup(name.trim()) }
+        guarded { listRepository.createGroup(name.trim()) }
     }
 
     fun renameGroup(id: Long, name: String) {
-        viewModelScope.launch { listRepository.renameGroup(id, name.trim()) }
+        guarded { listRepository.renameGroup(id, name.trim()) }
     }
 
     /** The group's lists stay, outside any group. */
     fun deleteGroup(id: Long) {
-        viewModelScope.launch { listRepository.deleteGroup(id) }
+        guarded { listRepository.deleteGroup(id) }
     }
 }
