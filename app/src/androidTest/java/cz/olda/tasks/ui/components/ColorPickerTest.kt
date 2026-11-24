@@ -90,4 +90,34 @@ class ColorPickerTest {
         rule.onNodeWithTag("hex-field").assertIsDisplayed()
         assertTrue(!exists("contrast-warning"))
     }
+
+    @Test
+    fun noPresetWarns() {
+        show()
+        for (preset in ListPalette) {
+            val hex = preset.light.toHex()
+            rule.onNodeWithTag("swatch-$hex").performClick()
+            rule.waitForIdle()
+            assertTrue("$hex must not warn", !exists("contrast-warning"))
+        }
+        assertEquals(12, picked.size)
+    }
+
+    @Test
+    fun aReadableCustomColourShowsNoWarning() {
+        show()
+        typeHex("#1F5FA8") // not a preset; fine on white and, lifted, on the dark card
+        rule.waitUntil(10_000) { picked.lastOrNull() == "#1F5FA8" }
+        rule.waitForIdle()
+        assertTrue(!exists("contrast-warning"))
+        assertTrue(!exists("hex-error"))
+    }
+
+    @Test
+    fun aColourThatOnlyFailsOnTheDarkCardWarns() {
+        show()
+        typeHex("#000000") // 21:1 on white, but its lifted dark shade is 4.4:1 on the dark card
+        rule.waitUntil(10_000) { exists("contrast-warning") }
+        assertEquals("#000000", picked.last())
+    }
 }

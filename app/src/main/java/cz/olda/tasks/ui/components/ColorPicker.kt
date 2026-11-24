@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -28,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -44,6 +46,14 @@ import cz.olda.tasks.ui.theme.toHex
 private val LightCard = Color(0xFFFFFFFF)
 private val DarkCard = Color(0xFF1C1B1F)
 private const val MinTextContrast = 4.5f
+private const val DarkShadeLift = 0.5f
+
+/**
+ * The dark-mode shade of a custom colour, as presets have one: the colour lifted halfway to white.
+ * It is judged against the dark card; the colour itself is judged against the light card.
+ * (docs/design.md lets a second hex override this later.)
+ */
+internal fun darkShadeOf(color: Color): Color = lerp(color, Color.White, DarkShadeLift)
 
 /**
  * Picks a list colour: the 12 presets plus a custom `#RRGGBB` field. [onPick] is called only with
@@ -58,17 +68,19 @@ fun ColorPicker(selected: String, onPick: (String) -> Unit, modifier: Modifier =
     var edited by rememberSaveable { mutableStateOf(false) }
     val typed = parseHex(text)
     val shown = typed ?: parseHex(selected)
-    // A preset has its own dark shade; a custom colour is shown as it is on both cards.
+    // A preset has its own dark shade; a custom colour gets one derived by [darkShadeOf].
     val preset = shown?.let { color -> ListPalette.firstOrNull { it.light.toHex() == color.toHex() } }
-    val onDark = preset?.dark ?: shown
+    val onDark = preset?.dark ?: shown?.let(::darkShadeOf)
     val showError = typed == null && (edited || text.isNotEmpty())
-    val lowContrast = typed != null && (
+    // Presets are the app's own colours and never warn (four of them are under 4.5:1 on white).
+    val lowContrast = typed != null && preset == null && (
         contrastRatio(typed, LightCard) < MinTextContrast ||
             (onDark != null && contrastRatio(onDark, DarkCard) < MinTextContrast)
         )
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         FlowRow(
+            modifier = Modifier.selectableGroup(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -127,7 +139,7 @@ private fun Swatch(entry: ListColor, selected: Boolean, onClick: () -> Unit) {
     }
     Box(
         modifier = Modifier
-            .size(40.dp)
+            .size(48.dp)
             .clip(CircleShape)
             .background(entry.light)
             .then(ring)

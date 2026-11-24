@@ -257,6 +257,7 @@ class ListsScreenTest {
         rule.onNodeWithTag("list-edit-$id").performClick()
         rule.onNodeWithTag("hex-field").performTextClearance()
         rule.onNodeWithTag("hex-field").performTextInput("#GGGGGG")
+        awaitShown("Enter a colour like #3D6BE0")
         rule.onNodeWithTag("list-save").performClick()
         awaitSheetClosed("list-name-field")
         assertEquals("#3D6BE0", colourOf(id))

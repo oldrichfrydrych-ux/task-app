@@ -66,17 +66,15 @@ fun ListEditSheet(
                 .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    placeholder = { Text(stringResource(R.string.list_name_hint)) },
-                    singleLine = true,
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("list-name-field"),
-                )
-            }
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                placeholder = { Text(stringResource(R.string.list_name_hint)) },
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("list-name-field"),
+            )
             ColorPicker(selected = colorHex.orEmpty(), onPick = { colorHex = it })
             if (groups.isNotEmpty()) {
                 Text(
