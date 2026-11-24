@@ -47,6 +47,7 @@ fun ListDetailScreen(
     )
     var addingHeading by rememberSaveable { mutableStateOf(false) }
     var deletingHeadingId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var renamingHeadingId by rememberSaveable { mutableStateOf<Long?>(null) }
 
     Column(modifier = modifier.fillMaxSize().testTag("screen-ListDetail")) {
         Row(
@@ -94,8 +95,12 @@ fun ListDetailScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .padding(horizontal = 4.dp, vertical = 4.dp)
-                                    .testTag("heading-title-${heading.name}"),
+                                    .testTag("heading-title-${heading.id}"),
                             )
+                            TextButton(
+                                onClick = { renamingHeadingId = heading.id },
+                                modifier = Modifier.testTag("heading-rename-${heading.id}"),
+                            ) { Text(stringResource(R.string.rename)) }
                             TextButton(
                                 onClick = { deletingHeadingId = heading.id },
                                 modifier = Modifier.testTag("heading-delete-${heading.id}"),
@@ -117,10 +122,25 @@ fun ListDetailScreen(
     }
 
     if (addingHeading) {
-        NewHeadingDialog(
+        HeadingNameDialog(
+            title = stringResource(R.string.add_heading),
+            initial = "",
             onSave = { viewModel.addHeading(it); addingHeading = false },
             onDismiss = { addingHeading = false },
         )
+    }
+    renamingHeadingId?.let { id ->
+        val current = state.sections.firstOrNull { it.heading.id == id }?.heading
+        if (current == null) {
+            renamingHeadingId = null
+        } else {
+            HeadingNameDialog(
+                title = stringResource(R.string.rename_heading),
+                initial = current.name,
+                onSave = { viewModel.renameHeading(id, it); renamingHeadingId = null },
+                onDismiss = { renamingHeadingId = null },
+            )
+        }
     }
     deletingHeadingId?.let { id ->
         ConfirmDeleteDialog(
@@ -133,11 +153,11 @@ fun ListDetailScreen(
 }
 
 @Composable
-private fun NewHeadingDialog(onSave: (String) -> Unit, onDismiss: () -> Unit) {
-    var name by rememberSaveable { mutableStateOf("") }
+private fun HeadingNameDialog(title: String, initial: String, onSave: (String) -> Unit, onDismiss: () -> Unit) {
+    var name by rememberSaveable { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.add_heading)) },
+        title = { Text(title) },
         text = {
             OutlinedTextField(
                 value = name,

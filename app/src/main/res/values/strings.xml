@@ -52,6 +52,8 @@
     <string name="back">Back</string>
     <string name="add_heading">Add heading</string>
     <string name="heading_name_hint">Heading name</string>
+    <string name="rename">Rename</string>
+    <string name="rename_heading">Rename heading</string>
     <string name="list_empty">No tasks in this list</string>
     <string name="delete_heading_title">Delete this heading?</string>
     <string name="delete_heading_keeps_tasks">The tasks under this heading are not deleted. They stay in the list, without a heading.</string>

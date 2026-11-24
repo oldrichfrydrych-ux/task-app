@@ -11,6 +11,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -118,7 +122,7 @@ class ListDetailScreenTest {
         rule.onNodeWithTag("heading-name-field").performTextInput("Later")
         rule.onNodeWithTag("heading-save").performClick()
         rule.waitUntil(timeoutMillis = 10_000) {
-            rule.onAllNodes(hasTestTag("heading-title-Later")).fetchSemanticsNodes().isNotEmpty()
+            rule.onAllNodes(hasText("Later")).fetchSemanticsNodes().isNotEmpty()
         }
         rule.onNodeWithText("Later").assertIsDisplayed()
         assertEquals(listOf("Later"), runBlocking { lists.observeHeadings(work).first() }.map { it.name })
@@ -141,5 +145,44 @@ class ListDetailScreenTest {
 
     @Test fun stateIsEmptyBeforeTheFirstEmission() {
         assertNull(ListDetailViewModel(work, lists, repo).state.value.list)
+    }
+
+    @Test fun renamingAHeadingKeepsItsTasksUnderIt() {
+        val heading = runBlocking { lists.createHeading(work, "Typo") }
+        val task = runBlocking { repo.add("stays put", work, null, null, 4, headingId = heading) }
+        show()
+        awaitShown("task-$task")
+        rule.onNodeWithTag("heading-rename-$heading").performClick()
+        rule.onNodeWithTag("heading-name-field").performTextReplacement("Fixed")
+        rule.onNodeWithTag("heading-save").performClick()
+        rule.waitUntil(timeoutMillis = 10_000) {
+            rule.onAllNodes(hasTestTag("heading-title-$heading") and hasText("Fixed")).fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.onNodeWithTag("heading-title-$heading").assertIsDisplayed()
+        rule.onNodeWithText("Typo").assertDoesNotExist()
+        assertEquals(listOf("Fixed"), runBlocking { lists.observeHeadings(work).first() }.map { it.name })
+        assertEquals(heading, runBlocking { repo.observeInList(work).first() }.single().task.headingId)
+    }
+
+    @Test fun twoHeadingsWithTheSameNameCanBothBeShown() {
+        val a = runBlocking { lists.createHeading(work, "Same") }
+        val b = runBlocking { lists.createHeading(work, "Same") }
+        show()
+        awaitShown("heading-title-$a")
+        rule.onNodeWithTag("heading-title-$a").assertIsDisplayed()
+        rule.onNodeWithTag("heading-title-$b").assertIsDisplayed()
+    }
+
+    @Test fun completingATaskHereCanBeUndone() {
+        val id = runBlocking { repo.add("finish me", work, null, null, 4) }
+        show()
+        awaitShown("task-$id")
+        rule.onNode(hasContentDescription("Complete task") and hasAnyAncestor(hasTestTag("task-$id")))
+            .performClick()
+        awaitGone("task-$id")
+        rule.onNodeWithText("Undo").assertIsDisplayed().performClick()
+        awaitShown("task-$id")
+        rule.onNodeWithTag("task-$id").assertIsDisplayed()
+        assertEquals(listOf("finish me"), runBlocking { repo.observeInList(work).first() }.map { it.task.title })
     }
 }

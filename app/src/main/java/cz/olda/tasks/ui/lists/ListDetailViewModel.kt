@@ -52,6 +52,10 @@ class ListDetailViewModel(
         viewModelScope.launch { listRepository.createHeading(listId, name) }
     }
 
+    fun renameHeading(id: Long, name: String) {
+        viewModelScope.launch { listRepository.renameHeading(id, name) }
+    }
+
     /** The heading's tasks stay in the list, without a heading. */
     fun deleteHeading(id: Long) {
         viewModelScope.launch { listRepository.deleteHeading(id) }
