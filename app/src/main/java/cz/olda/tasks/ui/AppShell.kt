@@ -1,5 +1,6 @@
 package cz.olda.tasks.ui
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -38,12 +40,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import cz.olda.tasks.ui.theme.AppMotion
+import cz.olda.tasks.ui.theme.LocalAnimationsEnabled
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
@@ -141,16 +148,77 @@ private fun FloatingBottomBar(
             modifier = Modifier.padding(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            TabStrip(
+                selected = selected,
+                onSelect = onSelect,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            AddButton(onClick = onAdd)
+        }
+    }
+}
+
+/** Where one tab sits inside the strip, in the strip's own coordinates. */
+private data class TabSlot(val x: Dp, val width: Dp, val height: Dp)
+
+/**
+ * The four destinations with a single pill behind them.
+ *
+ * The pill travels to the selected tab's *measured* bounds rather than to a computed quarter
+ * of the strip: integer rounding on a quarter can leave it a pixel short of the tab it is
+ * meant to mark, and measuring also survives any later change to how the tabs are laid out.
+ */
+@Composable
+private fun TabStrip(
+    selected: Destination,
+    onSelect: (Destination) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalBottomBarColors.current
+    val density = LocalDensity.current
+    var slots by remember { mutableStateOf(emptyMap<Destination, TabSlot>()) }
+    val slot = slots[selected]
+
+    val targetX = slot?.x ?: 0.dp
+    val targetWidth = slot?.width ?: 0.dp
+    val animatedX by animateDpAsState(targetX, AppMotion.spatial(), label = "pill-x")
+    val animatedWidth by animateDpAsState(targetWidth, AppMotion.spatial(), label = "pill-width")
+    val animate = LocalAnimationsEnabled.current
+
+    Box(modifier = modifier) {
+        Box(
+            modifier = Modifier
+                .offset(x = if (animate) animatedX else targetX)
+                .size(
+                    width = if (animate) animatedWidth else targetWidth,
+                    height = slot?.height ?: 0.dp,
+                )
+                .clip(CircleShape)
+                .background(colors.selectedPill)
+                .testTag("bottom-bar-pill"),
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Destination.entries.forEach { destination ->
                 TabItem(
                     destination = destination,
                     selected = destination == selected,
                     onClick = { onSelect(destination) },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .onGloballyPositioned { coordinates ->
+                            val next = TabSlot(
+                                x = with(density) { coordinates.positionInParent().x.toDp() },
+                                width = with(density) { coordinates.size.width.toDp() },
+                                height = with(density) { coordinates.size.height.toDp() },
+                            )
+                            if (slots[destination] != next) slots = slots + (destination to next)
+                        },
                 )
             }
-            Spacer(modifier = Modifier.width(6.dp))
-            AddButton(onClick = onAdd)
         }
     }
 }
@@ -165,9 +233,9 @@ private fun TabItem(
     val colors = LocalBottomBarColors.current
     val content = if (selected) colors.onSelected else colors.onUnselected
     Column(
+        // No background of its own: TabStrip draws one pill behind whichever tab is selected.
         modifier = modifier
             .clip(CircleShape)
-            .background(if (selected) colors.selectedPill else Color.Transparent)
             .selectable(selected = selected, role = Role.Tab, onClick = onClick)
             .heightIn(min = TouchTarget)
             .padding(vertical = 6.dp, horizontal = 2.dp),

@@ -20,11 +20,13 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.test.espresso.Espresso
 import cz.olda.tasks.ui.nav.Routes
 import cz.olda.tasks.ui.theme.AppTheme
+import cz.olda.tasks.ui.theme.LocalAnimationsEnabled
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -117,6 +119,39 @@ class AppShellTest {
         rule.runOnUiThread { navController.navigate(Routes.task(1)) }
         rule.onNodeWithTag("screen-TaskDetail").assertIsDisplayed()
         todayTab().assertIsSelected()
+    }
+
+    /** One pill travels to the tapped tab instead of each tab drawing its own background. */
+    @Test
+    fun theSelectedPillMovesToTheTappedTab() {
+        rule.setContent { AppTheme { AppShell() } }
+        val before = rule.onNodeWithTag("bottom-bar-pill").getUnclippedBoundsInRoot().left
+        rule.onNode(hasText("Lists") and hasAnyAncestor(hasTestTag("bottom-bar"))).performClick()
+        rule.waitForIdle()
+        val after = rule.onNodeWithTag("bottom-bar-pill").getUnclippedBoundsInRoot().left
+        assertTrue("pill did not move: $before -> $after", after > before)
+    }
+
+    /**
+     * Review Focus 1. Someone who turned animations off still has to see which tab is
+     * selected, so the pill must land rather than never travel.
+     */
+    @Test
+    fun thePillStillLandsOnTheTabWithAnimationsOff() {
+        rule.setContent {
+            CompositionLocalProvider(LocalAnimationsEnabled provides false) {
+                AppTheme { AppShell() }
+            }
+        }
+        val inbox = hasText("Inbox") and hasAnyAncestor(hasTestTag("bottom-bar"))
+        rule.onNode(inbox).performClick()
+        rule.onNode(inbox).assertIsSelected()
+        val pill = rule.onNodeWithTag("bottom-bar-pill").getUnclippedBoundsInRoot()
+        val tab = rule.onNode(inbox).getUnclippedBoundsInRoot()
+        assertTrue(
+            "pill at ${pill.left}..${pill.right} is not over the Inbox tab at ${tab.left}..${tab.right}",
+            pill.left <= tab.left && pill.right >= tab.right,
+        )
     }
 
     /**
