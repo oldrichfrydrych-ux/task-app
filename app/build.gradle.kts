@@ -24,7 +24,12 @@ android {
         release {
             optimization {
                 enable = true
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
+                // No packageScope. Listing androidx/kotlin/kotlinx here let R8 repackage
+                // library classes across their own package boundaries, and the app died on
+                // launch with "Class kotlin.collections.g extended by class xl is
+                // inaccessible" - package-private access broken by the move. Verified by
+                // building, signing and launching: with this line, it crashes; without it,
+                // it starts.
             }
         }
     }
