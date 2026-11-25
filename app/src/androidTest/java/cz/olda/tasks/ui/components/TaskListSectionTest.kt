@@ -196,6 +196,50 @@ class TaskListSectionTest {
         rule.onNodeWithTag("task-1").assertDoesNotExist()
     }
 
+    /**
+     * Olda reports the fold looks jerky. A collapse can only stutter in ways a height
+     * sequence shows: growing back partway through, standing still for several frames, or
+     * dropping most of its height in one step. This samples every frame of the collapse and
+     * holds it to all three.
+     */
+    @Test
+    fun theFoldCollapsesSmoothly() {
+        val section = show(listOf(task(1, "Prvni"), task(2, "Druhy")))
+        rule.mainClock.autoAdvance = false
+        rule.runOnUiThread { section.complete(1) }
+        rule.mainClock.advanceTimeBy(130)
+
+        val heights = mutableListOf<Float>()
+        var collapsedButStillThere = 0
+        repeat(40) {
+            val node = rule.onAllNodesWithTag("task-1").fetchSemanticsNodes().firstOrNull()
+            val h = node?.boundsInRoot?.height ?: 0f
+            heights += h
+            if (node != null && h == 0f) collapsedButStillThere++
+            rule.mainClock.advanceTimeBy(16)
+        }
+        val trace = heights.joinToString(" ") { "%.0f".format(it) }
+
+        val grewBack = heights.zipWithNext().any { (a, b) -> b > a + 1f }
+        assertFalse("the fold grew back: $trace", grewBack)
+
+        // A spring aimed at zero that undershoots gets clamped and sits there: the row is
+        // invisible, but it still holds its place in the list, so the gap closes long after
+        // the eye says the fold ended.
+        assertTrue(
+            "the row was collapsed but still in the list for $collapsedButStillThere " +
+                "frames (${collapsedButStillThere * 16}ms) after reaching zero: $trace",
+            collapsedButStillThere <= 4,
+        )
+
+        val start = heights.first()
+        val biggestStep = heights.zipWithNext().maxOf { (a, b) -> a - b }
+        assertTrue(
+            "the fold dropped ${"%.0f".format(biggestStep)}px of $start in one frame: $trace",
+            biggestStep <= start / 3f,
+        )
+    }
+
     /** docs/design.md: the circle fills and the title strikes through before the row goes. */
     @Test
     fun theFoldingRowShowsAsDone() {
