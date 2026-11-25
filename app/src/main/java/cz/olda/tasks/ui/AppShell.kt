@@ -39,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ProvidableCompositionLocal
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -69,6 +70,12 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.runtime.mutableStateMapOf
+import cz.olda.tasks.ui.components.TaskFlight
+import kotlinx.coroutines.delay
+import java.time.LocalDate
 import cz.olda.tasks.R
 import cz.olda.tasks.ui.nav.AppNavHost
 import cz.olda.tasks.ui.components.CompletionTracker
@@ -94,6 +101,7 @@ private val TouchTarget = 48.dp
 fun AppShell(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
+    flights: FlightController = remember { FlightController() },
 ) {
     // Saved by name, so the tab survives process death and not just rotation.
     var selectedName by rememberSaveable { mutableStateOf(Destination.Today.name) }
@@ -125,13 +133,22 @@ fun AppShell(
         }
     }
 
+    // Where the bar's parts are on screen, so the pill knows where to start and where to land.
+    // Measured in root coordinates because it crosses from the content area into the bar, which
+    // are different parts of the Scaffold.
+    val tabBounds = remember { mutableStateMapOf<Destination, Rect>() }
+    var addButtonBounds by remember { mutableStateOf<Rect?>(null) }
+    var pulsing by remember { mutableStateOf<Destination?>(null) }
+
+    Box(modifier = modifier.fillMaxSize()) {
     Scaffold(
-        modifier = modifier.fillMaxSize().nestedScroll(slimOnScroll),
+        modifier = Modifier.fillMaxSize().nestedScroll(slimOnScroll),
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             FloatingBottomBar(
                 selected = selected,
                 slimmed = slimmed.value,
+                pulsing = pulsing,
                 onSelect = { destination ->
                     // Pop to the graph start so tabs do not pile up on the back stack.
                     navController.navigate(destination.route) {
@@ -140,7 +157,13 @@ fun AppShell(
                         restoreState = true
                     }
                 },
-                onAdd = { quickAddOpen = true },
+                onAdd = {
+                    // Capture beats decoration: whatever is in flight goes.
+                    flights.cancel()
+                    quickAddOpen = true
+                },
+                onTabBounds = { destination, bounds -> tabBounds[destination] = bounds },
+                onAddButtonBounds = { addButtonBounds = it },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -156,9 +179,70 @@ fun AppShell(
     }
 
     if (quickAddOpen) {
-        QuickAddSheet(onDismiss = { quickAddOpen = false })
+        QuickAddSheet(
+            onDismiss = { quickAddOpen = false },
+            onSaved = { saved ->
+                flights.start(saved.title, arrivalTab(saved, LocalDate.now()))
+            },
+        )
+    }
+
+        // Above the Scaffold, so the pill can cross from the content area into the bar.
+        val inFlight = flights.current
+        val from = addButtonBounds
+        val to = inFlight?.let { tabBounds[it.destination] }
+        if (inFlight != null && from != null && to != null) {
+            TaskFlight(
+                label = inFlight.label,
+                from = from,
+                to = to,
+                onFinished = {
+                    pulsing = inFlight.destination
+                    flights.cancel()
+                },
+            )
+        }
+    }
+
+    // The pulse is brief and then the tab is an ordinary tab again.
+    LaunchedEffect(pulsing) {
+        if (pulsing != null) {
+            delay(PulseMillis)
+            pulsing = null
+        }
     }
 }
+
+/** A task on its way to the tab that holds it. */
+data class Flight(val label: String, val destination: Destination)
+
+/**
+ * Holds the one task currently in flight, and exists so it can be driven from a test.
+ *
+ * Catching a real flight through the real sheet is not possible here: the save is an
+ * ordinary asynchronous write running in real time, while the pill is an animation running
+ * on the test clock, and holding one still stalls the other - the pill has always landed
+ * before an assertion can see it. With this, the shell's own rules (one at a time, cancelled
+ * by the add button, landing on the right tab) are tested directly and deterministically,
+ * and only the single line that calls [start] from the sheet is left to the eye.
+ */
+@Stable
+class FlightController {
+    var current: Flight? by mutableStateOf(null)
+        private set
+
+    /** Replaces whatever was in flight: there is never more than one. */
+    fun start(label: String, destination: Destination) {
+        current = Flight(label, destination)
+    }
+
+    fun cancel() {
+        current = null
+    }
+}
+
+/** How long the arrival tab stays pulsed after the pill lands. */
+private const val PulseMillis = 420L
 
 /** Pixels of drag before the bar reacts, so a finger resting on the screen cannot flutter it. */
 private const val SlimThreshold = 2f
@@ -168,8 +252,11 @@ private const val SlimThreshold = 2f
 private fun FloatingBottomBar(
     selected: Destination,
     slimmed: Boolean,
+    pulsing: Destination?,
     onSelect: (Destination) -> Unit,
     onAdd: () -> Unit,
+    onTabBounds: (Destination, Rect) -> Unit,
+    onAddButtonBounds: (Rect) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalBottomBarColors.current
@@ -222,11 +309,13 @@ private fun FloatingBottomBar(
                 TabStrip(
                     selected = selected,
                     slimmed = slimmed,
+                    pulsing = pulsing,
                     onSelect = onSelect,
+                    onTabBounds = onTabBounds,
                     modifier = Modifier.weight(1f),
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                AddButton(onClick = onAdd)
+                AddButton(onClick = onAdd, onBounds = onAddButtonBounds)
             }
         }
     }
@@ -269,7 +358,9 @@ private fun Pill(slot: TabSlot, color: Color) {
 private fun TabStrip(
     selected: Destination,
     slimmed: Boolean,
+    pulsing: Destination?,
     onSelect: (Destination) -> Unit,
+    onTabBounds: (Destination, Rect) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalBottomBarColors.current
@@ -295,12 +386,16 @@ private fun TabStrip(
                     modifier = Modifier
                         .weight(1f)
                         .onGloballyPositioned { coordinates ->
+                            // Strip-local for the pill behind the tabs...
                             val next = TabSlot(
                                 x = with(density) { coordinates.positionInParent().x.toDp() },
                                 width = with(density) { coordinates.size.width.toDp() },
                                 height = with(density) { coordinates.size.height.toDp() },
                             )
                             if (slots[destination] != next) slots = slots + (destination to next)
+                            // ...and root coordinates for the flight, which comes from
+                            // outside the bar entirely.
+                            onTabBounds(destination, coordinates.boundsInRoot())
                         },
                 )
             }
@@ -360,10 +455,15 @@ private fun TabItem(
 }
 
 @Composable
-private fun AddButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun AddButton(
+    onClick: () -> Unit,
+    onBounds: (Rect) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val colors = LocalBottomBarColors.current
     Box(
         modifier = modifier
+            .onGloballyPositioned { onBounds(it.boundsInRoot()) }
             .size(TouchTarget)
             .clip(CircleShape)
             .background(colors.addButton)
