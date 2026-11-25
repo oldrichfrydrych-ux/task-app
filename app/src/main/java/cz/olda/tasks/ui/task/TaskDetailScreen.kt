@@ -4,6 +4,7 @@ import android.text.format.DateFormat
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -39,6 +40,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -48,6 +50,8 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cz.olda.tasks.R
+import cz.olda.tasks.ui.theme.AppMotion
+import cz.olda.tasks.ui.theme.LocalAnimationsEnabled
 import cz.olda.tasks.data.entity.TaskEntity
 import cz.olda.tasks.ui.AppIcons
 import cz.olda.tasks.ui.components.formatMinuteOfDay
@@ -73,6 +77,13 @@ fun TaskDetailScreen(
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
     val task = state.task
 
+    val animated by animateFloatAsState(
+        targetValue = if (task != null) 1f else 0f,
+        animationSpec = AppMotion.fastEffects(),
+        label = "detail-arrival",
+    )
+    val arrival = if (LocalAnimationsEnabled.current) animated else 1f
+
     Column(modifier = modifier.fillMaxSize().testTag("screen-TaskDetail")) {
         ScreenHeader(
             title = stringResource(R.string.task_screen_title),
@@ -82,12 +93,17 @@ fun TaskDetailScreen(
         )
         // Nothing below shows until the task has loaded; a task that does not exist says so.
         if (task != null) {
+            // Behind a screen transition, fields that simply appear once Room answers read as
+            // popping into a screen that has already arrived. They fade instead. This is a
+            // draw step, not a gate: they are composed, laid out and editable from the first
+            // frame they exist, which is what the test below holds.
             TaskFields(
                 task = task,
                 state = state,
                 viewModel = viewModel,
                 onOpenTask = onOpenTask,
                 onDelete = { confirmingDelete = true },
+                modifier = Modifier.graphicsLayer { alpha = arrival },
             )
         } else if (state.loaded) {
             Text(
@@ -122,6 +138,7 @@ private fun TaskFields(
     viewModel: TaskDetailViewModel,
     onOpenTask: (Long) -> Unit,
     onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     // Local text, seeded once: the field must not be rewritten by its own saves mid-typing.
     var title by rememberSaveable { mutableStateOf(task.title) }
@@ -129,7 +146,7 @@ private fun TaskFields(
     val completeLabel = stringResource(R.string.complete_task)
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 8.dp),

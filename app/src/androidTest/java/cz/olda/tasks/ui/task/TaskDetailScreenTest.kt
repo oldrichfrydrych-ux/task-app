@@ -22,6 +22,7 @@ import androidx.compose.ui.test.isOn
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.room.Room
@@ -83,6 +84,13 @@ class TaskDetailScreenTest {
     }
 
     private var shown: TaskDetailViewModel? = null
+
+    // A test for "the fields are present the frame they arrive" was written here and deleted:
+    // show() waits for the screen to load before a test can stop the clock, so by then the
+    // fade has finished and the assertion holds whether or not the fields are gated behind
+    // it. Gating them deliberately did not make it fail. The fade is a graphicsLayer alpha,
+    // invisible to the semantics tree, and the fields themselves are covered by the eleven
+    // tests below.
 
     /** Shows the screen and waits for the task to load, so later assertions see real data. */
     private fun show(taskId: Long) {
