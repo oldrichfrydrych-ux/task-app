@@ -20,8 +20,30 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Signs the release build with the same debug keystore Android Studio already uses, so
+    // `gradlew installRelease` just works and upgrades the installed app in place instead of
+    // asking for an uninstall. This app never goes to the Play Store, so there is no release
+    // key to protect; "android" is the published password of every Android debug keystore,
+    // not a secret, and the keystore itself is not in the repository. Guarded by exists() so
+    // the build still works on a machine that has never run Android Studio.
+    val debugKeystore = File(System.getProperty("user.home"), ".android/debug.keystore")
+
+    signingConfigs {
+        create("localDebugKey") {
+            if (debugKeystore.exists()) {
+                storeFile = debugKeystore
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (debugKeystore.exists()) {
+                signingConfig = signingConfigs.getByName("localDebugKey")
+            }
             optimization {
                 enable = true
                 // No packageScope. Listing androidx/kotlin/kotlinx here let R8 repackage
