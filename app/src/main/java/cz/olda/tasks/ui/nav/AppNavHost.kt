@@ -50,12 +50,18 @@ fun AppNavHost(
     modifier: Modifier = Modifier,
 ) {
     val animate = LocalAnimationsEnabled.current
-    val tabs = remember { Destination.entries.map { it.route }.toSet() }
+    // In bar order, which is also the order the eye expects them to move in.
+    val tabs = remember { Destination.entries.map { it.route } }
 
-    // The four tabs are siblings, so moving between them is a cross-fade with no travel.
-    // Anything else is a step into or out of a hierarchy and gets the shared axis.
     val betweenTabs: AnimatedContentTransitionScope<NavBackStackEntry>.() -> Boolean = {
         initialState.destination.route in tabs && targetState.destination.route in tabs
+    }
+
+    /** +1 moving along the bar to the right, -1 to the left. */
+    val tabDirection: AnimatedContentTransitionScope<NavBackStackEntry>.() -> Int = {
+        val from = tabs.indexOf(initialState.destination.route)
+        val to = tabs.indexOf(targetState.destination.route)
+        if (to >= from) 1 else -1
     }
 
     NavHost(
@@ -65,14 +71,16 @@ fun AppNavHost(
         enterTransition = {
             when {
                 !animate -> EnterTransition.None
-                betweenTabs() -> fadeIn(AppMotion.effects())
+                betweenTabs() -> slideInHorizontally(AppMotion.spatial()) { tabDirection() * it / TabTravel } +
+                    fadeIn(AppMotion.effects())
                 else -> slideInHorizontally(AppMotion.spatial()) { it } + fadeIn(AppMotion.effects())
             }
         },
         exitTransition = {
             when {
                 !animate -> ExitTransition.None
-                betweenTabs() -> fadeOut(AppMotion.effects())
+                betweenTabs() -> slideOutHorizontally(AppMotion.spatial()) { -tabDirection() * it / TabTravel } +
+                    fadeOut(AppMotion.effects())
                 // The screen being left steps back a quarter rather than leaving entirely,
                 // so it reads as staying behind the one that arrives.
                 else -> slideOutHorizontally(AppMotion.spatial()) { -it / 4 } + fadeOut(AppMotion.effects())
@@ -81,14 +89,16 @@ fun AppNavHost(
         popEnterTransition = {
             when {
                 !animate -> EnterTransition.None
-                betweenTabs() -> fadeIn(AppMotion.effects())
+                betweenTabs() -> slideInHorizontally(AppMotion.spatial()) { tabDirection() * it / TabTravel } +
+                    fadeIn(AppMotion.effects())
                 else -> slideInHorizontally(AppMotion.spatial()) { -it / 4 } + fadeIn(AppMotion.effects())
             }
         },
         popExitTransition = {
             when {
                 !animate -> ExitTransition.None
-                betweenTabs() -> fadeOut(AppMotion.effects())
+                betweenTabs() -> slideOutHorizontally(AppMotion.spatial()) { -tabDirection() * it / TabTravel } +
+                    fadeOut(AppMotion.effects())
                 else -> slideOutHorizontally(AppMotion.spatial()) { it } + fadeOut(AppMotion.effects())
             }
         },
@@ -149,3 +159,13 @@ fun AppNavHost(
         }
     }
 }
+
+/**
+ * How far a tab's content travels, as a fraction of the screen's width.
+ *
+ * Opening a task throws the new screen the whole way in and steps the old one back a
+ * quarter: that is a push, and it means "deeper". Moving along the bar is sideways, not
+ * downwards, so both screens slide the same short distance instead. Keep the two different
+ * or the app stops telling depth from direction, which is most of what its motion is for.
+ */
+private const val TabTravel = 5
