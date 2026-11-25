@@ -22,11 +22,29 @@ import kotlinx.coroutines.launch
  * swapping the day, a task re-filed on its detail screen. Only a completion folds; everything
  * else simply goes.
  */
-class CompletionTracker {
-    var justCompleted: Long? by mutableStateOf(null)
+interface CompletionTracker {
+    var justCompleted: Long?
 }
 
-private val NoCompletions = CompletionTracker()
+/** The real one. Call it as a constructor: `CompletionTracker()`. */
+@Suppress("FunctionName")
+fun CompletionTracker(): CompletionTracker = RememberingTracker()
+
+private class RememberingTracker : CompletionTracker {
+    override var justCompleted: Long? by mutableStateOf(null)
+}
+
+/**
+ * The default discards what it is told, rather than being one shared instance for the whole
+ * process. A screen composed without a shell - which is every screen test - would otherwise
+ * write completed ids into a singleton that outlives it, and a later test elsewhere rendering
+ * a row with the same small id could watch it fold for no reason it could see.
+ */
+private object NoCompletions : CompletionTracker {
+    override var justCompleted: Long?
+        get() = null
+        set(_) = Unit
+}
 
 /** Provided by the shell, beside [LocalSnackbarHostState], for the same reason. */
 val LocalCompletionTracker: ProvidableCompositionLocal<CompletionTracker> =

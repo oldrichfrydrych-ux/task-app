@@ -17,7 +17,6 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -33,9 +32,21 @@ import kotlinx.coroutines.delay
  */
 private const val HoldMillis = 120L
 
-/** Remembers which rows were on screen last, outside snapshot state so writing it is free. */
+/** A row held past its data so it can fold, and where in the list it was when it left. */
+private class Folding(val item: TaskWithList, val index: Int)
+
+/** What this section has seen, outside snapshot state so writing it costs no recomposition. */
 private class RowMemory {
     var last: List<TaskWithList> = emptyList()
+
+    /**
+     * The ids that were in the first non-empty list. Every screen composes its sections with
+     * an empty list before Room answers, so "has this section settled yet" cannot be a flag
+     * set after the first composition: it would mark the real first load as new and unfurl
+     * the whole list. Belonging to that first load is a property of the row, not of a moment.
+     */
+    val firstLoad = mutableSetOf<Long>()
+    var loaded = false
 }
 
 /**
@@ -61,27 +72,37 @@ fun TaskListSection(
 ) {
     val animate = LocalAnimationsEnabled.current
     val tracker = LocalCompletionTracker.current
-    val folding = remember { mutableStateMapOf<Long, TaskWithList>() }
+    val folding = remember { mutableStateMapOf<Long, Folding>() }
     val memory = remember { RowMemory() }
-
-    // Rows that arrive later should animate in; the ones already there on the first pass
-    // should not, or every tab switch would animate the whole list in again.
-    var settled by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { settled = true }
 
     remember(items) {
         val present = items.mapTo(mutableSetOf()) { it.task.id }
         val completed = tracker.justCompleted
         if (animate && completed != null && completed !in present) {
-            memory.last.firstOrNull { it.task.id == completed }?.let { folding[completed] = it }
+            val wasAt = memory.last.indexOfFirst { it.task.id == completed }
+            if (wasAt >= 0) folding[completed] = Folding(memory.last[wasAt], wasAt)
         }
         // A row that came back - undo - is no longer folding.
         folding.keys.filter { it in present }.forEach { folding.remove(it) }
+        if (!memory.loaded && items.isNotEmpty()) {
+            memory.loaded = true
+            memory.firstLoad.addAll(present)
+        }
         memory.last = items
         Unit
     }
 
     if (items.isEmpty() && folding.isEmpty()) return
+
+    // One ordered list, with each held row spliced back where it was. Drawing the held rows
+    // after the live ones would send the row Olda just ticked to the bottom of its section
+    // before it folded, which only looks right when it was the last row anyway.
+    val rows = buildList {
+        items.forEach { add(Folding(it, -1)) }
+        folding.values.sortedBy { it.index }.forEach { held ->
+            add(held.index.coerceIn(0, size), held)
+        }
+    }
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (title != null) {
@@ -92,29 +113,24 @@ fun TaskListSection(
                 modifier = headerModifier.padding(horizontal = 4.dp, vertical = 4.dp),
             )
         }
-        items.forEach { item ->
-            key(item.task.id) {
+        rows.forEach { row ->
+            val id = row.item.task.id
+            val isFolding = row.index >= 0
+            key(id) {
                 FoldingRow(
-                    item = item,
-                    folding = false,
-                    entering = animate && settled,
+                    item = row.item,
+                    folding = isFolding,
+                    entering = animate && !isFolding && id !in memory.firstLoad,
                     showDate = showDate,
-                    onToggleDone = { onToggleDone(item.task.id) },
-                    onClick = { onClick(item.task.id) },
-                    onGone = {},
-                )
-            }
-        }
-        folding.values.toList().forEach { item ->
-            key(item.task.id) {
-                FoldingRow(
-                    item = item,
-                    folding = true,
-                    entering = false,
-                    showDate = showDate,
-                    onToggleDone = {},
-                    onClick = {},
-                    onGone = { folding.remove(item.task.id) },
+                    onToggleDone = { if (!isFolding) onToggleDone(id) },
+                    onClick = { if (!isFolding) onClick(id) },
+                    onGone = {
+                        folding.remove(id)
+                        // Stop remembering the completion once its row has gone, or the same
+                        // task restored and later re-filed would fold on a departure that is
+                        // not a completion.
+                        if (tracker.justCompleted == id) tracker.justCompleted = null
+                    },
                 )
             }
         }

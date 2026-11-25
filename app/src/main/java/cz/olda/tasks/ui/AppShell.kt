@@ -49,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -235,6 +236,29 @@ private fun FloatingBottomBar(
 private data class TabSlot(val x: Dp, val width: Dp, val height: Dp)
 
 /**
+ * The travelling marker behind the selected tab. Its animations seed from the first slot it
+ * is given, so it appears where it belongs and only moves when the selection does.
+ */
+@Composable
+private fun Pill(slot: TabSlot, color: Color) {
+    val animate = LocalAnimationsEnabled.current
+    val x by animateDpAsState(slot.x, AppMotion.spatial(), label = "pill-x")
+    val width by animateDpAsState(slot.width, AppMotion.spatial(), label = "pill-width")
+    Box(
+        modifier = Modifier
+            .offset(x = if (animate) x else slot.x)
+            // Coerced because a spring can undershoot below zero on its way to a target.
+            .size(
+                width = (if (animate) width else slot.width).coerceAtLeast(0.dp),
+                height = slot.height.coerceAtLeast(0.dp),
+            )
+            .clip(CircleShape)
+            .background(color)
+            .testTag("bottom-bar-pill"),
+    )
+}
+
+/**
  * The four destinations with a single pill behind them.
  *
  * The pill travels to the selected tab's *measured* bounds rather than to a computed quarter
@@ -253,25 +277,11 @@ private fun TabStrip(
     var slots by remember { mutableStateOf(emptyMap<Destination, TabSlot>()) }
     val slot = slots[selected]
 
-    val targetX = slot?.x ?: 0.dp
-    val targetWidth = slot?.width ?: 0.dp
-    val animatedX by animateDpAsState(targetX, AppMotion.spatial(), label = "pill-x")
-    val animatedWidth by animateDpAsState(targetWidth, AppMotion.spatial(), label = "pill-width")
-    val animate = LocalAnimationsEnabled.current
-
     Box(modifier = modifier) {
-        Box(
-            modifier = Modifier
-                .offset(x = if (animate) animatedX else targetX)
-                .size(
-                    // Same reason as the bar's padding: a spring can undershoot below zero.
-                    width = (if (animate) animatedWidth else targetWidth).coerceAtLeast(0.dp),
-                    height = (slot?.height ?: 0.dp).coerceAtLeast(0.dp),
-                )
-                .clip(CircleShape)
-                .background(colors.selectedPill)
-                .testTag("bottom-bar-pill"),
-        )
+        // Drawn only once the tabs have been measured. Composing it earlier would seed its
+        // animations at zero and swell the pill in from nothing on every launch, before it
+        // had anywhere to be.
+        if (slot != null) Pill(slot, colors.selectedPill)
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,

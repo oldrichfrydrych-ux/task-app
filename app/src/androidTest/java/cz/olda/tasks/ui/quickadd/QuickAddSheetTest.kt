@@ -70,7 +70,17 @@ class QuickAddSheetTest {
         inbox = lists.inboxId()
     }
 
-    @After fun close() { db.close() }
+    @After fun close() {
+        rule.mainClock.autoAdvance = true
+        db.close()
+    }
+
+    // A test for "the content is full size at once with animations off" was written here and
+    // deleted. A scale IS visible to the test tree - node bounds are reported through the
+    // layer's matrix, unlike an alpha - so it looked writable. What defeats it is the
+    // fixture: the sheet cannot be reached before awaitLoaded(), and awaitLoaded() runs the
+    // clock until the composition is idle, so the entrance has finished before any assertion
+    // can see it. Making the entrance animate unconditionally did not make the test fail.
 
     /** Shows the sheet and waits for the lists to load, so later assertions see real data. */
     private fun show() {

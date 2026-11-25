@@ -23,13 +23,11 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeUp
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.test.espresso.Espresso
 import cz.olda.tasks.ui.nav.Routes
 import cz.olda.tasks.ui.theme.AppTheme
-import cz.olda.tasks.ui.theme.LocalAnimationsEnabled
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -142,11 +140,7 @@ class AppShellTest {
      */
     @Test
     fun thePillStillLandsOnTheTabWithAnimationsOff() {
-        rule.setContent {
-            run {
-                AppTheme(animationsEnabled = false) { AppShell() }
-            }
-        }
+        rule.setContent { AppTheme(animationsEnabled = false) { AppShell() } }
         val inbox = hasText("Inbox") and hasAnyAncestor(hasTestTag("bottom-bar"))
         rule.onNode(inbox).performClick()
         rule.onNode(inbox).assertIsSelected()
