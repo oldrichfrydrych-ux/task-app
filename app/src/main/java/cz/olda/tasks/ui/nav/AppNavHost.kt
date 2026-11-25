@@ -1,7 +1,16 @@
 package cz.olda.tasks.ui.nav
 
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -9,6 +18,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cz.olda.tasks.ui.AppViewModelProvider
+import cz.olda.tasks.ui.theme.AppMotion
+import cz.olda.tasks.ui.theme.LocalAnimationsEnabled
 import cz.olda.tasks.ui.Destination
 import cz.olda.tasks.ui.inbox.InboxScreen
 import cz.olda.tasks.ui.lists.ListDetailScreen
@@ -38,7 +49,50 @@ fun AppNavHost(
     navController: NavHostController,
     modifier: Modifier = Modifier,
 ) {
-    NavHost(navController = navController, startDestination = Destination.Today.route, modifier = modifier) {
+    val animate = LocalAnimationsEnabled.current
+    val tabs = remember { Destination.entries.map { it.route }.toSet() }
+
+    // The four tabs are siblings, so moving between them is a cross-fade with no travel.
+    // Anything else is a step into or out of a hierarchy and gets the shared axis.
+    val betweenTabs: AnimatedContentTransitionScope<NavBackStackEntry>.() -> Boolean = {
+        initialState.destination.route in tabs && targetState.destination.route in tabs
+    }
+
+    NavHost(
+        navController = navController,
+        startDestination = Destination.Today.route,
+        modifier = modifier,
+        enterTransition = {
+            when {
+                !animate -> EnterTransition.None
+                betweenTabs() -> fadeIn(AppMotion.effects())
+                else -> slideInHorizontally(AppMotion.spatial()) { it } + fadeIn(AppMotion.effects())
+            }
+        },
+        exitTransition = {
+            when {
+                !animate -> ExitTransition.None
+                betweenTabs() -> fadeOut(AppMotion.effects())
+                // The screen being left steps back a quarter rather than leaving entirely,
+                // so it reads as staying behind the one that arrives.
+                else -> slideOutHorizontally(AppMotion.spatial()) { -it / 4 } + fadeOut(AppMotion.effects())
+            }
+        },
+        popEnterTransition = {
+            when {
+                !animate -> EnterTransition.None
+                betweenTabs() -> fadeIn(AppMotion.effects())
+                else -> slideInHorizontally(AppMotion.spatial()) { -it / 4 } + fadeIn(AppMotion.effects())
+            }
+        },
+        popExitTransition = {
+            when {
+                !animate -> ExitTransition.None
+                betweenTabs() -> fadeOut(AppMotion.effects())
+                else -> slideOutHorizontally(AppMotion.spatial()) { it } + fadeOut(AppMotion.effects())
+            }
+        },
+    ) {
         composable(Destination.Today.route) {
             TodayScreen(
                 viewModel = viewModel(factory = AppViewModelProvider.Factory),

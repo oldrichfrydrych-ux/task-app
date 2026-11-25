@@ -22,6 +22,7 @@ import androidx.compose.ui.test.isOn
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.room.Room
@@ -39,6 +40,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.cancel
 import org.junit.Rule
 import org.junit.Test
 import java.time.Clock
@@ -69,11 +72,29 @@ class TaskDetailScreenTest {
         work = lists.createList("Work", "#E85A4F")
     }
 
-    @After fun close() { db.close() }
+    /**
+     * The ViewModel debounces title and notes writes, so a save can still be pending when the
+     * test body ends. Closing the database under it throws "connection pool has been closed"
+     * from a coroutine nobody is waiting on, which kills the Activity and takes every later
+     * test in this class with it. Cancel the scope first.
+     */
+    @After fun close() {
+        shown?.viewModelScope?.cancel()
+        db.close()
+    }
+
+    private var shown: TaskDetailViewModel? = null
+
+    // A test for "the fields are present the frame they arrive" was written here and deleted:
+    // show() waits for the screen to load before a test can stop the clock, so by then the
+    // fade has finished and the assertion holds whether or not the fields are gated behind
+    // it. Gating them deliberately did not make it fail. The fade is a graphicsLayer alpha,
+    // invisible to the semantics tree, and the fields themselves are covered by the eleven
+    // tests below.
 
     /** Shows the screen and waits for the task to load, so later assertions see real data. */
     private fun show(taskId: Long) {
-        val viewModel = TaskDetailViewModel(taskId, repo, lists)
+        val viewModel = TaskDetailViewModel(taskId, repo, lists).also { shown = it }
         rule.setContent {
             AppTheme {
                 val hostState = remember { SnackbarHostState() }

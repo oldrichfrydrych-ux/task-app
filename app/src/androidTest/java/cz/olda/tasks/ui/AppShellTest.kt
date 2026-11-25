@@ -20,11 +20,15 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.test.swipeUp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.test.espresso.Espresso
 import cz.olda.tasks.ui.nav.Routes
 import cz.olda.tasks.ui.theme.AppTheme
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -117,6 +121,72 @@ class AppShellTest {
         rule.runOnUiThread { navController.navigate(Routes.task(1)) }
         rule.onNodeWithTag("screen-TaskDetail").assertIsDisplayed()
         todayTab().assertIsSelected()
+    }
+
+    /** One pill travels to the tapped tab instead of each tab drawing its own background. */
+    @Test
+    fun theSelectedPillMovesToTheTappedTab() {
+        rule.setContent { AppTheme { AppShell() } }
+        val before = rule.onNodeWithTag("bottom-bar-pill").getUnclippedBoundsInRoot().left
+        rule.onNode(hasText("Lists") and hasAnyAncestor(hasTestTag("bottom-bar"))).performClick()
+        rule.waitForIdle()
+        val after = rule.onNodeWithTag("bottom-bar-pill").getUnclippedBoundsInRoot().left
+        assertTrue("pill did not move: $before -> $after", after > before)
+    }
+
+    /**
+     * Review Focus 1. Someone who turned animations off still has to see which tab is
+     * selected, so the pill must land rather than never travel.
+     */
+    @Test
+    fun thePillStillLandsOnTheTabWithAnimationsOff() {
+        rule.setContent { AppTheme(animationsEnabled = false) { AppShell() } }
+        val inbox = hasText("Inbox") and hasAnyAncestor(hasTestTag("bottom-bar"))
+        rule.onNode(inbox).performClick()
+        rule.onNode(inbox).assertIsSelected()
+        val pill = rule.onNodeWithTag("bottom-bar-pill").getUnclippedBoundsInRoot()
+        val tab = rule.onNode(inbox).getUnclippedBoundsInRoot()
+        assertTrue(
+            "pill at ${pill.left}..${pill.right} is not over the Inbox tab at ${tab.left}..${tab.right}",
+            pill.left <= tab.left && pill.right >= tab.right,
+        )
+    }
+
+    @Test
+    fun theBarSlimsOnTheWayDownAndReturnsOnTheWayUp() {
+        rule.setContent { AppTheme { AppShell() } }
+        val tall = rule.onNodeWithTag("bottom-bar").getUnclippedBoundsInRoot().height
+        rule.onNodeWithTag("screen-Today").performTouchInput { swipeUp() }
+        rule.waitForIdle()
+        val slim = rule.onNodeWithTag("bottom-bar").getUnclippedBoundsInRoot().height
+        assertTrue("bar did not slim: $tall -> $slim", slim < tall)
+        rule.onNodeWithTag("screen-Today").performTouchInput { swipeDown() }
+        rule.waitForIdle()
+        assertEquals(tall, rule.onNodeWithTag("bottom-bar").getUnclippedBoundsInRoot().height)
+    }
+
+    /**
+     * The design reserves the bar's tall height precisely so the scrolling content never
+     * relayouts while it shrinks - 31 non-lazy rows reflowing every frame, with a feedback
+     * path back into the scroll deltas driving the animation, is how this janks.
+     */
+    @Test
+    fun theContentDoesNotMoveWhenTheBarSlims() {
+        rule.setContent { AppTheme { AppShell() } }
+        val slot = rule.onNodeWithTag("bottom-bar-slot").getUnclippedBoundsInRoot()
+        rule.onNodeWithTag("screen-Today").performTouchInput { swipeUp() }
+        rule.waitForIdle()
+        assertEquals(slot, rule.onNodeWithTag("bottom-bar-slot").getUnclippedBoundsInRoot())
+    }
+
+    /** Capture must never get harder, whatever the bar is doing. */
+    @Test
+    fun theAddButtonSurvivesTheSlimming() {
+        rule.setContent { AppTheme { AppShell() } }
+        rule.onNodeWithTag("screen-Today").performTouchInput { swipeUp() }
+        rule.waitForIdle()
+        rule.onNodeWithContentDescription("Add task").assertIsDisplayed().performClick()
+        rule.onNodeWithTag("quick-add-field").assertIsFocused()
     }
 
     /**

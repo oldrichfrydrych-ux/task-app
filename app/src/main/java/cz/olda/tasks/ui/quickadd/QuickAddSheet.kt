@@ -21,6 +21,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +33,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -41,6 +44,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cz.olda.tasks.R
 import cz.olda.tasks.ui.AppViewModelProvider
+import cz.olda.tasks.ui.theme.AppMotion
+import cz.olda.tasks.ui.theme.LocalAnimationsEnabled
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
@@ -73,8 +78,37 @@ fun QuickAddSheet(
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        // The sheet itself rises from the bottom edge; Material owns that and exposes no spec
+        // for it in 1.4.0. The content fades up over that rise, so it arrives rather than
+        // being simply present once the sheet lands.
+        //
+        // It also grows from the bottom-trailing corner, which is where the add button sits,
+        // so it reads as coming out of the button that was pressed. The transform is a draw
+        // step: Compose puts pointer input through the same layer, so a chip tapped mid
+        // animation still takes the tap where it looks.
+        val animate = LocalAnimationsEnabled.current
+        var arrived by remember { mutableStateOf(!animate) }
+        LaunchedEffect(Unit) { arrived = true }
+        val grow by animateFloatAsState(
+            targetValue = if (arrived) 1f else 0.88f,
+            animationSpec = AppMotion.spatial(),
+            label = "quick-add-grow",
+        )
+        val fade by animateFloatAsState(
+            targetValue = if (arrived) 1f else 0f,
+            animationSpec = AppMotion.fastEffects(),
+            label = "quick-add-fade",
+        )
+
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 32.dp),
+            modifier = Modifier
+                .graphicsLayer {
+                    scaleX = grow
+                    scaleY = grow
+                    alpha = fade
+                    transformOrigin = TransformOrigin(1f, 1f)
+                }
+                .padding(horizontal = 16.dp).padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
