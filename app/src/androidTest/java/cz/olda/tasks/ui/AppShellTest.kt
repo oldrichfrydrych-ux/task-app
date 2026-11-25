@@ -208,13 +208,14 @@ class AppShellTest {
         navController: NavHostController? = null,
     ): FlightController {
         val flights = FlightController()
-        rule.mainClock.autoAdvance = false
         rule.setContent {
             val nav = navController ?: rememberNavController()
             AppTheme { AppShell(navController = nav, flights = flights) }
         }
-        rule.mainClock.advanceTimeByFrame()
-        rule.mainClock.advanceTimeByFrame()
+        // Let the bar lay out first: the pill needs the add button's and the tabs' measured
+        // bounds, and those only arrive once a layout pass has run.
+        rule.waitForIdle()
+        rule.mainClock.autoAdvance = false
         return flights
     }
 
@@ -264,12 +265,11 @@ class AppShellTest {
     fun aPillFliesFromAScreenThatIsNotATab() {
         lateinit var navController: NavHostController
         val flights = FlightController()
-        rule.mainClock.autoAdvance = false
         rule.setContent {
             navController = rememberNavController()
             AppTheme { AppShell(navController = navController, flights = flights) }
         }
-        rule.mainClock.autoAdvance = true
+        rule.waitForIdle()
         rule.runOnUiThread { navController.navigate(Routes.task(1)) }
         rule.onNodeWithTag("screen-TaskDetail").assertIsDisplayed()
 

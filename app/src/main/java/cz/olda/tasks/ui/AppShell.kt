@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -71,6 +72,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.runtime.mutableStateMapOf
 import cz.olda.tasks.ui.components.TaskFlight
@@ -382,6 +384,7 @@ private fun TabStrip(
                     destination = destination,
                     selected = destination == selected,
                     slimmed = slimmed,
+                    pulsing = destination == pulsing,
                     onClick = { onSelect(destination) },
                     modifier = Modifier
                         .weight(1f)
@@ -408,12 +411,24 @@ private fun TabItem(
     destination: Destination,
     selected: Boolean,
     slimmed: Boolean,
+    pulsing: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalBottomBarColors.current
     val content = if (selected) colors.onSelected else colors.onUnselected
     val animate = LocalAnimationsEnabled.current
+
+    // The tab a task just landed on swells once and settles. No test: a scale held for a few
+    // hundred milliseconds and then released leaves nothing a semantics assertion can see
+    // afterwards, and the fixtures cannot stop the clock before the flight that triggers it
+    // has finished. Better an honest hole than a test that cannot fail - this project has
+    // deleted two of those already.
+    val swell by animateFloatAsState(
+        targetValue = if (pulsing && animate) 1.25f else 1f,
+        animationSpec = AppMotion.fastSpatial(),
+        label = "tab-pulse",
+    )
     Column(
         // No background of its own: TabStrip draws one pill behind whichever tab is selected.
         modifier = modifier
@@ -428,7 +443,7 @@ private fun TabItem(
             imageVector = destination.icon,
             contentDescription = null,
             tint = content,
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier.size(20.dp).graphicsLayer { scaleX = swell; scaleY = swell },
         )
         AnimatedVisibility(
             visible = !slimmed,
