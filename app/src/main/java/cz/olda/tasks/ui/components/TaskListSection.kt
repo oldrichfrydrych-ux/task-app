@@ -166,7 +166,7 @@ private fun FoldingRow(
     AnimatedVisibility(
         visibleState = state,
         enter = expandVertically(AppMotion.spatial()) + fadeIn(AppMotion.effects()),
-        exit = shrinkVertically(AppMotion.spatial()) + fadeOut(AppMotion.effects()),
+        exit = shrinkVertically(AppMotion.fastEffects()) + fadeOut(AppMotion.fastEffects()),
     ) {
         TaskRow(
             item = item,
