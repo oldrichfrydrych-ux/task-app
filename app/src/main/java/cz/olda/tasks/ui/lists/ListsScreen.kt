@@ -45,6 +45,7 @@ import cz.olda.tasks.data.entity.GroupEntity
 import cz.olda.tasks.data.entity.ListEntity
 import cz.olda.tasks.ui.theme.parseHex
 import cz.olda.tasks.ui.theme.textShade
+import java.text.BreakIterator
 
 /** Groups as headers, their lists as rows with a colour dot and the number of open tasks. */
 @Composable
@@ -212,7 +213,7 @@ private fun ListRow(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = list.name.take(1).uppercase(),
+                    text = firstCharacter(list.name),
                     style = MaterialTheme.typography.titleMedium,
                     color = initialColour,
                 )
@@ -239,6 +240,25 @@ private fun ListRow(
             }
         }
     }
+}
+
+/**
+ * The first character of a list's name for its tile - one *grapheme*, not one `Char`.
+ *
+ * Olda names his lists with an emoji in front ("☀️Osobní"), and an emoji is two or more Chars:
+ * `take(1)` cut one in half and the tile drew a replacement box. A break iterator takes the whole
+ * cluster, which turns his own emoji into the tile's icon rather than breaking it.
+ *
+ * Uppercasing an emoji does nothing, so it is safe to ask for either.
+ */
+internal fun firstCharacter(name: String): String {
+    val trimmed = name.trim()
+    if (trimmed.isEmpty()) return ""
+    val breaks = BreakIterator.getCharacterInstance()
+    breaks.setText(trimmed)
+    val end = breaks.next()
+    val first = if (end == BreakIterator.DONE) trimmed else trimmed.substring(0, end)
+    return first.uppercase()
 }
 
 /** Names a new group, or renames or deletes one; deleting leaves its lists in place. */
