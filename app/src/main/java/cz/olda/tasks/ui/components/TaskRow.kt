@@ -9,12 +9,12 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,6 +40,10 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Locale
+
+/** The priority dash at a row's leading edge: as tall as the ring it sits beside, and no taller. */
+private val PriorityMarkWidth = 3.dp
+private val PriorityMarkHeight = 18.dp
 
 /**
  * The compact rail: a ring in the list's colour, the start time, the title, and the list's name
@@ -205,14 +209,18 @@ fun TaskRow(
             }
             if (priorityColor != null) {
                 Box(
-                    modifier = Modifier.matchParentSize().padding(vertical = 10.dp),
+                    modifier = Modifier.matchParentSize(),
                     contentAlignment = Alignment.CenterStart,
                 ) {
+                    // A short dash beside the ring, not a bar down the whole row. While rows were
+                    // cards, a full-height bar on the card's edge was the obvious place for it;
+                    // on the rail it became a second vertical line next to the rail's own, and
+                    // the eye read the two as one broken thing. It keeps its colour and its
+                    // height matches the ring beside it, so the row has one mark, not a stripe.
                     Box(
                         modifier = Modifier
-                            .width(4.dp)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(topEnd = 2.dp, bottomEnd = 2.dp))
+                            .size(width = PriorityMarkWidth, height = PriorityMarkHeight)
+                            .clip(CircleShape)
                             .background(priorityColor)
                             .testTag("task-priority-bar-${task.id}"),
                     )

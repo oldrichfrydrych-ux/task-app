@@ -334,6 +334,24 @@ class TaskRowTest {
         assertEquals(ListPalette.first { it.name == "Red" }.dark, barColour(1, darkTheme = true))
     }
 
+    /**
+     * A mark on the row, not a line down it. The rail already runs down the ring column, and a
+     * full-height bar at the leading edge read as a second rail beside it.
+     */
+    @Test
+    fun thePriorityMarkIsADashShorterThanItsRow() {
+        val long = sample.copy(
+            task = sample.task.copy(priority = 1, title = "A title long enough to wrap onto a second line"),
+        )
+        rule.setContent { AppTheme { TaskRow(long, {}, {}, modifier = Modifier.width(320.dp)) } }
+        val row = rule.onNodeWithTag("task-7").getBoundsInRoot().height
+        val mark = tag("task-priority-bar-7").getBoundsInRoot().height
+        // A row that fits on one line is exactly the 48dp minimum, so anything above it wrapped -
+        // which is what makes this the case a full-height bar would have stretched through.
+        assertTrue("the row must wrap for this to be the case under test, was $row", row > 48.dp)
+        assertTrue("the mark ($mark) must be well short of the row ($row)", mark < row / 2)
+    }
+
     @Test
     fun priorityFourHasNoBar() {
         // The tests above are the control: with a priority the same lookup finds a bar.
