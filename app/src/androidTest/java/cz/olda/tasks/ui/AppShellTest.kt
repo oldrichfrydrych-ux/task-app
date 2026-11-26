@@ -16,6 +16,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.performClick
@@ -37,6 +38,11 @@ class AppShellTest {
 
     @get:Rule
     val rule = createComposeRule()
+
+    @org.junit.After
+    fun letTheClockRunAgain() {
+        rule.mainClock.autoAdvance = true
+    }
 
     /** The tab, not the Today screen header that carries the same word. */
     private fun todayTab() = rule.onNode(hasText("Today") and hasAnyAncestor(hasTestTag("bottom-bar")))
@@ -187,6 +193,119 @@ class AppShellTest {
         rule.waitForIdle()
         rule.onNodeWithContentDescription("Add task").assertIsDisplayed().performClick()
         rule.onNodeWithTag("quick-add-field").assertIsFocused()
+    }
+
+    private fun pills() = rule.onAllNodesWithTag("task-flight").fetchSemanticsNodes()
+
+    /**
+     * Drives the shell with the flight held still. Catching a real save in flight is not
+     * possible here - the write runs in real time, the pill on the test clock, and the pill
+     * has always landed before an assertion can see it - so the shell's own rules are
+     * driven through [FlightController] and only the one line that calls it from the sheet
+     * is left to the eye.
+     */
+    private fun shell(
+        navController: NavHostController? = null,
+    ): FlightController {
+        val flights = FlightController()
+        rule.setContent {
+            val nav = navController ?: rememberNavController()
+            AppTheme { AppShell(navController = nav, flights = flights) }
+        }
+        // Let the bar lay out first: the pill needs the add button's and the tabs' measured
+        // bounds, and those only arrive once a layout pass has run.
+        rule.waitForIdle()
+        rule.mainClock.autoAdvance = false
+        return flights
+    }
+
+    private fun stepAFewFrames() {
+        rule.mainClock.advanceTimeByFrame()
+        rule.mainClock.advanceTimeByFrame()
+    }
+
+    /** An undated task goes to Inbox, and the pill is how you find that out. */
+    @Test
+    fun aSavedTaskSendsAPillToItsTab() {
+        val flights = shell()
+        rule.runOnUiThread { flights.start("Zavolat na urad", Destination.Inbox) }
+        stepAFewFrames()
+        rule.onNodeWithTag("task-flight").assertIsDisplayed()
+    }
+
+    /**
+     * Review Focus 2: never two pills at once, and the second one is a new flight rather
+     * than the first one's leftovers. Both carry the same distance, so if the second pill
+     * really started over it is where the first one was at the same age; if it inherited
+     * the first one's animation it is much further along - and it would also pulse the
+     * first one's tab on landing, which nothing here can see.
+     */
+    @Test
+    fun aSecondSaveReplacesTheFirstPill() {
+        val flights = shell()
+        rule.runOnUiThread { flights.start("Prvni", Destination.Inbox) }
+        rule.mainClock.advanceTimeBy(150)
+        val firstX = pillCentreX()
+
+        rule.runOnUiThread { flights.start("Druhy", Destination.Inbox) }
+        rule.mainClock.advanceTimeBy(150)
+        assertEquals("two pills were in flight at once", 1, pills().size)
+        rule.onNodeWithTag("task-flight").assertTextContains("Druhy")
+        val secondX = pillCentreX()
+        assertTrue(
+            "the second pill carried on from the first instead of starting over: " +
+                "x=$secondX, the first pill was at $firstX at the same age",
+            kotlin.math.abs(secondX - firstX) < 40f,
+        )
+    }
+
+    /** Where the pill is, measured as it is drawn - the flight moves by layout offset. */
+    private fun pillCentreX(): Float {
+        val b = rule.onNodeWithTag("task-flight").getUnclippedBoundsInRoot()
+        return with(rule.density) { (b.left.toPx() + b.right.toPx()) / 2f }
+    }
+
+    /**
+     * Review Focus 3: capture always wins over decoration.
+     *
+     * Only the cancelling half. That the field also comes up focused is asserted by
+     * `addButtonOpensFocusedQuickAdd`, but not with a pill in the air: this fixture holds
+     * the clock, and focus arrives on a real frame. Letting the clock run here would land
+     * the pill before the tap. That combination is Olda's to see in Task 6.
+     */
+    @Test
+    fun tappingAddCancelsTheFlight() {
+        val flights = shell()
+        rule.runOnUiThread { flights.start("Prvni", Destination.Inbox) }
+        stepAFewFrames()
+        assertEquals(1, pills().size)
+
+        rule.onNodeWithContentDescription("Add task").performClick()
+        stepAFewFrames()
+        assertEquals("the pill survived a tap on add", 0, pills().size)
+    }
+
+    /**
+     * Review Focus 4: the add button is on every screen, not just the four tabs, and a
+     * detail belongs to no tab - the pill still flies and the selected tab does not move.
+     */
+    @Test
+    fun aPillFliesFromAScreenThatIsNotATab() {
+        lateinit var navController: NavHostController
+        val flights = FlightController()
+        rule.setContent {
+            navController = rememberNavController()
+            AppTheme { AppShell(navController = navController, flights = flights) }
+        }
+        rule.waitForIdle()
+        rule.runOnUiThread { navController.navigate(Routes.task(1)) }
+        rule.onNodeWithTag("screen-TaskDetail").assertIsDisplayed()
+
+        rule.mainClock.autoAdvance = false
+        rule.runOnUiThread { flights.start("Z detailu", Destination.Inbox) }
+        stepAFewFrames()
+        rule.onNodeWithTag("task-flight").assertIsDisplayed()
+        todayTab().assertIsSelected()
     }
 
     /**

@@ -105,6 +105,72 @@ class AppNavHostTest {
         assertEquals("the detail never settled", 0.dp, landed.left)
     }
 
+    /** Siblings travel; the cross-fade this replaces said nothing about which way. */
+    @Test
+    fun aTabToTheRightArrivesFromTheRight() {
+        rule.mainClock.autoAdvance = false
+        graph { nav -> rule.runOnUiThread { nav.navigate(Destination.Lists.route) } }
+        rule.mainClock.advanceTimeByFrame()
+        rule.mainClock.advanceTimeByFrame()
+        val arriving = rule.onNodeWithTag("screen-Lists").getUnclippedBoundsInRoot()
+        assertTrue("Lists did not arrive from the right: left=${arriving.left}", arriving.left > 1.dp)
+    }
+
+    @Test
+    fun aTabToTheLeftArrivesFromTheLeft() {
+        lateinit var nav: NavHostController
+        graph { nav = it }
+        rule.runOnUiThread { nav.navigate(Destination.Lists.route) }
+        rule.waitForIdle()
+
+        rule.mainClock.autoAdvance = false
+        rule.runOnUiThread { nav.navigate(Destination.Today.route) }
+        rule.mainClock.advanceTimeByFrame()
+        rule.mainClock.advanceTimeByFrame()
+        val arriving = rule.onNodeWithTag("screen-Today").getUnclippedBoundsInRoot()
+        assertTrue("Today did not arrive from the left: left=${arriving.left}", arriving.left < (-1).dp)
+    }
+
+    /**
+     * A sibling is not a push. Opening a task is a step deeper and throws the new screen the
+     * whole way in; moving along the bar is a shorter slide, or the app stops telling the two
+     * apart at all.
+     */
+    @Test
+    fun aTabTravelsLessFarThanOpeningADetail() {
+        rule.mainClock.autoAdvance = false
+        lateinit var nav: NavHostController
+        graph { nav = it }
+        rule.runOnUiThread { nav.navigate(Destination.Lists.route) }
+        rule.mainClock.advanceTimeByFrame()
+        rule.mainClock.advanceTimeByFrame()
+        val sideways = rule.onNodeWithTag("screen-Lists").getUnclippedBoundsInRoot().left
+
+        rule.mainClock.autoAdvance = true
+        rule.waitForIdle()
+        rule.mainClock.autoAdvance = false
+        rule.runOnUiThread { nav.navigate(Routes.task(1)) }
+        rule.mainClock.advanceTimeByFrame()
+        rule.mainClock.advanceTimeByFrame()
+        val deeper = rule.onNodeWithTag("screen-TaskDetail").getUnclippedBoundsInRoot().left
+
+        assertTrue(
+            "sideways travelled $sideways, deeper travelled $deeper - a tab must move less",
+            sideways < deeper,
+        )
+    }
+
+    /** Review Focus 1. */
+    @Test
+    fun tabsChangeWithoutTravelWhenAnimationsAreOff() {
+        rule.mainClock.autoAdvance = false
+        graph(animate = false) { nav -> rule.runOnUiThread { nav.navigate(Destination.Lists.route) } }
+        rule.mainClock.advanceTimeByFrame()
+        rule.mainClock.advanceTimeByFrame()
+        val bounds = rule.onNodeWithTag("screen-Lists").getUnclippedBoundsInRoot()
+        assertEquals("the tab travelled although animations are off", 0.dp, bounds.left)
+    }
+
     /** Review Focus 1: with animations off the destination is simply there. */
     @Test
     fun aDetailIsInPlaceAtOnceWithAnimationsOff() {

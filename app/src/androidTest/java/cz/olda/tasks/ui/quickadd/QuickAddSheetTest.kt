@@ -257,8 +257,31 @@ class QuickAddSheetTest {
         val vm = QuickAddViewModel(tasks, lists)
         vm.setTitle("Once only")
         val results = runBlocking { listOf(async { vm.save() }, async { vm.save() }).awaitAll() }
-        assertEquals(listOf(false, true), results.sorted())
+        assertEquals("exactly one save should have written", 1, results.count { it != null })
         assertEquals(1, allTasks().size)
+    }
+
+    /** The shell has to know what was written to show where it went. */
+    @Test fun saveReportsTheTaskItWrote() {
+        val vm = QuickAddViewModel(tasks, lists)
+        vm.setTitle("  Zavolat na urad  ")
+        vm.setList(work)
+        val day = LocalDate.now().plusDays(2)
+        vm.setDate(day)
+        val saved = runBlocking { vm.save() }
+        assertEquals(SavedTask("Zavolat na urad", day, toInbox = false), saved)
+    }
+
+    @Test fun saveReportsInboxWhenThatIsWhereItWent() {
+        val vm = QuickAddViewModel(tasks, lists)
+        vm.setTitle("Bez data")
+        val saved = runBlocking { vm.save() }
+        assertEquals(SavedTask("Bez data", null, toInbox = true), saved)
+    }
+
+    @Test fun saveReportsNothingWhenItWroteNothing() {
+        val vm = QuickAddViewModel(tasks, lists)
+        assertNull(runBlocking { vm.save() })
     }
 
     @Test fun theDraftIsReadFromSavedState() {

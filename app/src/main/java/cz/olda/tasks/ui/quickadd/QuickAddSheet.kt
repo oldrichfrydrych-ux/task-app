@@ -59,6 +59,7 @@ private enum class Picker { None, Date, List, Priority }
 @Composable
 fun QuickAddSheet(
     onDismiss: () -> Unit,
+    onSaved: (SavedTask) -> Unit = {},
     viewModel: QuickAddViewModel = viewModel(factory = AppViewModelProvider.Factory),
 ) {
     val sheetState = rememberModalBottomSheetState()
@@ -73,7 +74,10 @@ fun QuickAddSheet(
     fun save() {
         if (!state.canSave) return
         scope.launch {
-            if (viewModel.save()) onDismiss()
+            val saved = viewModel.save() ?: return@launch
+            // Reported before the sheet goes, so the shell can start the pill from here.
+            onSaved(saved)
+            onDismiss()
         }
     }
 

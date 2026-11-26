@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -39,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ProvidableCompositionLocal
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -69,6 +71,13 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.runtime.mutableStateMapOf
+import cz.olda.tasks.ui.components.TaskFlight
+import kotlinx.coroutines.delay
+import java.time.LocalDate
 import cz.olda.tasks.R
 import cz.olda.tasks.ui.nav.AppNavHost
 import cz.olda.tasks.ui.components.CompletionTracker
@@ -94,6 +103,7 @@ private val TouchTarget = 48.dp
 fun AppShell(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
+    flights: FlightController = remember { FlightController() },
 ) {
     // Saved by name, so the tab survives process death and not just rotation.
     var selectedName by rememberSaveable { mutableStateOf(Destination.Today.name) }
@@ -125,40 +135,91 @@ fun AppShell(
         }
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize().nestedScroll(slimOnScroll),
-        containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = {
-            FloatingBottomBar(
-                selected = selected,
-                slimmed = slimmed.value,
-                onSelect = { destination ->
-                    // Pop to the graph start so tabs do not pile up on the back stack.
-                    navController.navigate(destination.route) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
-                onAdd = { quickAddOpen = true },
+    // Where the bar's parts are on screen, so the pill knows where to start and where to land.
+    // Measured in root coordinates because it crosses from the content area into the bar, which
+    // are different parts of the Scaffold.
+    val tabBounds = remember { mutableStateMapOf<Destination, Rect>() }
+    var addButtonBounds by remember { mutableStateOf<Rect?>(null) }
+    var pulsing by remember { mutableStateOf<Destination?>(null) }
+
+    // Everything below is inside this Box: the Scaffold fills it, and the flying pill is
+    // drawn on top of it, which is the only way it can cross from the content area into the bar.
+    Box(modifier = modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize().nestedScroll(slimOnScroll),
+            containerColor = MaterialTheme.colorScheme.background,
+            bottomBar = {
+                FloatingBottomBar(
+                    selected = selected,
+                    slimmed = slimmed.value,
+                    pulsing = pulsing,
+                    onSelect = { destination ->
+                        // Pop to the graph start so tabs do not pile up on the back stack.
+                        navController.navigate(destination.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onAdd = {
+                        // Capture beats decoration: whatever is in flight goes.
+                        flights.cancel()
+                        quickAddOpen = true
+                    },
+                    onTabBounds = { destination, bounds -> tabBounds[destination] = bounds },
+                    onAddButtonBounds = { addButtonBounds = it },
+                )
+            },
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+        ) { innerPadding ->
+            Box(modifier = Modifier.padding(innerPadding)) {
+                CompositionLocalProvider(
+                    LocalSnackbarHostState provides snackbarHostState,
+                    LocalCompletionTracker provides completionTracker,
+                ) {
+                    AppNavHost(navController = navController)
+                }
+            }
+        }
+
+        if (quickAddOpen) {
+            QuickAddSheet(
+                onDismiss = { quickAddOpen = false },
+                onSaved = { saved -> flights.startFor(saved, LocalDate.now()) },
             )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding)) {
-            CompositionLocalProvider(
-                LocalSnackbarHostState provides snackbarHostState,
-                LocalCompletionTracker provides completionTracker,
-            ) {
-                AppNavHost(navController = navController)
+        }
+
+        val inFlight = flights.current
+        val from = addButtonBounds
+        val to = inFlight?.let { tabBounds[it.destination] }
+        if (inFlight != null && from != null && to != null) {
+            // Keyed on the flight, so a second save starts a new pill rather than inheriting
+            // the first one's half-finished animation and its finished-callback.
+            key(inFlight.id) {
+                TaskFlight(
+                    label = inFlight.label,
+                    from = from,
+                    to = to,
+                    onFinished = {
+                        pulsing = inFlight.destination
+                        flights.cancel()
+                    },
+                )
             }
         }
     }
 
-    if (quickAddOpen) {
-        QuickAddSheet(onDismiss = { quickAddOpen = false })
+    // The pulse is brief and then the tab is an ordinary tab again.
+    LaunchedEffect(pulsing) {
+        if (pulsing != null) {
+            delay(PulseMillis)
+            pulsing = null
+        }
     }
 }
+
+/** How long the arrival tab stays pulsed after the pill lands. */
+private const val PulseMillis = 420L
 
 /** Pixels of drag before the bar reacts, so a finger resting on the screen cannot flutter it. */
 private const val SlimThreshold = 2f
@@ -168,8 +229,11 @@ private const val SlimThreshold = 2f
 private fun FloatingBottomBar(
     selected: Destination,
     slimmed: Boolean,
+    pulsing: Destination?,
     onSelect: (Destination) -> Unit,
     onAdd: () -> Unit,
+    onTabBounds: (Destination, Rect) -> Unit,
+    onAddButtonBounds: (Rect) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalBottomBarColors.current
@@ -222,11 +286,13 @@ private fun FloatingBottomBar(
                 TabStrip(
                     selected = selected,
                     slimmed = slimmed,
+                    pulsing = pulsing,
                     onSelect = onSelect,
+                    onTabBounds = onTabBounds,
                     modifier = Modifier.weight(1f),
                 )
                 Spacer(modifier = Modifier.width(6.dp))
-                AddButton(onClick = onAdd)
+                AddButton(onClick = onAdd, onBounds = onAddButtonBounds)
             }
         }
     }
@@ -269,7 +335,9 @@ private fun Pill(slot: TabSlot, color: Color) {
 private fun TabStrip(
     selected: Destination,
     slimmed: Boolean,
+    pulsing: Destination?,
     onSelect: (Destination) -> Unit,
+    onTabBounds: (Destination, Rect) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalBottomBarColors.current
@@ -291,16 +359,21 @@ private fun TabStrip(
                     destination = destination,
                     selected = destination == selected,
                     slimmed = slimmed,
+                    pulsing = destination == pulsing,
                     onClick = { onSelect(destination) },
                     modifier = Modifier
                         .weight(1f)
                         .onGloballyPositioned { coordinates ->
+                            // Strip-local for the pill behind the tabs...
                             val next = TabSlot(
                                 x = with(density) { coordinates.positionInParent().x.toDp() },
                                 width = with(density) { coordinates.size.width.toDp() },
                                 height = with(density) { coordinates.size.height.toDp() },
                             )
                             if (slots[destination] != next) slots = slots + (destination to next)
+                            // ...and root coordinates for the flight, which comes from
+                            // outside the bar entirely.
+                            onTabBounds(destination, coordinates.boundsInRoot())
                         },
                 )
             }
@@ -313,12 +386,31 @@ private fun TabItem(
     destination: Destination,
     selected: Boolean,
     slimmed: Boolean,
+    pulsing: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalBottomBarColors.current
     val content = if (selected) colors.onSelected else colors.onUnselected
     val animate = LocalAnimationsEnabled.current
+
+    // The tab a task just landed on swells once and settles - icon and label together, so the
+    // whole tab answers rather than half of it.
+    //
+    // No test: a scale held for a few hundred milliseconds and then released leaves nothing a
+    // semantics assertion can see afterwards, and the fixtures cannot stop the clock before
+    // the flight that triggers it has finished. Better an honest hole than a test that cannot
+    // fail - this project has deleted two of those already. The cost of the hole is real: the
+    // label was left out of the swell at first and only a reading of the code caught it.
+    //
+    // The swell goes on the icon and the label themselves, never on the Column above them:
+    // that Column is what reports the tab's position for the flight to land on, and a scale
+    // there would make the pill chase a moving target.
+    val swell by animateFloatAsState(
+        targetValue = if (pulsing && animate) 1.25f else 1f,
+        animationSpec = AppMotion.fastSpatial(),
+        label = "tab-pulse",
+    )
     Column(
         // No background of its own: TabStrip draws one pill behind whichever tab is selected.
         modifier = modifier
@@ -333,7 +425,7 @@ private fun TabItem(
             imageVector = destination.icon,
             contentDescription = null,
             tint = content,
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier.size(20.dp).graphicsLayer { scaleX = swell; scaleY = swell },
         )
         AnimatedVisibility(
             visible = !slimmed,
@@ -354,16 +446,22 @@ private fun TabItem(
                 color = content,
                 maxLines = 1,
                 textAlign = TextAlign.Center,
+                modifier = Modifier.graphicsLayer { scaleX = swell; scaleY = swell },
             )
         }
     }
 }
 
 @Composable
-private fun AddButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun AddButton(
+    onClick: () -> Unit,
+    onBounds: (Rect) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val colors = LocalBottomBarColors.current
     Box(
         modifier = modifier
+            .onGloballyPositioned { onBounds(it.boundsInRoot()) }
             .size(TouchTarget)
             .clip(CircleShape)
             .background(colors.addButton)

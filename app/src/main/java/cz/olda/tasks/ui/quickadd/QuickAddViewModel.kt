@@ -17,6 +17,13 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
 
+/**
+ * What a save actually wrote. Enough for the shell to say where the task went and to put its
+ * title on the pill that flies there; not a destination, because deciding that is the shell's
+ * job and belongs somewhere it can be tested without a device.
+ */
+data class SavedTask(val title: String, val dueDate: LocalDate?, val toInbox: Boolean)
+
 /** What the sheet shows. [listId] is 0 only until the lists have loaded. */
 data class QuickAddState(
     val title: String,
@@ -96,25 +103,30 @@ class QuickAddViewModel(
     }
 
     /**
-     * Writes the task and clears the draft; true only if a task was written. The write runs in
-     * [viewModelScope], so leaving the screen or rotating mid-write cannot cancel it half way.
-     * A second call while one is running waits, then finds no draft and returns false. A failed
-     * write keeps the draft and returns false.
+     * Writes the task and clears the draft, and reports what it wrote; null when nothing was
+     * written. The write runs in [viewModelScope], so leaving the screen or rotating mid-write
+     * cannot cancel it half way. A second call while one is running waits, then finds no draft
+     * and returns null. A failed write keeps the draft and returns null.
+     *
+     * It reports facts, not a destination: which tab that lands on is the shell's business and
+     * is decided by `arrivalTab`, where it can be tested without a device.
      */
-    suspend fun save(): Boolean = viewModelScope.async {
+    suspend fun save(): SavedTask? = viewModelScope.async {
         saveLock.withLock {
             // Read straight from the handle, not [state], which may not have caught up with a clear().
+            val lists = listRepository.observeLists().first()
             val current = build(
                 savedState[TITLE] ?: "",
                 savedState[DATE] ?: NO_DATE,
                 savedState[LIST] ?: NO_LIST,
                 savedState[PRIORITY] ?: DEFAULT_PRIORITY,
-                listRepository.observeLists().first(),
+                lists,
             )
-            if (!current.canSave) return@withLock false
+            if (!current.canSave) return@withLock null
+            val title = current.title.trim()
             try {
                 taskRepository.add(
-                    title = current.title.trim(),
+                    title = title,
                     listId = current.listId,
                     dueDate = current.dueDate,
                     dueMinute = current.dueMinute,
@@ -123,10 +135,14 @@ class QuickAddViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                return@withLock false
+                return@withLock null
             }
             clear()
-            true
+            SavedTask(
+                title = title,
+                dueDate = current.dueDate,
+                toInbox = lists.firstOrNull { it.id == current.listId }?.isInbox == true,
+            )
         }
     }.await()
 
