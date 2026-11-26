@@ -1,13 +1,17 @@
 package cz.olda.tasks.ui.components
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import cz.olda.tasks.ui.theme.AppTheme
 import org.junit.After
@@ -54,8 +58,32 @@ class TaskFlightTest {
         }
     }
 
+    /**
+     * The real geometry: the add button sits near the right edge of the screen and the tabs
+     * near the left, so both ends of the flight are close to an edge. Measured from the
+     * actual screen rather than hardcoded, so this says the same thing on any phone.
+     */
+    private fun showAcrossTheWholeScreen(label: String) {
+        rule.setContent {
+            AppTheme(animationsEnabled = true) {
+                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                    val right = constraints.maxWidth.toFloat()
+                    val bottom = constraints.maxHeight.toFloat()
+                    TaskFlight(
+                        label = label,
+                        from = Rect(right - 170f, bottom - 170f, right - 20f, bottom - 20f),
+                        to = Rect(20f, bottom - 170f, 170f, bottom - 20f),
+                        onFinished = { finishes++ },
+                    )
+                }
+            }
+        }
+    }
+
+    private fun pillBounds(): Rect = rule.onNodeWithTag("task-flight").boundsInRootPx(rule.density)
+
     private fun pillCentre(): Pair<Float, Float> {
-        val b = rule.onNodeWithTag("task-flight").getUnclippedBoundsInRootPx()
+        val b = pillBounds()
         return (b.left + b.right) / 2f to (b.top + b.bottom) / 2f
     }
 
@@ -112,11 +140,40 @@ class TaskFlightTest {
         show(label = "zkontrolovat a preobjednat dokumentaci k internimu auditu za listopad")
         rule.mainClock.advanceTimeByFrame()
         rule.mainClock.advanceTimeByFrame()
-        val bounds = rule.onNodeWithTag("task-flight").getUnclippedBoundsInRootPx()
+        val bounds = pillBounds()
         val widest = with(rule.density) { 260.dp.toPx() }
         val tallest = with(rule.density) { 64.dp.toPx() }
         assertTrue("the pill grew to ${bounds.width}px wide", bounds.width <= widest)
         assertTrue("the pill grew to ${bounds.height}px tall", bounds.height <= tallest)
+    }
+
+    /**
+     * A long title on a pill launched from the add button would hang off the right edge of
+     * the screen, sliced in half at the very moment it is supposed to be seen leaving the
+     * button - and sliced at the other end when it lands on the leftmost tab.
+     */
+    @Test
+    fun itStaysOnTheScreenAtBothEnds() {
+        rule.mainClock.autoAdvance = false
+        showAcrossTheWholeScreen("zkontrolovat dokumentaci k internimu auditu za listopad")
+        rule.mainClock.advanceTimeByFrame()
+        rule.mainClock.advanceTimeByFrame()
+        val screen = rule.onRoot().boundsInRootPx(rule.density)
+
+        val start = pillBounds()
+        assertTrue("the pill started ${-start.left}px off the left edge", start.left >= -1f)
+        assertTrue(
+            "the pill started ${start.right - screen.right}px off the right edge",
+            start.right <= screen.right + 1f,
+        )
+
+        rule.mainClock.advanceTimeBy(3000)
+        val end = pillBounds()
+        assertTrue("the pill landed ${-end.left}px off the left edge", end.left >= -1f)
+        assertTrue(
+            "the pill landed ${end.right - screen.right}px off the right edge",
+            end.right <= screen.right + 1f,
+        )
     }
 
     /** Review Focus 1. */
@@ -139,5 +196,14 @@ class TaskFlightTest {
     }
 }
 
-private fun SemanticsNodeInteraction.getUnclippedBoundsInRootPx(): Rect =
-    fetchSemanticsNode().boundsInRoot
+/**
+ * Where the node really is, in pixels, whether or not it is on screen.
+ *
+ * The framework's own unclipped bounds, converted - not `boundsInRoot`, which is clipped by
+ * every ancestor and so would quietly hide a pill hanging off the edge of the screen,
+ * passing by luck on a wide phone and failing on a narrow one.
+ */
+private fun SemanticsNodeInteraction.boundsInRootPx(density: Density): Rect {
+    val b = getUnclippedBoundsInRoot()
+    return with(density) { Rect(b.left.toPx(), b.top.toPx(), b.right.toPx(), b.bottom.toPx()) }
+}

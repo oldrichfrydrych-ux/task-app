@@ -40,7 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ProvidableCompositionLocal
-import androidx.compose.runtime.Stable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -142,67 +142,70 @@ fun AppShell(
     var addButtonBounds by remember { mutableStateOf<Rect?>(null) }
     var pulsing by remember { mutableStateOf<Destination?>(null) }
 
+    // Everything below is inside this Box: the Scaffold fills it, and the flying pill is
+    // drawn on top of it, which is the only way it can cross from the content area into the bar.
     Box(modifier = modifier.fillMaxSize()) {
-    Scaffold(
-        modifier = Modifier.fillMaxSize().nestedScroll(slimOnScroll),
-        containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = {
-            FloatingBottomBar(
-                selected = selected,
-                slimmed = slimmed.value,
-                pulsing = pulsing,
-                onSelect = { destination ->
-                    // Pop to the graph start so tabs do not pile up on the back stack.
-                    navController.navigate(destination.route) {
-                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
-                onAdd = {
-                    // Capture beats decoration: whatever is in flight goes.
-                    flights.cancel()
-                    quickAddOpen = true
-                },
-                onTabBounds = { destination, bounds -> tabBounds[destination] = bounds },
-                onAddButtonBounds = { addButtonBounds = it },
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding)) {
-            CompositionLocalProvider(
-                LocalSnackbarHostState provides snackbarHostState,
-                LocalCompletionTracker provides completionTracker,
-            ) {
-                AppNavHost(navController = navController)
+        Scaffold(
+            modifier = Modifier.fillMaxSize().nestedScroll(slimOnScroll),
+            containerColor = MaterialTheme.colorScheme.background,
+            bottomBar = {
+                FloatingBottomBar(
+                    selected = selected,
+                    slimmed = slimmed.value,
+                    pulsing = pulsing,
+                    onSelect = { destination ->
+                        // Pop to the graph start so tabs do not pile up on the back stack.
+                        navController.navigate(destination.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onAdd = {
+                        // Capture beats decoration: whatever is in flight goes.
+                        flights.cancel()
+                        quickAddOpen = true
+                    },
+                    onTabBounds = { destination, bounds -> tabBounds[destination] = bounds },
+                    onAddButtonBounds = { addButtonBounds = it },
+                )
+            },
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+        ) { innerPadding ->
+            Box(modifier = Modifier.padding(innerPadding)) {
+                CompositionLocalProvider(
+                    LocalSnackbarHostState provides snackbarHostState,
+                    LocalCompletionTracker provides completionTracker,
+                ) {
+                    AppNavHost(navController = navController)
+                }
             }
         }
-    }
 
-    if (quickAddOpen) {
-        QuickAddSheet(
-            onDismiss = { quickAddOpen = false },
-            onSaved = { saved ->
-                flights.start(saved.title, arrivalTab(saved, LocalDate.now()))
-            },
-        )
-    }
+        if (quickAddOpen) {
+            QuickAddSheet(
+                onDismiss = { quickAddOpen = false },
+                onSaved = { saved -> flights.startFor(saved, LocalDate.now()) },
+            )
+        }
 
-        // Above the Scaffold, so the pill can cross from the content area into the bar.
         val inFlight = flights.current
         val from = addButtonBounds
         val to = inFlight?.let { tabBounds[it.destination] }
         if (inFlight != null && from != null && to != null) {
-            TaskFlight(
-                label = inFlight.label,
-                from = from,
-                to = to,
-                onFinished = {
-                    pulsing = inFlight.destination
-                    flights.cancel()
-                },
-            )
+            // Keyed on the flight, so a second save starts a new pill rather than inheriting
+            // the first one's half-finished animation and its finished-callback.
+            key(inFlight.id) {
+                TaskFlight(
+                    label = inFlight.label,
+                    from = from,
+                    to = to,
+                    onFinished = {
+                        pulsing = inFlight.destination
+                        flights.cancel()
+                    },
+                )
+            }
         }
     }
 
@@ -212,34 +215,6 @@ fun AppShell(
             delay(PulseMillis)
             pulsing = null
         }
-    }
-}
-
-/** A task on its way to the tab that holds it. */
-data class Flight(val label: String, val destination: Destination)
-
-/**
- * Holds the one task currently in flight, and exists so it can be driven from a test.
- *
- * Catching a real flight through the real sheet is not possible here: the save is an
- * ordinary asynchronous write running in real time, while the pill is an animation running
- * on the test clock, and holding one still stalls the other - the pill has always landed
- * before an assertion can see it. With this, the shell's own rules (one at a time, cancelled
- * by the add button, landing on the right tab) are tested directly and deterministically,
- * and only the single line that calls [start] from the sheet is left to the eye.
- */
-@Stable
-class FlightController {
-    var current: Flight? by mutableStateOf(null)
-        private set
-
-    /** Replaces whatever was in flight: there is never more than one. */
-    fun start(label: String, destination: Destination) {
-        current = Flight(label, destination)
-    }
-
-    fun cancel() {
-        current = null
     }
 }
 
@@ -419,11 +394,18 @@ private fun TabItem(
     val content = if (selected) colors.onSelected else colors.onUnselected
     val animate = LocalAnimationsEnabled.current
 
-    // The tab a task just landed on swells once and settles. No test: a scale held for a few
-    // hundred milliseconds and then released leaves nothing a semantics assertion can see
-    // afterwards, and the fixtures cannot stop the clock before the flight that triggers it
-    // has finished. Better an honest hole than a test that cannot fail - this project has
-    // deleted two of those already.
+    // The tab a task just landed on swells once and settles - icon and label together, so the
+    // whole tab answers rather than half of it.
+    //
+    // No test: a scale held for a few hundred milliseconds and then released leaves nothing a
+    // semantics assertion can see afterwards, and the fixtures cannot stop the clock before
+    // the flight that triggers it has finished. Better an honest hole than a test that cannot
+    // fail - this project has deleted two of those already. The cost of the hole is real: the
+    // label was left out of the swell at first and only a reading of the code caught it.
+    //
+    // The swell goes on the icon and the label themselves, never on the Column above them:
+    // that Column is what reports the tab's position for the flight to land on, and a scale
+    // there would make the pill chase a moving target.
     val swell by animateFloatAsState(
         targetValue = if (pulsing && animate) 1.25f else 1f,
         animationSpec = AppMotion.fastSpatial(),
@@ -464,6 +446,7 @@ private fun TabItem(
                 color = content,
                 maxLines = 1,
                 textAlign = TextAlign.Center,
+                modifier = Modifier.graphicsLayer { scaleX = swell; scaleY = swell },
             )
         }
     }
