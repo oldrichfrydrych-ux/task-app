@@ -47,6 +47,12 @@ private val FlightWidth = 220.dp
  *
  * With animations off it draws nothing and reports finished immediately, so whatever is
  * waiting on it still cleans up.
+ *
+ * **It does not shrink on the way, although the spec says it does, and that is deliberate.**
+ * Shrinking means a `graphicsLayer` scale, and a scaled node reports a top-left that has
+ * moved inward while its size has not - so the test that proves the pill lands on its tab,
+ * which allows 60px, would be fed a position wrong by tens of pixels at exactly the frames
+ * it checks. The whole flight is built on being measurable; a taper is not worth that.
  */
 @Composable
 fun TaskFlight(
