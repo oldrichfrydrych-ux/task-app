@@ -74,6 +74,14 @@ abstract class TaskDao {
     )
     abstract fun observeDots(fromDay: Long, toDay: Long): Flow<List<DayDot>>
 
+    /**
+     * How many tasks due on [epochDay] are already done - the only query here that looks for done
+     * tasks by day. Today's glance line reads "2 of 7 done", and the seven are the open rows on
+     * screen plus these, so the day needs a number for what has left the screen.
+     */
+    @Query("SELECT COUNT(*) FROM tasks WHERE deletedAt IS NULL AND done = 1 AND dueDate = :epochDay")
+    abstract fun observeDoneCount(epochDay: Long): Flow<Int>
+
     /** [pattern] is a LIKE pattern over already-normalised text, with backslash as the escape character. */
     @Query(
         "SELECT tasks.*, lists.name AS listName, lists.colorHex AS listColorHex FROM tasks " +

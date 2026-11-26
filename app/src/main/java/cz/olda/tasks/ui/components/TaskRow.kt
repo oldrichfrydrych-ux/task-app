@@ -15,9 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -29,14 +27,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import cz.olda.tasks.R
 import cz.olda.tasks.data.TaskWithList
 import cz.olda.tasks.ui.theme.ListPalette
 import cz.olda.tasks.ui.theme.parseHex
@@ -47,8 +42,11 @@ import java.util.Calendar
 import java.util.Locale
 
 /**
- * The compact rail: start time on the left, title in the middle, list name on the right in the
- * list's colour. No fixed heights, so at large font sizes the row grows instead of clipping; the
+ * The compact rail: a ring in the list's colour, the start time, the title, and the list's name
+ * behind it in that colour. The row carries no card - it sits straight on the page, and on Today
+ * the section draws the rail line down the ring column behind it.
+ *
+ * No fixed heights, so at large font sizes the row grows instead of clipping; the
  * title takes whatever width is left and wraps to two lines. When the title column would be
  * narrower than the longest word, time and list name drop under the title instead. A title
  * longer than about two lines at large font is truncated by design; the full title is on the
@@ -74,7 +72,8 @@ fun TaskRow(
     // The list colour is its identity; text in it uses a shade that keeps 4.5:1 contrast.
     val listColor = parseHex(item.listColorHex)?.let { textShade(it, darkTheme) }
         ?: MaterialTheme.colorScheme.onSurfaceVariant
-    val completeLabel = stringResource(R.string.complete_task)
+    // The ring is a graphic, not text, so it keeps the list's raw colour; only text needs a shade.
+    val ringColor = parseHex(item.listColorHex) ?: MaterialTheme.colorScheme.onSurfaceVariant
     val clock = task.dueMinute?.let { formatMinuteOfDay(it) }
     val dayText = if (showDate) task.dueDate?.let { formatDueDay(it) } else null
     // Date and time share the rail's left slot, so the width maths below covers both.
@@ -85,13 +84,17 @@ fun TaskRow(
     // drawn is the one from before the write. showAsDone lets the fold show what happened.
     val done = task.done || showAsDone
 
+    // Bold, as the mockups set it - and the same style the width maths below measures with, or a
+    // long Czech word would be measured narrower than it is drawn and break mid-word.
+    val titleStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+
     val checkbox: @Composable () -> Unit = {
-        Checkbox(
-            checked = done,
-            onCheckedChange = { onToggleDone() },
-            modifier = Modifier
-                .testTag("task-checkbox-${task.id}")
-                .semantics { contentDescription = completeLabel },
+        TaskRing(
+            done = done,
+            color = ringColor,
+            onToggle = onToggleDone,
+            modifier = Modifier.testTag("task-checkbox-${task.id}"),
+            ringModifier = Modifier.testTag("task-ring-${task.id}"),
         )
     }
     val time: @Composable () -> Unit = {
@@ -109,8 +112,8 @@ fun TaskRow(
     val title: @Composable (Modifier) -> Unit = { m ->
         Text(
             text = task.title,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
+            style = titleStyle,
+            color = if (done) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
             textDecoration = if (done) TextDecoration.LineThrough else null,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -138,7 +141,7 @@ fun TaskRow(
         // Stacked, time and list name share one line when both fit on it, else one line each.
         val layout = remember(maxWidth, item, timeText, density) {
             val longestWord = task.title.split(Regex("[ ]+")).maxOf {
-                measurer.measure(it, typography.bodyLarge).size.width
+                measurer.measure(it, titleStyle).size.width
             }
             val gap = with(density) { 10.dp.roundToPx() }
             val timeMeasured = timeText?.let {
@@ -159,65 +162,60 @@ fun TaskRow(
         }
         val stacked = layout != RowLayout.Rail
 
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            modifier = Modifier.testTag("task-${task.id}"),
-        ) {
-            // The bar is an overlay, not part of the Row, so it takes no width and the stacking
-            // maths above is untouched.
-            Box {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clickable(onClick = onClick)
-                        .heightIn(min = 48.dp)
-                        .padding(start = 4.dp, end = 12.dp),
-                ) {
-                    checkbox()
-                    if (stacked) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            title(Modifier)
-                            if (layout == RowLayout.StackedSplit) {
-                                Column(modifier = Modifier.padding(bottom = 8.dp)) {
-                                    time()
-                                    listName(Modifier)
-                                }
-                            } else {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                    modifier = Modifier.padding(bottom = 8.dp),
-                                ) {
-                                    time()
-                                    listName(Modifier.weight(1f, fill = false))
-                                }
+        // No card of its own: in the mockups a row sits straight on the page and only the rail
+        // is drawn behind it. The priority bar is an overlay rather than part of the Row, so it
+        // takes no width and the stacking maths above is untouched.
+        Box(modifier = Modifier.testTag("task-${task.id}")) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clickable(onClick = onClick)
+                    .heightIn(min = 48.dp)
+                    .padding(start = 4.dp, end = 12.dp),
+            ) {
+                checkbox()
+                if (stacked) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        title(Modifier)
+                        if (layout == RowLayout.StackedSplit) {
+                            Column(modifier = Modifier.padding(bottom = 8.dp)) {
+                                time()
+                                listName(Modifier)
+                            }
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.padding(bottom = 8.dp),
+                            ) {
+                                time()
+                                listName(Modifier.weight(1f, fill = false))
                             }
                         }
-                    } else {
-                        if (timeText != null) {
-                            time()
-                            Spacer(Modifier.width(10.dp))
-                        }
-                        title(Modifier.weight(1f))
+                    }
+                } else {
+                    if (timeText != null) {
+                        time()
                         Spacer(Modifier.width(10.dp))
-                        listName(Modifier.widthIn(max = 120.dp))
                     }
+                    title(Modifier.weight(1f))
+                    Spacer(Modifier.width(10.dp))
+                    listName(Modifier.widthIn(max = 120.dp))
                 }
-                if (priorityColor != null) {
+            }
+            if (priorityColor != null) {
+                Box(
+                    modifier = Modifier.matchParentSize().padding(vertical = 10.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
                     Box(
-                        modifier = Modifier.matchParentSize().padding(vertical = 10.dp),
-                        contentAlignment = Alignment.CenterStart,
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .width(4.dp)
-                                .fillMaxHeight()
-                                .clip(RoundedCornerShape(topEnd = 2.dp, bottomEnd = 2.dp))
-                                .background(priorityColor)
-                                .testTag("task-priority-bar-${task.id}"),
-                        )
-                    }
+                        modifier = Modifier
+                            .width(4.dp)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(topEnd = 2.dp, bottomEnd = 2.dp))
+                            .background(priorityColor)
+                            .testTag("task-priority-bar-${task.id}"),
+                    )
                 }
             }
         }

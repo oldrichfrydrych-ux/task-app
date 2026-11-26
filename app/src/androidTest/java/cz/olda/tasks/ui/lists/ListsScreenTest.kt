@@ -167,14 +167,14 @@ class ListsScreenTest {
             repo.setDone(done, true)
         }
         show()
-        rule.waitUntil(timeoutMillis = 10_000) { countU(hasTestTag("list-count-$id") and hasText("2")) == 1 }
-        rule.onNodeWithTag("list-count-$id", useUnmergedTree = true).assertTextEquals("2")
+        rule.waitUntil(timeoutMillis = 10_000) { countU(hasTestTag("list-count-$id") and hasText("2 open")) == 1 }
+        rule.onNodeWithTag("list-count-$id", useUnmergedTree = true).assertTextEquals("2 open")
     }
 
     @Test fun aListWithNoOpenTasksCountsZero() {
         val id = runBlocking { lists.createList("Empty one") }
         show()
-        rule.waitUntil(timeoutMillis = 10_000) { countU(hasTestTag("list-count-$id") and hasText("0")) == 1 }
+        rule.waitUntil(timeoutMillis = 10_000) { countU(hasTestTag("list-count-$id") and hasText("0 open")) == 1 }
     }
 
     @Test fun stateIsNullBeforeTheFirstEmission() {

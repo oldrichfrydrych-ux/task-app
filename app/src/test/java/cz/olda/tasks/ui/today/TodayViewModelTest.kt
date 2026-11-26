@@ -43,8 +43,14 @@ private class MutableClock(private var instant: Instant, private val zone: ZoneI
 }
 
 /** Serves only the day queries; every day query is keyed by the epoch day it is asked about. */
-internal class FakeTaskDao(private val overdue: List<TaskWithList>) : TaskDao() {
+internal class FakeTaskDao(
+    private val overdue: List<TaskWithList>,
+    /** Done tasks per epoch day, for the glance line's "N of M done". */
+    private val doneByDay: Map<Long, Int> = emptyMap(),
+) : TaskDao() {
     val dayQueries = mutableListOf<Pair<Long, Long>>()
+
+    override fun observeDoneCount(epochDay: Long): Flow<Int> = flowOf(doneByDay[epochDay] ?: 0)
 
     override fun observeOverdue(epochDay: Long): Flow<List<TaskWithList>> = flowOf(overdue)
     override fun observeDueBetween(fromDay: Long, toDay: Long): Flow<List<TaskWithList>> {
@@ -122,6 +128,24 @@ class TodayViewModelTest {
         assertTrue(state.isToday)
         assertEquals(listOf("late"), state.sections.overdue.map { it.task.title })
         assertEquals(LocalDate.of(2026, 11, 23), state.weekStart) // a Monday
+    }
+
+    /**
+     * The glance line counts the day it is looking at, not today: moving to another day has to
+     * re-ask, or Thursday would be reported as having finished Monday's tasks.
+     */
+    @Test fun theDoneCountFollowsTheShownDay() = runTest {
+        val clock = MutableClock(startOfDay("2026-11-23T10:00"), zone)
+        val dao = FakeTaskDao(
+            overdue = listOf(overdueRow()),
+            doneByDay = mapOf(today.toEpochDay() to 2, today.plusDays(2).toEpochDay() to 5),
+        )
+        val vm = viewModel(clock, dao)
+        assertEquals(2, vm.state.value.doneCount)
+
+        vm.showDay(today.plusDays(2))
+        runCurrent()
+        assertEquals(5, vm.state.value.doneCount)
     }
 
     @Test fun pickingADayDropsOverdueAndTomorrow() = runTest {

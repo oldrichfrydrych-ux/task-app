@@ -56,7 +56,7 @@ fun UpcomingContent(
     ) {
         ScreenHeader(title = stringResource(R.string.upcoming), titleModifier = Modifier.testTag("upcoming-header"))
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp).padding(top = 4.dp, bottom = 12.dp),
+            modifier = Modifier.padding(horizontal = 20.dp).padding(top = 4.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             days?.forEach { day ->

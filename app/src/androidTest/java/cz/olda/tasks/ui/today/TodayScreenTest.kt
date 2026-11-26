@@ -9,7 +9,9 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasAnyAncestor
@@ -25,6 +27,8 @@ import cz.olda.tasks.R
 import cz.olda.tasks.data.AppDatabase
 import cz.olda.tasks.data.DaySections
 import cz.olda.tasks.data.ListRepository
+import cz.olda.tasks.data.TaskWithList
+import cz.olda.tasks.data.entity.TaskEntity
 import cz.olda.tasks.data.TaskRepository
 import cz.olda.tasks.ui.LocalSnackbarHostState
 import cz.olda.tasks.ui.theme.AppTheme
@@ -36,6 +40,7 @@ import org.junit.Rule
 import org.junit.Test
 import java.time.Clock
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 
 class TodayScreenTest {
@@ -145,12 +150,45 @@ class TodayScreenTest {
     @Test fun theTomorrowRowOnlyShowsOnToday() {
         runBlocking { add("for tomorrow", today.plusDays(1)) }
         show()
-        rule.onNodeWithText("Tomorrow").assertIsDisplayed()
-        rule.onNodeWithText("for tomorrow").assertIsDisplayed()
+        rule.onNodeWithTag("tomorrow-row").assertIsDisplayed()
+        // Unmerged: the row is one clickable node, so its parts are only separately findable there.
+        rule.onNodeWithTag("tomorrow-count", useUnmergedTree = true).assertTextEquals("1 task")
+        // Tomorrow is one row now, not a second list of tasks under today's.
+        rule.onNodeWithText("for tomorrow").assertDoesNotExist()
 
         pickDay("day-2026-11-25")
-        rule.onNodeWithText("Tomorrow").assertDoesNotExist()
-        rule.onNodeWithText("for tomorrow").assertDoesNotExist()
+        rule.onNodeWithTag("tomorrow-row").assertDoesNotExist()
+    }
+
+    @Test fun tappingTheTomorrowRowShowsTomorrow() {
+        runBlocking { add("for tomorrow", today.plusDays(1)) }
+        show()
+        rule.onNodeWithTag("tomorrow-row").performClick()
+        awaitSelected("day-2026-11-24")
+        rule.onNodeWithText("for tomorrow").assertIsDisplayed()
+    }
+
+    /** The switch is drawn so Today looks finished; Day is disabled until it has durations to draw. */
+    @Test fun theViewSwitchShowsListWithDayDisabled() {
+        show()
+        rule.onNodeWithTag("view-switch").assertIsDisplayed()
+        rule.onNodeWithTag("view-day", useUnmergedTree = true).assertIsNotEnabled()
+    }
+
+    @Test fun theGlanceLineCountsTheDayAndFollowsACompletion() {
+        val id = runBlocking {
+            add("one", today, 9 * 60)
+            add("two", today)
+        }
+        show()
+        rule.onNodeWithTag("glance-done").assertTextEquals("0 of 2 done")
+
+        rule.onNode(hasContentDescription("Complete task") and hasAnyAncestor(hasTestTag("task-$id")))
+            .performClick()
+
+        rule.waitUntil(timeoutMillis = 10_000) {
+            rule.onAllNodes(androidx.compose.ui.test.hasText("1 of 2 done")).fetchSemanticsNodes().isNotEmpty()
+        }
     }
 
     @Test fun completingARowRemovesItWithAnUndo() {
@@ -197,9 +235,8 @@ class TodayScreenTest {
     @Test fun aDayWithNothingOfItsOwnButSomethingTomorrowStillShowsTheEmptyState() {
         runBlocking { add("for tomorrow", today.plusDays(1)) }
         show()
-        // Control: the Tomorrow section really is on screen, so this is the case under test.
-        rule.onNodeWithText("Tomorrow").assertIsDisplayed()
-        rule.onNodeWithText("for tomorrow").assertIsDisplayed()
+        // Control: the Tomorrow row really is on screen, so this is the case under test.
+        rule.onNodeWithTag("tomorrow-row").assertIsDisplayed()
         rule.onNodeWithTag("today-empty").assertIsDisplayed()
         rule.onNodeWithText("Nothing due today").assertIsDisplayed()
     }
@@ -230,6 +267,38 @@ class TodayScreenTest {
         show()
         rule.onNodeWithText("something").assertIsDisplayed()
         rule.onNodeWithTag("today-empty").assertDoesNotExist()
+    }
+
+    private fun row(id: Long, title: String, minute: Int?) = TaskWithList(
+        task = TaskEntity(
+            id = id, title = title, titleNormalised = title, notesNormalised = "", listId = 1,
+            dueDate = today.toEpochDay(), dueMinute = minute,
+        ),
+        listName = "Inbox",
+        listColorHex = "#3D6BE0",
+    )
+
+    private fun timedDay(isToday: Boolean) = TodayState(
+        shownDay = today, isToday = isToday,
+        sections = DaySections(emptyList(), listOf(row(1, "morning", 9 * 60), row(2, "evening", 18 * 60)), emptyList(), emptyList()),
+        dots = emptyMap(), weekStart = today,
+    )
+
+    /** The point of the now line: it says which of the day's tasks are still ahead. */
+    @Test fun theNowRowSitsBetweenTheTasksTheTimeFallsBetween() {
+        rule.setContent {
+            AppTheme { TodayContent(timedDay(isToday = true), {}, {}, {}, {}, now = LocalTime.of(14, 10)) }
+        }
+        rule.onNodeWithTag("today-rail").assertIsDisplayed()
+        assertTrue(top("task-1") < top("now-row"))
+        assertTrue(top("now-row") < top("task-2"))
+    }
+
+    @Test fun thereIsNoNowRowOnADayThatIsNotToday() {
+        rule.setContent {
+            AppTheme { TodayContent(timedDay(isToday = false), {}, {}, {}, {}, now = LocalTime.of(14, 10)) }
+        }
+        rule.onNodeWithTag("now-row").assertDoesNotExist()
     }
 
     @Test fun backToTodayOnlyShowsOnOtherDaysAndReturns() {

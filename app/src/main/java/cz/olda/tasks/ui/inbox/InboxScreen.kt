@@ -52,7 +52,7 @@ fun InboxContent(
     ) {
         ScreenHeader(title = stringResource(R.string.inbox), titleModifier = Modifier.testTag("inbox-header"))
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp).padding(top = 4.dp, bottom = 12.dp),
+            modifier = Modifier.padding(horizontal = 20.dp).padding(top = 4.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             TaskListSection(null, tasks.orEmpty(), onToggleDone, onOpenTask, showDate = true)

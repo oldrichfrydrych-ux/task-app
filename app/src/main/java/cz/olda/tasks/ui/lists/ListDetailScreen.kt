@@ -92,7 +92,7 @@ fun ListDetailScreen(
                     .graphicsLayer { alpha = arrival }
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = 20.dp)
                     .padding(top = 4.dp, bottom = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {

@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -31,8 +30,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -43,6 +44,7 @@ import cz.olda.tasks.ui.AppIcons
 import cz.olda.tasks.data.entity.GroupEntity
 import cz.olda.tasks.data.entity.ListEntity
 import cz.olda.tasks.ui.theme.parseHex
+import cz.olda.tasks.ui.theme.textShade
 
 /** Groups as headers, their lists as rows with a colour dot and the number of open tasks. */
 @Composable
@@ -78,7 +80,7 @@ fun ListsScreen(
             },
         )
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp).padding(top = 4.dp, bottom = 12.dp),
+            modifier = Modifier.padding(horizontal = 20.dp).padding(top = 4.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -182,38 +184,55 @@ private fun ListRow(
     onOpen: () -> Unit,
     onEdit: () -> Unit,
 ) {
-    val dot = parseHex(list.colorHex) ?: MaterialTheme.colorScheme.onSurfaceVariant
+    val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val colour = parseHex(list.colorHex) ?: MaterialTheme.colorScheme.onSurfaceVariant
+    // The tile is the list's colour at a sixth of its strength, with the initial in the shade
+    // that keeps text readable on it. The mockups put a per-list icon here; `lists.icon` exists
+    // but nothing writes it, so every tile would have carried the same glyph.
+    val tileColour = colour.copy(alpha = 0.16f)
+    val initialColour = textShade(colour, darkTheme)
     Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surface,
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(18.dp))
             .clickable(onClick = onOpen)
             .testTag("list-row-${list.id}"),
     ) {
         Row(
             modifier = Modifier
-                .heightIn(min = 48.dp)
-                .padding(start = 16.dp),
+                .heightIn(min = 56.dp)
+                .padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(Modifier.size(12.dp).clip(CircleShape).background(dot))
-            Text(
-                text = list.name,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            if (openCount != null) {
+            Box(
+                modifier = Modifier.size(38.dp).clip(RoundedCornerShape(12.dp)).background(tileColour),
+                contentAlignment = Alignment.Center,
+            ) {
                 Text(
-                    text = openCount.toString(),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.testTag("list-count-${list.id}"),
+                    text = list.name.take(1).uppercase(),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = initialColour,
                 )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = list.name,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (openCount != null) {
+                    Text(
+                        text = stringResource(R.string.list_open_count, openCount),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        modifier = Modifier.testTag("list-count-${list.id}"),
+                    )
+                }
             }
             TextButton(onClick = onEdit, modifier = Modifier.testTag("list-edit-${list.id}")) {
                 Text(stringResource(R.string.edit_list))

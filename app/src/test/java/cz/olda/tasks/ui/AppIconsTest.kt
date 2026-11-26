@@ -16,6 +16,8 @@ class AppIconsTest {
         "Inbox" to AppIcons.Inbox,
         "Lists" to AppIcons.Lists,
         "Add" to AppIcons.Add,
+        "Check" to AppIcons.Check,
+        "Chevron" to AppIcons.Chevron,
     )
 
     @Test

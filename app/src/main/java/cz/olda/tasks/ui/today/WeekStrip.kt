@@ -18,18 +18,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import cz.olda.tasks.ui.theme.parseHex
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
 
 /** Most dots shown under one day; more would not fit the column. */
-private const val MaxDots = 3
+private const val MaxDots = 4
 
 /**
  * Seven days from [weekStart], each with a dot per list colour that has an open task that day.
@@ -46,8 +48,17 @@ fun WeekStrip(
     Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         (0L..6L).map { weekStart.plusDays(it) }.forEach { date ->
             val isShown = date == shownDay
-            val container = if (isShown) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
-            val content = if (isShown) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+            val isWeekend = date.dayOfWeek == DayOfWeek.SATURDAY || date.dayOfWeek == DayOfWeek.SUNDAY
+            // One filled thing in the strip and it is the day you are looking at: an ink pill, as
+            // the mockups have it. Coral is the add button's colour and means "do something",
+            // which a date does not. The other six sit on the page with no fill at all, and the
+            // weekend is dimmed so the working week reads first.
+            val container = if (isShown) MaterialTheme.colorScheme.onBackground else Color.Transparent
+            val content = when {
+                isShown -> MaterialTheme.colorScheme.background
+                isWeekend -> MaterialTheme.colorScheme.onSurfaceVariant
+                else -> MaterialTheme.colorScheme.onBackground
+            }
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -80,7 +91,7 @@ fun WeekStrip(
                         Box(
                             modifier = Modifier
                                 .testTag("dot-$date")
-                                .size(6.dp)
+                                .size(5.dp)
                                 .clip(CircleShape)
                                 .background(parseHex(hex) ?: content),
                         )

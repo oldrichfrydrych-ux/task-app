@@ -1,5 +1,6 @@
 package cz.olda.tasks.ui.components
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -15,21 +16,29 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import cz.olda.tasks.R
 import cz.olda.tasks.ui.AppIcons
 
 /**
- * The one header every screen uses: the title (null while it has not loaded, so nothing flashes) at one scale, an optional back arrow in front and
- * an optional action behind. It pads itself (16dp from the edge, or 4dp before a back arrow so the
- * arrow's own touch padding lines the title up), so a screen puts it above its content and
- * adds no padding of its own around it. Keep destructive actions out of [trailing].
+ * The one header every screen uses: the title (null while it has not loaded, so nothing flashes)
+ * at one scale, an optional [subtitle] beside it on the same baseline, an optional back arrow in
+ * front and an optional action behind. It pads itself (20dp from the edge, as the mockups set it,
+ * or 4dp before a back arrow so the arrow's own touch padding lines the title up), so a screen
+ * puts it above its content and adds no padding of its own around it. Keep destructive actions
+ * out of [trailing].
+ *
+ * The subtitle is for something the title cannot say on its own - Today's date beside the word
+ * "Today" - and never for a second line of explanation.
  */
 @Composable
 fun ScreenHeader(
     title: String?,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
     onBack: (() -> Unit)? = null,
     backModifier: Modifier = Modifier,
     titleModifier: Modifier = Modifier,
@@ -39,7 +48,7 @@ fun ScreenHeader(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
-            .padding(start = if (onBack != null) 4.dp else 16.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
+            .padding(start = if (onBack != null) 4.dp else 20.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (onBack != null) {
@@ -48,13 +57,33 @@ fun ScreenHeader(
             }
         }
         if (title != null) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineSmall,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = titleModifier.weight(1f),
-            )
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = title,
+                    // Heavier and a touch tighter than Material's own headline, as the mockups set it.
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = (-0.5).sp,
+                    ),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = titleModifier.alignByBaseline(),
+                )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.alignByBaseline().testTag("header-subtitle"),
+                    )
+                }
+            }
         } else {
             Spacer(Modifier.weight(1f))
         }

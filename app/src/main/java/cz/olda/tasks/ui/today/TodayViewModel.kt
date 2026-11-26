@@ -35,6 +35,12 @@ data class TodayState(
     /** The Monday of the week that holds [shownDay]. */
     val weekStart: LocalDate,
     /**
+     * How many of the shown day's tasks are already done. They are not in [sections] - completing
+     * a task takes it off the screen - so this is the only trace of them, and it is what makes
+     * the glance line's "2 of 7 done" possible.
+     */
+    val doneCount: Int = 0,
+    /**
      * False only for the placeholder state before the database's first emission. Without it an
      * empty day and a not-yet-loaded one look the same, and "Nothing due today" flashes on start.
      */
@@ -67,8 +73,9 @@ class TodayViewModel(
             combine(
                 repository.observeDay(shown),
                 repository.observeDots(weekStart, weekStart.plusDays(6)),
-            ) { sections, dots ->
-                TodayState(shown, shown == today, sections, dots, weekStart)
+                repository.observeDoneCount(shown),
+            ) { sections, dots, doneCount ->
+                TodayState(shown, shown == today, sections, dots, weekStart, doneCount)
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), initialState())

@@ -49,6 +49,18 @@ object AppIcons {
         pathData = "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
     )
 
+    /** Tick: a completed task, inside its ring. */
+    val Check: ImageVector = filledIcon(
+        name = "Check",
+        pathData = "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z",
+    )
+
+    /** Chevron: a row that leads somewhere, such as Today's row for tomorrow. */
+    val Chevron: ImageVector = filledIcon(
+        name = "Chevron",
+        pathData = "M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z",
+    )
+
     /** Magnifying glass: opens search. */
     val Search: ImageVector = filledIcon(
         name = "Search",

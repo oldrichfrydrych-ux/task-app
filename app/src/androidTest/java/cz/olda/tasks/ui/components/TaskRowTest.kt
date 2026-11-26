@@ -6,6 +6,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -101,6 +103,66 @@ class TaskRowTest {
         rule.setContent { AppTheme { TaskRow(undated, {}, {}) } }
         rule.onNodeWithText(undated.task.title).assertIsDisplayed()
         rule.onNodeWithTag("task-time-7").assertDoesNotExist()
+    }
+
+    /**
+     * The rows in the mockups sit straight on the warm background - the rail is the only thing
+     * drawn behind them - so a row must not carry a card of its own. Sampled at the left edge
+     * halfway down, which is inside a card but outside its rounded corner, so a corner pixel
+     * would pass either way.
+     */
+    @Test
+    fun theRowSitsOnTheBackgroundWithNoCardBehindIt() {
+        rule.setContent {
+            AppTheme(darkTheme = false) {
+                Surface(color = MaterialTheme.colorScheme.background) { TaskRow(sample, {}, {}) }
+            }
+        }
+        val pixels = rule.onNodeWithTag("task-7").captureToImage().toPixelMap()
+        assertEquals(Color(0xFFFAF7F3), pixels[1, pixels.height / 2])
+    }
+
+    /** Raw, not the text shade: the ring is a graphic, and the mockups draw it in the list's colour. */
+    @Test
+    fun theRingIsDrawnInTheListsOwnColour() {
+        rule.setContent {
+            AppTheme(darkTheme = false) {
+                Surface(color = MaterialTheme.colorScheme.background) { TaskRow(orange, {}, {}) }
+            }
+        }
+        assertTrue("no pixel of the ring is #E07B39", ringPixels() > 0)
+    }
+
+    @Test
+    fun completingFillsTheRing() {
+        var done by mutableStateOf(false)
+        rule.setContent {
+            AppTheme(darkTheme = false) {
+                Surface(color = MaterialTheme.colorScheme.background) {
+                    TaskRow(orange.copy(task = orange.task.copy(done = done)), {}, {})
+                }
+            }
+        }
+        val hollow = ringPixels()
+
+        done = true
+        rule.waitForIdle()
+        val filled = ringPixels()
+        // A 3dp stroke covers about 40% of an 18dp circle; the disc covers all of it bar the tick
+        // cut out of the middle. Measured on the phone: 1632px open, 2804px done.
+        assertTrue("a filled ring ($filled px) must be well more than an empty one ($hollow px)", filled > hollow * 3 / 2)
+    }
+
+    /** How much of the ring is drawn in Garden's raw orange: a stroke when open, a disc when done. */
+    private fun ringPixels(): Int {
+        val pixels = rule.onNodeWithTag("task-ring-7", useUnmergedTree = true).captureToImage().toPixelMap()
+        var found = 0
+        for (x in 0 until pixels.width) {
+            for (y in 0 until pixels.height) {
+                if (pixels[x, y] == Color(0xFFE07B39)) found++
+            }
+        }
+        return found
     }
 
     @Test

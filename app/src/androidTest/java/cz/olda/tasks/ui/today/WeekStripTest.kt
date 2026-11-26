@@ -1,6 +1,11 @@
 package cz.olda.tasks.ui.today
 
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -35,9 +40,32 @@ class WeekStripTest {
         rule.onAllNodesWithTag("dot-${monday.plusDays(1)}", useUnmergedTree = true).assertCountEquals(0)
     }
 
-    @Test fun capsTheDotsAtThree() {
+    @Test fun capsTheDotsAtFour() {
         show(mapOf(monday to listOf("#111111", "#222222", "#333333", "#444444", "#555555")))
-        rule.onAllNodesWithTag("dot-$monday", useUnmergedTree = true).assertCountEquals(3)
+        rule.onAllNodesWithTag("dot-$monday", useUnmergedTree = true).assertCountEquals(4)
+    }
+
+    /**
+     * In the mockups the shown day is the only filled thing in the strip - a dark pill - and the
+     * other six sit straight on the page. Sampling a corner of the day's own node: inside the
+     * pill it is the ink colour, and for any other day it is whatever is behind the strip.
+     */
+    @Test fun onlyTheShownDayIsFilled() {
+        rule.setContent {
+            AppTheme(darkTheme = false) {
+                Surface(color = MaterialTheme.colorScheme.background) {
+                    WeekStrip(monday, monday, emptyMap(), {})
+                }
+            }
+        }
+        assertEquals(Color(0xFF1F1B17), middleOf("day-$monday"))
+        assertEquals(Color(0xFFFAF7F3), middleOf("day-${monday.plusDays(1)}"))
+    }
+
+    /** The pixel halfway down the day's node, one in from its leading edge. */
+    private fun middleOf(tag: String): Color {
+        val pixels = rule.onNodeWithTag(tag).captureToImage().toPixelMap()
+        return pixels[1, pixels.height / 2]
     }
 
     @Test fun anUnparsableColourStillShowsADot() {

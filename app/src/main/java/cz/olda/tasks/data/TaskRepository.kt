@@ -81,6 +81,9 @@ class TaskRepository(
             rows.groupBy({ LocalDate.ofEpochDay(it.dueDate) }, { it.colorHex })
         }
 
+    /** How many of [day]'s tasks are already done; the open ones come from [observeDay]. */
+    fun observeDoneCount(day: LocalDate): Flow<Int> = taskDao.observeDoneCount(day.toEpochDay())
+
     /** Matches title or notes, ignoring case and diacritics; [query] is treated as plain text. */
     fun search(query: String): Flow<List<TaskWithList>> {
         val needle = normalise(query).trim()

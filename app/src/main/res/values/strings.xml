@@ -25,6 +25,17 @@
     <string name="undo">Undo</string>
 
     <!-- Today -->
+    <string name="view_list">List</string>
+    <string name="view_day">Day</string>
+    <string name="view_switch">View</string>
+    <string name="view_day_unavailable">The day view is not ready yet</string>
+    <string name="glance_done">%1$d of %2$d done</string>
+    <string name="now">Now</string>
+    <string name="tomorrow_row">Tomorrow · %1$s</string>
+    <plurals name="task_count">
+        <item quantity="one">%1$d task</item>
+        <item quantity="other">%1$d tasks</item>
+    </plurals>
     <string name="today_empty">Nothing due today</string>
     <string name="day_empty">Nothing planned for this day</string>
     <string name="back_to_today">Back to today</string>
@@ -35,6 +46,7 @@
 
     <!-- Lists -->
     <string name="lists_empty">No lists yet</string>
+    <string name="list_open_count">%1$d open</string>
     <string name="new_list">New list</string>
     <string name="new_group">New group</string>
     <string name="edit_list">Edit list</string>
