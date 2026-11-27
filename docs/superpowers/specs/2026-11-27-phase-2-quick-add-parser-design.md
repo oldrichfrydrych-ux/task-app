@@ -478,6 +478,18 @@ can check the reasoning rather than hunt for it:
 7. **The quick-add repeat chip echoes his own words; task detail says it in English**
    from the stored rule, because by then his wording is gone.
 
+## One dependency change, approved separately
+
+`app/build.gradle.kts` adds the kotlinx-serialization BOM at 1.8.1, which moves
+`kotlinx-serialization-core` from 1.7.3 to 1.8.1 **in the shipped app**. `room-testing` brings
+serialization-json 1.8.1 onto the device-test classpath while the app pinned core to 1.7.3
+through lifecycle, and AGP's consistent resolution makes the test classpath follow the app — so
+Room's schema reader died with `AbstractMethodError` before reaching any of this phase's code.
+The library was already in the app underneath Navigation, so this is a version alignment rather
+than a new dependency, but CLAUDE.md asks before any dependency change. **Olda approved it on
+27 Nov**, after a code review flagged that narrower fixes (an androidTest-only resolution
+strategy, or turning off consistent resolution for that classpath) had not been tried.
+
 ## Deliberately left out, cheap to add later
 
 Each of these is one row in a pattern table plus one test row, once Olda hits it:
