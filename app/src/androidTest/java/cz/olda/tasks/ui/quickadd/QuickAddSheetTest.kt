@@ -31,6 +31,7 @@ import androidx.test.core.app.ApplicationProvider
 import cz.olda.tasks.R
 import cz.olda.tasks.data.AppDatabase
 import cz.olda.tasks.data.ListRepository
+import cz.olda.tasks.data.TagRepository
 import cz.olda.tasks.data.TaskRepository
 import cz.olda.tasks.ui.theme.AppTheme
 import kotlinx.coroutines.flow.first
@@ -53,19 +54,24 @@ class QuickAddSheetTest {
     private lateinit var db: AppDatabase
     private lateinit var tasks: TaskRepository
     private lateinit var lists: ListRepository
+    private lateinit var tags: TagRepository
     private var work = 0L
     private var inbox = 0L
     private var dismissed = false
     private lateinit var viewModel: QuickAddViewModel
     private var open by mutableStateOf(true)
 
+    /** The sheet test asserts against real "today", so it keeps the system clock. */
+    private val clock: Clock = Clock.systemDefaultZone()
+
     @Before fun open() = runBlocking<Unit> {
         val context = ApplicationProvider.getApplicationContext<Context>()
         db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .addCallback(AppDatabase.seedInbox(context.getString(R.string.inbox)))
             .build()
-        tasks = TaskRepository(db.taskDao(), Clock.systemDefaultZone())
+        tasks = TaskRepository(db.taskDao(), clock)
         lists = ListRepository(db.listDao(), db.groupDao(), db.headingDao())
+        tags = TagRepository(db.tagDao())
         work = lists.createList("Work", "#E85A4F")
         inbox = lists.inboxId()
     }
@@ -84,7 +90,7 @@ class QuickAddSheetTest {
 
     /** Shows the sheet and waits for the lists to load, so later assertions see real data. */
     private fun show() {
-        viewModel = QuickAddViewModel(tasks, lists)
+        viewModel = QuickAddViewModel(tasks, lists, tags, clock)
         rule.setContent {
             AppTheme {
                 if (open) QuickAddSheet(onDismiss = { dismissed = true; open = false }, viewModel = viewModel)
@@ -254,8 +260,8 @@ class QuickAddSheetTest {
     }
 
     @Test fun twoSavesAtOnceWriteOneTask() {
-        val vm = QuickAddViewModel(tasks, lists)
-        vm.setTitle("Once only")
+        val vm = QuickAddViewModel(tasks, lists, tags, clock)
+        vm.setInput("Once only")
         val results = runBlocking { listOf(async { vm.save() }, async { vm.save() }).awaitAll() }
         assertEquals("exactly one save should have written", 1, results.count { it != null })
         assertEquals(1, allTasks().size)
@@ -263,8 +269,8 @@ class QuickAddSheetTest {
 
     /** The shell has to know what was written to show where it went. */
     @Test fun saveReportsTheTaskItWrote() {
-        val vm = QuickAddViewModel(tasks, lists)
-        vm.setTitle("  Zavolat na urad  ")
+        val vm = QuickAddViewModel(tasks, lists, tags, clock)
+        vm.setInput("  Zavolat na urad  ")
         vm.setList(work)
         val day = LocalDate.now().plusDays(2)
         vm.setDate(day)
@@ -273,14 +279,14 @@ class QuickAddSheetTest {
     }
 
     @Test fun saveReportsInboxWhenThatIsWhereItWent() {
-        val vm = QuickAddViewModel(tasks, lists)
-        vm.setTitle("Bez data")
+        val vm = QuickAddViewModel(tasks, lists, tags, clock)
+        vm.setInput("Bez data")
         val saved = runBlocking { vm.save() }
         assertEquals(SavedTask("Bez data", null, toInbox = true), saved)
     }
 
     @Test fun saveReportsNothingWhenItWroteNothing() {
-        val vm = QuickAddViewModel(tasks, lists)
+        val vm = QuickAddViewModel(tasks, lists, tags, clock)
         assertNull(runBlocking { vm.save() })
     }
 
@@ -289,16 +295,18 @@ class QuickAddSheetTest {
         val vm = QuickAddViewModel(
             tasks,
             lists,
+            tags,
+            clock,
             SavedStateHandle(
                 mapOf(
-                    QuickAddViewModel.TITLE to "Restored",
+                    QuickAddViewModel.INPUT to "Restored",
                     QuickAddViewModel.DATE to day.toEpochDay(),
                     QuickAddViewModel.LIST to work,
                     QuickAddViewModel.PRIORITY to 2,
                 ),
             ),
         )
-        assertEquals("Restored", vm.draftTitle)
+        assertEquals("Restored", vm.draftInput)
         val state = runBlocking { vm.state.first { it.lists.isNotEmpty() } }
         assertEquals("Restored", state.title)
         assertEquals(day, state.dueDate)

@@ -68,7 +68,7 @@ fun QuickAddSheet(
     val state by viewModel.state.collectAsStateWithLifecycle()
     // The field keeps its own saved text, so typing never waits on the ViewModel; it starts from the draft
     // stored there. Dismissing the sheet keeps the draft; only a successful save clears it.
-    var text by rememberSaveable { mutableStateOf(viewModel.draftTitle) }
+    var text by rememberSaveable { mutableStateOf(viewModel.draftInput) }
     var picker by rememberSaveable { mutableStateOf(Picker.None) }
 
     fun save() {
@@ -120,7 +120,7 @@ fun QuickAddSheet(
                     value = text,
                     onValueChange = {
                         text = it
-                        viewModel.setTitle(it)
+                        viewModel.setInput(it)
                     },
                     placeholder = { Text(stringResource(R.string.quick_add_hint)) },
                     singleLine = true,

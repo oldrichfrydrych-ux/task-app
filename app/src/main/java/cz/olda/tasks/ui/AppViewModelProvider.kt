@@ -27,7 +27,15 @@ object AppViewModelProvider {
         initializer { TodayViewModel(container().taskRepository, container().clock) }
         initializer { UpcomingViewModel(container().taskRepository) }
         // Saved state lets a half-typed task survive the process being killed.
-        initializer { QuickAddViewModel(container().taskRepository, container().listRepository, createSavedStateHandle()) }
+        initializer {
+            QuickAddViewModel(
+                container().taskRepository,
+                container().listRepository,
+                container().tagRepository,
+                container().clock,
+                createSavedStateHandle(),
+            )
+        }
         initializer { InboxViewModel(container().taskRepository, container().listRepository) }
         initializer { SearchViewModel(container().taskRepository) }
         initializer { ListsViewModel(container().listRepository, container().taskRepository) }
