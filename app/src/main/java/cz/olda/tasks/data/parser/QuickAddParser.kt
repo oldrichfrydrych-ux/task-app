@@ -1,5 +1,6 @@
 package cz.olda.tasks.data.parser
 
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 /**
@@ -19,10 +20,11 @@ import java.time.LocalDateTime
 fun parseQuickAdd(input: String, now: LocalDateTime, knownLists: List<String>): ParsedInput {
     val folded = fold(input)
     val accepted = resolve(candidatesIn(folded, now, knownLists))
+    val minute = accepted.firstNotNullOfOrNull { it.minute }
     return ParsedInput(
         title = cutTitle(input, accepted),
-        dueDate = accepted.firstNotNullOfOrNull { it.date },
-        dueMinute = accepted.firstNotNullOfOrNull { it.minute },
+        dueDate = dueDate(accepted, minute, now),
+        dueMinute = minute,
         listName = accepted.firstNotNullOfOrNull { it.listName },
         tagNames = accepted.mapNotNull { it.tagName },
         priority = accepted.firstNotNullOfOrNull { it.priority },
@@ -31,6 +33,21 @@ fun parseQuickAdd(input: String, now: LocalDateTime, knownLists: List<String>): 
             ParsedToken(it.start, it.end, it.kind, input.substring(it.start, it.end))
         },
     )
+}
+
+/**
+ * The day the task lands on.
+ *
+ * A day Olda typed always wins, overdue or not: "dnes ve 3" at half past four is today, because
+ * he said today. A time with **no** day lands on the next one — "ve 3" typed at 16:30 means
+ * tomorrow, Olda's call on 27 Nov — and an hour that is exactly now counts as gone.
+ */
+private fun dueDate(accepted: List<Candidate>, minute: Int?, now: LocalDateTime): LocalDate? {
+    accepted.firstNotNullOfOrNull { it.date }?.let { return it }
+    if (minute == null) return null
+    val today = now.toLocalDate()
+    val minuteNow = now.hour * 60 + now.minute
+    return if (minute <= minuteNow) today.plusDays(1) else today
 }
 
 /** Everything every pattern family offers for this line. One family per phrase family. */
@@ -42,5 +59,6 @@ private fun candidatesIn(
     val today = now.toLocalDate()
     return dayCandidates(folded, today) +
         weekdayCandidates(folded, today) +
-        calendarDateCandidates(folded, today)
+        calendarDateCandidates(folded, today) +
+        timeCandidates(folded, today)
 }
