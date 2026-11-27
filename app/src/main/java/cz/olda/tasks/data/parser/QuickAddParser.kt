@@ -40,5 +40,7 @@ private fun candidatesIn(
     knownLists: List<String>,
 ): List<Candidate> {
     val today = now.toLocalDate()
-    return dayCandidates(folded, today) + weekdayCandidates(folded, today)
+    return dayCandidates(folded, today) +
+        weekdayCandidates(folded, today) +
+        calendarDateCandidates(folded, today)
 }
