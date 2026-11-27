@@ -80,5 +80,6 @@ private fun candidatesIn(
         calendarDateCandidates(folded, today) +
         timeCandidates(folded, today) +
         relativeCandidates(folded, now) +
-        recurrenceCandidates(folded, today)
+        recurrenceCandidates(folded, today) +
+        symbolCandidates(folded, knownLists)
 }
