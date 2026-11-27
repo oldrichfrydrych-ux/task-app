@@ -5,6 +5,7 @@ import androidx.room.Room
 import cz.olda.tasks.data.AppDatabase
 import cz.olda.tasks.data.ListRepository
 import cz.olda.tasks.data.MIGRATION_1_2
+import cz.olda.tasks.data.TagRepository
 import cz.olda.tasks.data.TaskRepository
 import java.time.Clock
 
@@ -29,5 +30,9 @@ class AppContainer(context: Context, dbName: String = "tasks.db") {
 
     val taskRepository: TaskRepository by lazy {
         TaskRepository(database.taskDao(), clock)
+    }
+
+    val tagRepository: TagRepository by lazy {
+        TagRepository(database.tagDao())
     }
 }

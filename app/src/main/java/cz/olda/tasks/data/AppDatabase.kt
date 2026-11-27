@@ -6,6 +6,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import cz.olda.tasks.data.dao.GroupDao
 import cz.olda.tasks.data.dao.HeadingDao
 import cz.olda.tasks.data.dao.ListDao
+import cz.olda.tasks.data.dao.TagDao
 import cz.olda.tasks.data.dao.TaskDao
 import cz.olda.tasks.data.entity.GroupEntity
 import cz.olda.tasks.data.entity.HeadingEntity
@@ -33,6 +34,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun groupDao(): GroupDao
     abstract fun headingDao(): HeadingDao
     abstract fun taskDao(): TaskDao
+    abstract fun tagDao(): TagDao
 
     companion object {
         /**
