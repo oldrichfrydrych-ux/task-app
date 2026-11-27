@@ -57,7 +57,12 @@ private val PriorityMarkHeight = 18.dp
  * task detail screen.
  *
  * Priority 1 to 3 add a small coloured bar on the leading edge (overlaid, so it takes no width). With
- * [showDate] the due day goes in front of the time, for lists that are not grouped by day.
+ * [showDate] the due day goes in front of the time, for lists that are not grouped by day - without
+ * its weekday, which on a date weeks past says nothing and costs the title a line.
+ *
+ * [showList] is for screens where every row has the same list - the Inbox, one list's own screen.
+ * There the name is noise holding width the title needs. Search keeps it: that is where it tells
+ * you something.
  *
  * A [TaskWithList.listColorHex] that cannot be parsed falls back to the theme's secondary text
  * colour rather than crashing.
@@ -69,6 +74,7 @@ fun TaskRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     showDate: Boolean = false,
+    showList: Boolean = true,
     showAsDone: Boolean = false,
 ) {
     val task = item.task
@@ -79,7 +85,7 @@ fun TaskRow(
     // The ring is a graphic, not text, so it keeps the list's raw colour; only text needs a shade.
     val ringColor = parseHex(item.listColorHex) ?: MaterialTheme.colorScheme.onSurfaceVariant
     val clock = task.dueMinute?.let { formatMinuteOfDay(it) }
-    val dayText = if (showDate) task.dueDate?.let { formatDueDay(it) } else null
+    val dayText = if (showDate) task.dueDate?.let { formatDueDay(it, weekday = false) } else null
     // Date and time share the rail's left slot, so the width maths below covers both.
     val timeText = listOfNotNull(dayText, clock).joinToString(" ").ifEmpty { null }
     val priorityColor = priorityBarColor(task.priority, darkTheme)
@@ -125,7 +131,7 @@ fun TaskRow(
         )
     }
     val listName: @Composable (Modifier) -> Unit = { m ->
-        Text(
+        if (showList) Text(
             text = item.listName,
             style = MaterialTheme.typography.labelMedium,
             color = listColor,
@@ -143,7 +149,7 @@ fun TaskRow(
         // Stack when the rail would leave the title column narrower than its longest word, which
         // cannot wrap and would otherwise break mid-word. Depends on width and font scale alike.
         // Stacked, time and list name share one line when both fit on it, else one line each.
-        val layout = remember(maxWidth, item, timeText, density) {
+        val layout = remember(maxWidth, item, timeText, showList, density) {
             val longestWord = task.title.split(Regex("[ ]+")).maxOf {
                 measurer.measure(it, titleStyle).size.width
             }
@@ -152,9 +158,15 @@ fun TaskRow(
                 measurer.measure(it, typography.labelLarge, softWrap = false).size.width
             } ?: 0
             val timeWidth = if (timeText != null) timeMeasured + gap else 0
-            val listMeasured = measurer.measure(item.listName, typography.labelMedium, softWrap = false).size.width
+            // A row without its list name has that width, and the gap before it, back for the title.
+            val listMeasured = if (showList) {
+                measurer.measure(item.listName, typography.labelMedium, softWrap = false).size.width
+            } else {
+                0
+            }
             val listWidth = minOf(listMeasured, with(density) { 120.dp.roundToPx() })
-            val fixed = with(density) { (4 + 48 + 12 + 10).dp.roundToPx() } + timeWidth + listWidth
+            val listGap = if (showList) with(density) { 10.dp.roundToPx() } else 0
+            val fixed = with(density) { (4 + 48 + 12).dp.roundToPx() } + listGap + timeWidth + listWidth
             val width = with(density) { maxWidth.roundToPx() }
             when {
                 width - fixed >= longestWord -> RowLayout.Rail
@@ -203,8 +215,10 @@ fun TaskRow(
                         Spacer(Modifier.width(10.dp))
                     }
                     title(Modifier.weight(1f))
-                    Spacer(Modifier.width(10.dp))
-                    listName(Modifier.widthIn(max = 120.dp))
+                    if (showList) {
+                        Spacer(Modifier.width(10.dp))
+                        listName(Modifier.widthIn(max = 120.dp))
+                    }
                 }
             }
             if (priorityColor != null) {
@@ -242,13 +256,19 @@ private fun priorityBarColor(priority: Int, darkTheme: Boolean): Color? {
     return if (darkTheme) preset.dark else preset.light
 }
 
-/** The due day in the device's language, short ("Mon 23 Nov"); the year only when it is not this one. */
+/**
+ * The due day in the device's language, short ("Mon 23 Nov"); the year only when it is not this
+ * one. Without [weekday] it is "23 Nov" - which is what a task row uses, because the weekday of a
+ * date weeks past tells you nothing and the name of the day is wide. Where the day itself is the
+ * point, as in Today's row for tomorrow, it stays.
+ */
 @Composable
-internal fun formatDueDay(epochDay: Long): String {
+internal fun formatDueDay(epochDay: Long, weekday: Boolean = true): String {
     val locale = Locale.getDefault()
-    return remember(epochDay, locale) {
+    return remember(epochDay, locale, weekday) {
         val day = LocalDate.ofEpochDay(epochDay)
-        val skeleton = if (day.year == LocalDate.now().year) "EEEd MMM" else "EEEd MMM y"
+        val prefix = if (weekday) "EEE" else ""
+        val skeleton = if (day.year == LocalDate.now().year) "${prefix}d MMM" else "${prefix}d MMM y"
         day.format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, skeleton), locale))
     }
 }

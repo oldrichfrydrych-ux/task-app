@@ -96,7 +96,7 @@ fun ListDetailScreen(
                     .padding(top = 4.dp, bottom = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                TaskListSection(null, state.unheaded, complete, onOpenTask, showDate = true)
+                TaskListSection(null, state.unheaded, complete, onOpenTask, showDate = true, showList = false)
                 state.sections.forEach { section ->
                     val heading = section.heading
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -122,7 +122,7 @@ fun ListDetailScreen(
                                 modifier = Modifier.testTag("heading-delete-${heading.id}"),
                             ) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
                         }
-                        TaskListSection(null, section.tasks, complete, onOpenTask, showDate = true)
+                        TaskListSection(null, section.tasks, complete, onOpenTask, showDate = true, showList = false)
                     }
                 }
                 if (state.unheaded.isEmpty() && state.sections.all { it.tasks.isEmpty() }) {

@@ -115,6 +115,14 @@ class InboxScreenTest {
         rule.onNodeWithTag("task-time-$undated", useUnmergedTree = true).assertDoesNotExist()
     }
 
+    /** Every row here is in the Inbox, so printing "Inbox" on each of them only cost the title width. */
+    @Test fun inboxRowsDoNotRepeatTheListName() {
+        val id = runBlocking { repo.add("in the inbox", inbox, null, null, 4) }
+        show()
+        rule.onNodeWithTag("task-$id").assertIsDisplayed()
+        rule.onNodeWithTag("task-list-$id", useUnmergedTree = true).assertDoesNotExist()
+    }
+
     @Test fun stateIsNullBeforeTheFirstEmission() {
         org.junit.Assert.assertNull(InboxViewModel(repo, lists).state.value)
     }

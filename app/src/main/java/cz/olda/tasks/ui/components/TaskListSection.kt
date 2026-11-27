@@ -50,7 +50,9 @@ private class RowMemory {
 }
 
 /**
- * A header (tagged with [headerModifier]) and its rows, each showing its date when [showDate].
+ * A header (tagged with [headerModifier]) and its rows, each showing its date when [showDate]
+ * and its list name unless [showList] is off - which is for screens where every row is in the
+ * same list, such as the Inbox.
  * Renders nothing at all when there is nothing to show.
  *
  * A completed row does not simply vanish. Completing writes to the repository, which re-emits
@@ -69,6 +71,7 @@ fun TaskListSection(
     modifier: Modifier = Modifier,
     headerModifier: Modifier = Modifier,
     showDate: Boolean = false,
+    showList: Boolean = true,
 ) {
     val animate = LocalAnimationsEnabled.current
     val tracker = LocalCompletionTracker.current
@@ -122,6 +125,7 @@ fun TaskListSection(
                     folding = isFolding,
                     entering = animate && !isFolding && id !in memory.firstLoad,
                     showDate = showDate,
+                    showList = showList,
                     onToggleDone = { if (!isFolding) onToggleDone(id) },
                     onClick = { if (!isFolding) onClick(id) },
                     onGone = {
@@ -143,6 +147,7 @@ private fun FoldingRow(
     folding: Boolean,
     entering: Boolean,
     showDate: Boolean,
+    showList: Boolean,
     onToggleDone: () -> Unit,
     onClick: () -> Unit,
     onGone: () -> Unit,
@@ -173,6 +178,7 @@ private fun FoldingRow(
             onToggleDone = onToggleDone,
             onClick = onClick,
             showDate = showDate,
+            showList = showList,
             showAsDone = folding,
         )
     }

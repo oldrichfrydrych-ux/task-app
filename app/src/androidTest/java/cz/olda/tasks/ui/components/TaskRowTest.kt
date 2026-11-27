@@ -297,6 +297,49 @@ class TaskRowTest {
         assertTrue("date missing: $withDate", withDate.contains("2024") && withDate.endsWith(withoutDate))
     }
 
+    /**
+     * On the Inbox and inside one list, every row carries the same list name, so the name is
+     * noise taking width the title needs. The row can be told to leave it out.
+     */
+    @Test
+    fun aRowCanBeToldToLeaveOutItsListName() {
+        rule.setContent { AppTheme { TaskRow(sample, {}, {}, showList = false) } }
+        rule.onNodeWithText(sample.task.title).assertIsDisplayed()
+        rule.onNodeWithTag("task-list-7").assertDoesNotExist()
+    }
+
+    /** With the name gone, the title gets that width rather than wrapping for no reason. */
+    @Test
+    fun droppingTheListNameLeavesTheTitleMoreRoom() {
+        var withName by mutableStateOf(true)
+        val longName = sample.copy(
+            task = sample.task.copy(title = "Zkontrolovat fakturu od dodavatele"),
+            listName = "Household chores",
+        )
+        rule.setContent {
+            AppTheme { TaskRow(longName, {}, {}, modifier = Modifier.width(360.dp), showList = withName) }
+        }
+        val wrapped = tag("task-title-7").textLayout().size.width
+
+        withName = false
+        rule.waitForIdle()
+        val roomier = tag("task-title-7").textLayout().size.width
+        assertTrue("the title got no wider: $wrapped -> $roomier", roomier > wrapped)
+    }
+
+    /**
+     * The day in a row is "4 Oct 2024", not "Fri, 4 Oct 2024". On the Inbox the weekday of a date
+     * weeks past says nothing, and it cost the title a line.
+     */
+    @Test
+    fun theDueDayInARowCarriesNoWeekday() {
+        rule.setContent { AppTheme { TaskRow(sample, {}, {}, showDate = true) } }
+        val shown = timeText()
+        // 20000 is Friday 4 October 2024: the control is that the date itself is there.
+        assertTrue("the date is missing: $shown", shown.contains("2024"))
+        assertFalse("the weekday is still there: $shown", shown.contains("Fri"))
+    }
+
     @Test
     fun anUndatedRowShowsNothingEvenWhenAskedForDates() {
         val undated = sample.copy(task = sample.task.copy(dueDate = null, dueMinute = null))
