@@ -60,5 +60,6 @@ private fun candidatesIn(
     return dayCandidates(folded, today) +
         weekdayCandidates(folded, today) +
         calendarDateCandidates(folded, today) +
-        timeCandidates(folded, today)
+        timeCandidates(folded, today) +
+        relativeCandidates(folded, now)
 }
