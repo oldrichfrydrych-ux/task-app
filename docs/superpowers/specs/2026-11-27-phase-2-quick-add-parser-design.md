@@ -281,7 +281,7 @@ Recognised and stored; nothing acts on it until Phase 3.
 |---|---|
 | `každý den`, `kazdy den`, `denně`, `every day`, `daily` | `FREQ=DAILY` |
 | `každé pondělí`, `kazde pondeli`, `every monday` | `FREQ=WEEKLY;BYDAY=MO` |
-| `každý týden`, `týdně`, `every week`, `weekly` | `FREQ=WEEKLY` |
+| `každý týden`, `every week`, `weekly` | `FREQ=WEEKLY` |
 | `každý měsíc`, `měsíčně`, `every month`, `monthly` | `FREQ=MONTHLY` |
 | `každý rok`, `ročně`, `every year`, `yearly` | `FREQ=YEARLY` |
 | `každé 2 dny`, `every 3 days`, `každé 2 týdny` | `FREQ=DAILY;INTERVAL=2` etc. |
@@ -486,6 +486,15 @@ Each of these is one row in a pattern table plus one test row, once Olda hits it
 - `24.12` and `24/12` without the trailing dot.
 - `za 3 pracovní dny` (working days), week numbers, `o víkendu` / `at the weekend`.
 - `včera` / `yesterday`.
+- **`týdně` on its own** (it was in the table above until the code review on 27 Nov). The fold
+  strips the length mark, so it is the same word as `týdne`, the genitive of *týden* — and "do
+  konce týdne uklidit" was being read as a weekly repeat with the words taken out of the title.
+  `každý týden` says it unambiguously. `denně`, `měsíčně` and `ročně` have no such twin and stay.
+- **`od`, `kolem`, `okolo` in front of a time.** They were implemented and removed for the same
+  reason: the calendar-date patterns do not absorb them, so "Dovolena od 3. 12." read `od 3` as
+  three o'clock and lost the date. Adding one means teaching both families about it at once.
+- **`na`, `do`, `k`, `po` in front of a date or time** are not absorbed either, so "poslat report
+  do 15:00" keeps its "do" in the title. The time is still right.
 - Czech weekday abbreviations (`po`, `st`, `čt`) — `po` is also the word "after",
   so these need more care than they are worth now.
 

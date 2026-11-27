@@ -2,8 +2,19 @@ package cz.olda.tasks.data.parser
 
 import java.time.LocalDate
 
-/** The words that announce a clock time, so that a bare number never becomes one. */
-private const val PREPOSITION = "(?:v|ve|at|od|kolem|okolo)\\s*"
+/**
+ * The words that announce a clock time, so that a bare number never becomes one.
+ *
+ * The space is required, not optional: a preposition has to be a word of its own. Glued to a
+ * number it is a version — `nasadit v2 na produkci`, `opravit Fluxus v3` — and reading those as
+ * two in the afternoon took the word out of his title as well.
+ *
+ * Only `v`, `ve` and `at`, which is what the spec lists. `od`, `kolem` and `okolo` were here
+ * and had to go: `CalendarDatePatterns` does not know them, so in "Dovolena od 3. 12." the time
+ * candidate started one character earlier than the date, won under leftmost-first, and the third
+ * of December was lost. A time preposition is only safe once the date patterns absorb it too.
+ */
+private const val PREPOSITION = "(?:v|ve|at)\\s+"
 
 /** A marker after the hour that says which half of the day is meant. */
 private const val MARKER = "(?:\\s*(am|pm|rano|dopoledne|morning|odpoledne|vecer|evening|afternoon))?"
@@ -29,8 +40,14 @@ private val timePatterns = listOf(
     TimePattern(wordPattern("(?:$PREPOSITION)?(\\d{1,2}):(\\d{2})$MARKER"), hour = 1, minutes = 2, marker = 3),
     // "v 15.30" — the dot form, preposition required
     TimePattern(wordPattern("$PREPOSITION(\\d{1,2})\\.(\\d{2})$MARKER"), hour = 1, minutes = 2, marker = 3),
-    // "ve 3", "v 15", "v 15h", "ve 3 hod", "ve 3 rano"
-    TimePattern(wordPattern("$PREPOSITION(\\d{1,2})(?:\\s*(?:hod(?:in)?|h))?$MARKER"), hour = 1, marker = 2),
+    // "ve 3", "v 15", "v 15h", "ve 3 hod", "ve 3 hodiny", "ve 3 rano".
+    // `(?![.,:]\d)` keeps a decimal whole: "v 1.000 Kc" and "v 7.5" are numbers, not one o'clock
+    // with a stray fraction left behind in the title. The colon and dot forms above read those.
+    TimePattern(
+        wordPattern("$PREPOSITION(\\d{1,2})(?![.,:]\\d)(?:\\s*(?:hod(?:in[aeyu]?)?|h))?$MARKER"),
+        hour = 1,
+        marker = 2,
+    ),
     // "3pm", "7am" — the marker makes these unambiguous on their own
     TimePattern(wordPattern("(\\d{1,2})\\s*(am|pm)"), hour = 1, marker = 2),
 )
@@ -57,7 +74,8 @@ private val namedHours: Map<String, Int> = mapOf(
 /** Longest first, so the regex cannot stop at "poledne" inside "odpoledne". */
 private val anyNamedHour = namedHours.keys.sortedByDescending { it.length }.joinToString("|")
 
-private val namedHour = wordPattern("(?:(?:v|ve)\\s+)?($anyNamedHour)")
+/** The preposition is absorbed in both languages, so "call at noon" does not keep an "at". */
+private val namedHour = wordPattern("(?:(?:v|ve|at|in\\s+the)\\s+)?($anyNamedHour)")
 
 /** The one time phrase that also names a day, so it claims the date rather than implying it. */
 private val tonight = wordPattern("tonight|dnes\\s+vecer")

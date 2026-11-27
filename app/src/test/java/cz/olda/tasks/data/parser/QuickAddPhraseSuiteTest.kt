@@ -42,7 +42,7 @@ class QuickAddPhraseSuiteTest {
 
     private val phrases: List<Phrase> by lazy {
         dayWords + weekdays + calendarDates + times + relative + repeats + symbols +
-            mixedLanguage + manyFields + deliberatelyNotRecognised
+            mixedLanguage + manyFields + deliberatelyNotRecognised + fromTheReview
     }
 
     private val dayWords = listOf(
@@ -225,7 +225,7 @@ class QuickAddPhraseSuiteTest {
         Phrase("koupit 3 rohliky", "koupit 3 rohliky"),
         Phrase("pondeli resetovat", "pondeli resetovat"),
         Phrase("Číst při Týdenním resetu (pondělí).", "Číst při Týdenním resetu (pondělí)."),
-        Phrase("Vyzkouset speech stuff s ai", "Vyzkouset speech stuff s ai"),
+        Phrase("Vyzkoušet speech stuff s ai", "Vyzkoušet speech stuff s ai"),
         Phrase("zavolat #xyz", "zavolat #xyz"),
         Phrase("zavolat #s", "zavolat #s"),
         Phrase("24.12 koupit darky", "24.12 koupit darky"),
@@ -238,6 +238,42 @@ class QuickAddPhraseSuiteTest {
         Phrase("za 3 pracovni dny odpovedet", "za 3 pracovni dny odpovedet"),
         Phrase("Alea, Více rolí?", "Alea, Více rolí?"),
         Phrase("Penzijní spoření", "Penzijní spoření"),
+    )
+
+    /**
+     * The lines a fresh reviewer found by running the parser over ordinary Czech and English on
+     * 27 Nov. Every one of them used to lose a word from the title and invent a date, a time or
+     * a repeat — the failure the spec names as its worst. They are here so they cannot come back.
+     */
+    private val fromTheReview = listOf(
+        // "tydne" is both "weekly" and the genitive of "week", and folding makes them one word.
+        Phrase("do konce týdne uklidit", "do konce týdne uklidit"),
+        Phrase("report za prvni polovinu tydne", "report za prvni polovinu tydne"),
+        Phrase("v polovine tydne zavolat", "v polovine tydne zavolat"),
+        // A preposition has to be a word of its own, not glued to a number: these are versions.
+        Phrase("nasadit v2 na produkci", "nasadit v2 na produkci"),
+        Phrase("opravit Fluxus v3", "opravit Fluxus v3"),
+        Phrase("upgrade na v15", "upgrade na v15"),
+        // A decimal is one number, not an hour and a stray fraction.
+        Phrase("zkontrolovat verzi v2.1", "zkontrolovat verzi v2.1"),
+        Phrase("zaplatit v 1.000 Kc", "zaplatit v 1.000 Kc"),
+        Phrase("v 7.5 zavolat", "v 7.5 zavolat"),
+        // "od" used to be read as a time preposition, which ate the date behind it.
+        Phrase("Dovolena od 3. 12.", "Dovolena od", on(12, 3)),
+        Phrase("kolem 15. 3. zaplatit", "kolem zaplatit", on(3, 15, 2027)),
+        // The English preposition in front of a named hour belongs to the time, not the title.
+        Phrase("call tomorrow at noon", "call", tomorrow, at(12)),
+        Phrase("call at night", "call", today, at(22)),
+        Phrase("wake up in the morning", "wake up", tomorrow, at(8)),
+        // "hodiny" is as common as "hod" and was left behind in the title.
+        Phrase("zavolat ve 3 hodiny", "zavolat", tomorrow, at(15)),
+        Phrase("zavolat ve 3 hodiny odpoledne", "zavolat", tomorrow, at(15)),
+        Phrase("porada v 10 hodin", "porada", tomorrow, at(10)),
+        // Czech puts the weekday in the accusative after "každý", and the feminine days change
+        // the pronoun too: "každou středu". This is the likeliest phrase he will actually type.
+        Phrase("každou středu bazen", "bazen", on(12, 2), recurrence = "FREQ=WEEKLY;BYDAY=WE"),
+        Phrase("kazdou nedeli uklidit", "uklidit", on(11, 29), recurrence = "FREQ=WEEKLY;BYDAY=SU"),
+        Phrase("kazdou sobotu nakup", "nakup", tomorrow, recurrence = "FREQ=WEEKLY;BYDAY=SA"),
     )
 
     @Test

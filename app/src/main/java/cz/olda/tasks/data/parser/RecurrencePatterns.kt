@@ -4,11 +4,23 @@ import java.time.LocalDate
 import java.time.Period
 import java.time.temporal.TemporalAdjusters
 
-/** "každý", "každá", "každé" and their diacritic-free spellings all count. */
-private const val EVERY = "(?:kazdy|kazda|kazde|every)"
+/**
+ * "každý", "každá", "každé", "každou" and their diacritic-free spellings all count. `kazdou` is
+ * there because Czech puts the weekday in the accusative after *každý*, and the three feminine
+ * days change the pronoun with it: **každou středu**, každou neděli, každou sobotu. Without it
+ * only the neuter *pondělí* and the masculine days worked.
+ */
+private const val EVERY = "(?:kazdy|kazda|kazde|kazdou|every)"
 
-private val daily = wordPattern("$EVERY\\s+day|kazdy\\s+den|kazda\\s+den|kazde\\s+den|denne|daily")
-private val weekly = wordPattern("$EVERY\\s+(?:week|tyden)|tydne|weekly")
+private val daily = wordPattern("$EVERY\\s+(?:day|den)|denne|daily")
+
+/**
+ * No bare `tydne`. Folding strips the length mark, so "týdně" (weekly) and "týdne" (the genitive
+ * of *týden*) become the same word — and "do konce týdne uklidit" is ordinary Czech that was
+ * being read as a weekly repeat, losing the word from the title into the bargain. "každý týden"
+ * says it unambiguously; `denne`, `mesicne` and `rocne` have no such twin and stay.
+ */
+private val weekly = wordPattern("$EVERY\\s+(?:week|tyden)|weekly")
 private val monthly = wordPattern("$EVERY\\s+(?:month|mesic)|mesicne|monthly")
 private val yearly = wordPattern("$EVERY\\s+(?:year|rok)|rocne|yearly")
 
