@@ -52,6 +52,7 @@ object AppViewModelProvider {
                 checkNotNull(createSavedStateHandle().get<Long>("taskId")),
                 container().taskRepository,
                 container().listRepository,
+                container().tagRepository,
             )
         }
     }

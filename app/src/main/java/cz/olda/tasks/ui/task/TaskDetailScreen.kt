@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -61,6 +63,8 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import java.time.format.TextStyle
+import java.util.Locale
 
 private const val MILLIS_PER_DAY = 86_400_000L
 
@@ -186,6 +190,8 @@ private fun TaskFields(
         DateField(task.dueDate, viewModel::setDueDate)
         TimeField(task.dueMinute, viewModel::setDueMinute)
         PriorityRow(task.priority, viewModel::setPriority)
+        task.recurrence?.let { RepeatRow(it, viewModel::clearRecurrence) }
+        TagRow(state, viewModel)
 
         // One level only: a subtask has no subtasks section and nothing to add one with.
         if (task.parentTaskId == null) Subtasks(state, viewModel, onOpenTask)
@@ -392,5 +398,97 @@ private fun Subtasks(state: TaskDetailState, viewModel: TaskDetailViewModel, onO
                 modifier = Modifier.testTag("subtask-add"),
             ) { Text(stringResource(R.string.add)) }
         }
+    }
+}
+
+/**
+ * A repeat, said in English from the stored rule, with an × that throws it away. Changing one to
+ * a different repeat waits for Phase 3, which builds the picker; this phase only has to make sure
+ * a "kazdy den" typed by mistake is not stuck on the task for good.
+ */
+@Composable
+private fun RepeatRow(rule: String, onClear: () -> Unit) {
+    val label = recurrenceLabel(rule)
+    val text = when {
+        label.day != null -> stringResource(
+            label.stringId,
+            label.day.getDisplayName(TextStyle.FULL, Locale.getDefault()),
+        )
+        label.interval != null -> stringResource(label.stringId, label.interval)
+        else -> stringResource(label.stringId)
+    }
+    val removeLabel = stringResource(R.string.remove_repeat)
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = stringResource(R.string.repeat),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        AssistChip(
+            onClick = onClear,
+            label = { Text(text) },
+            trailingIcon = { Text("✕") },
+            modifier = Modifier
+                .testTag("task-repeat")
+                .semantics { contentDescription = removeLabel },
+        )
+    }
+}
+
+/** The task's tags, each removable, plus a field to add one. Typing "@work" or "work" both work. */
+@Composable
+private fun TagRow(state: TaskDetailState, viewModel: TaskDetailViewModel) {
+    var adding by rememberSaveable { mutableStateOf(false) }
+    var name by rememberSaveable { mutableStateOf("") }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = stringResource(R.string.tags),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            state.tags.forEach { tag ->
+                val remove = stringResource(R.string.remove_tag, tag.name)
+                AssistChip(
+                    onClick = { viewModel.removeTag(tag.id) },
+                    label = { Text("@${tag.name}") },
+                    trailingIcon = { Text("✕") },
+                    modifier = Modifier
+                        .testTag("task-tag-${tag.name}")
+                        .semantics { contentDescription = remove },
+                )
+            }
+            AssistChip(
+                onClick = { adding = true },
+                label = { Text(stringResource(R.string.add_tag)) },
+                modifier = Modifier.testTag("task-tag-add"),
+            )
+        }
+    }
+    if (adding) {
+        AlertDialog(
+            onDismissRequest = { adding = false; name = "" },
+            title = { Text(stringResource(R.string.add_tag)) },
+            text = {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    singleLine = true,
+                    modifier = Modifier.testTag("task-tag-field"),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { viewModel.addTag(name); name = ""; adding = false },
+                    modifier = Modifier.testTag("task-tag-save"),
+                ) { Text(stringResource(R.string.save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { adding = false; name = "" }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
     }
 }

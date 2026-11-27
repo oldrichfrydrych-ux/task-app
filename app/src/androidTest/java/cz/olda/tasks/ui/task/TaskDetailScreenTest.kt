@@ -22,6 +22,7 @@ import androidx.compose.ui.test.isOn
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
@@ -30,6 +31,7 @@ import androidx.test.core.app.ApplicationProvider
 import cz.olda.tasks.R
 import cz.olda.tasks.data.AppDatabase
 import cz.olda.tasks.data.ListRepository
+import cz.olda.tasks.data.TagRepository
 import cz.olda.tasks.data.TaskRepository
 import cz.olda.tasks.ui.LocalSnackbarHostState
 import cz.olda.tasks.ui.theme.AppTheme
@@ -55,6 +57,7 @@ class TaskDetailScreenTest {
     private lateinit var db: AppDatabase
     private lateinit var repo: TaskRepository
     private lateinit var lists: ListRepository
+    private lateinit var tags: TagRepository
     private var work = 0L
     private var wentBack = false
     private var openedTask: Long? = null
@@ -69,6 +72,7 @@ class TaskDetailScreenTest {
             .build()
         repo = TaskRepository(db.taskDao(), clock)
         lists = ListRepository(db.listDao(), db.groupDao(), db.headingDao())
+        tags = TagRepository(db.tagDao())
         work = lists.createList("Work", "#E85A4F")
     }
 
@@ -94,7 +98,7 @@ class TaskDetailScreenTest {
 
     /** Shows the screen and waits for the task to load, so later assertions see real data. */
     private fun show(taskId: Long) {
-        val viewModel = TaskDetailViewModel(taskId, repo, lists).also { shown = it }
+        val viewModel = TaskDetailViewModel(taskId, repo, lists, tags).also { shown = it }
         rule.setContent {
             AppTheme {
                 val hostState = remember { SnackbarHostState() }
@@ -269,7 +273,9 @@ class TaskDetailScreenTest {
         val id = runBlocking { repo.add("Doomed", work, null, null, 4) }
         val sub = runBlocking { repo.add("Doomed child", work, null, null, 4, parentTaskId = id) }
         show(id)
-        rule.onNodeWithTag("task-delete").performClick()
+        // Delete sits last on a screen that scrolls, and the repeat and tag rows made it taller.
+        rule.onNodeWithTag("task-delete").performScrollTo().performClick()
+        awaitShown("delete-confirm")
         rule.onNodeWithTag("delete-confirm").performClick()
         rule.waitUntil(timeoutMillis = 10_000) { wentBack }
         // Let the screen see the deletion too, so no query is still running when the database closes.
@@ -277,5 +283,72 @@ class TaskDetailScreenTest {
         assertNull(task(id))
         assertNull(task(sub))
         assertTrue(wentBack)
+    }
+
+    // ---- Phase 2: tags, and getting rid of a repeat ----
+
+    @Test fun aTasksTagsAreShown() {
+        val id = runBlocking {
+            repo.add("Call the office", work, null, null, 4).also { tags.attach(it, listOf("telefon")) }
+        }
+        show(id)
+        awaitShown("task-tag-telefon")
+        rule.onNodeWithTag("task-tag-telefon").assertTextContains("@telefon", substring = true)
+    }
+
+    @Test fun aTagCanBeAddedAndRemoved() {
+        val id = runBlocking { repo.add("Call the office", work, null, null, 4) }
+        show(id)
+        rule.onNodeWithTag("task-tag-add").performClick()
+        awaitShown("task-tag-field")
+        rule.onNodeWithTag("task-tag-field").performTextInput("telefon")
+        rule.onNodeWithTag("task-tag-save").performClick()
+        awaitShown("task-tag-telefon")
+
+        rule.onNodeWithTag("task-tag-telefon").performClick()
+        rule.waitUntil(timeoutMillis = 10_000) {
+            rule.onAllNodes(hasTestTag("task-tag-telefon")).fetchSemanticsNodes().isEmpty()
+        }
+        assertEquals(emptyList<String>(), runBlocking { tags.observeTagsOf(id).first().map { it.name } })
+    }
+
+    @Test fun theRepeatRowAppearsOnlyForARepeatingTask() {
+        val plain = runBlocking { repo.add("Call the office", work, null, null, 4) }
+        show(plain)
+        rule.onAllNodes(hasTestTag("task-repeat")).assertCountEquals(0)
+    }
+
+    @Test fun aRepeatIsSaidInEnglishFromItsRule() {
+        val id = runBlocking {
+            repo.add("Stand-up", work, null, null, 4, recurrence = "FREQ=WEEKLY;BYDAY=MO")
+        }
+        show(id)
+        awaitShown("task-repeat")
+        rule.onNodeWithTag("task-repeat").assertTextContains("Monday", substring = true)
+    }
+
+    /** Without this, a "kazdy den" typed by mistake could only be undone by deleting the task. */
+    @Test fun theRepeatCanBeCleared() {
+        val id = runBlocking { repo.add("Exercise", work, null, null, 4, recurrence = "FREQ=DAILY") }
+        show(id)
+        awaitShown("task-repeat")
+        rule.onNodeWithTag("task-repeat").performClick()
+        rule.waitUntil(timeoutMillis = 10_000) {
+            rule.onAllNodes(hasTestTag("task-repeat")).fetchSemanticsNodes().isEmpty()
+        }
+        assertNull(task(id)!!.recurrence)
+    }
+
+    /** The title field here is literal: nothing on this screen is parsed. */
+    @Test fun theTitleFieldIsNotParsed() {
+        val id = runBlocking { repo.add("x", work, null, null, 4) }
+        show(id)
+        rule.onNodeWithTag("task-title-field").performTextClearance()
+        rule.onNodeWithTag("task-title-field").performTextInput("zitra ve 3 zavolat #prace")
+        rule.waitUntil(timeoutMillis = 10_000) { task(id)!!.title == "zitra ve 3 zavolat #prace" }
+        val stored = task(id)!!
+        assertNull(stored.dueDate)
+        assertNull(stored.dueMinute)
+        assertEquals(work, stored.listId)
     }
 }

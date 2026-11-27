@@ -3,9 +3,11 @@ package cz.olda.tasks.ui.task
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cz.olda.tasks.data.ListRepository
+import cz.olda.tasks.data.TagRepository
 import cz.olda.tasks.data.TaskRepository
 import cz.olda.tasks.data.entity.HeadingEntity
 import cz.olda.tasks.data.entity.ListEntity
+import cz.olda.tasks.data.entity.TagEntity
 import cz.olda.tasks.data.entity.TaskEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,6 +39,7 @@ data class TaskDetailState(
     val subtasks: List<TaskEntity>,
     val lists: List<ListEntity>,
     val headings: List<HeadingEntity>,
+    val tags: List<TagEntity>,
 )
 
 /** One task: every editable field, its subtasks, completion and deletion. */
@@ -45,6 +48,7 @@ class TaskDetailViewModel(
     private val taskId: Long,
     private val taskRepository: TaskRepository,
     private val listRepository: ListRepository,
+    private val tagRepository: TagRepository,
     /** Outlives the ViewModel, so text typed just before leaving the screen is still written. */
     private val flushScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) : ViewModel() {
@@ -58,12 +62,27 @@ class TaskDetailViewModel(
         task.map { it?.listId }.distinctUntilChanged().flatMapLatest { listId ->
             if (listId == null) flowOf(emptyList()) else listRepository.observeHeadings(listId)
         },
-    ) { task, subtasks, lists, headings ->
-        TaskDetailState(loaded = true, task = task, subtasks = subtasks, lists = lists, headings = headings)
+        tagRepository.observeTagsOf(taskId),
+    ) { task, subtasks, lists, headings, tags ->
+        TaskDetailState(
+            loaded = true,
+            task = task,
+            subtasks = subtasks,
+            lists = lists,
+            headings = headings,
+            tags = tags,
+        )
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
-        TaskDetailState(loaded = false, task = null, subtasks = emptyList(), lists = emptyList(), headings = emptyList()),
+        TaskDetailState(
+            loaded = false,
+            task = null,
+            subtasks = emptyList(),
+            lists = emptyList(),
+            headings = emptyList(),
+            tags = emptyList(),
+        ),
     )
 
     // Each edit re-reads the stored task under this lock, so two quick edits (say title, then
@@ -124,6 +143,22 @@ class TaskDetailViewModel(
     fun setDueMinute(minute: Int?) = edit { it.copy(dueMinute = minute) }
 
     fun setPriority(priority: Int) = edit { it.copy(priority = priority) }
+
+    /**
+     * Throws away a repeat. Phase 2 only has to let Olda get rid of one he did not mean to type;
+     * **changing** a repeat waits for Phase 3, which builds the picker anyway.
+     */
+    fun clearRecurrence() = edit { it.copy(recurrence = null) }
+
+    fun addTag(name: String) {
+        val cleaned = name.trim().removePrefix("@")
+        if (cleaned.isBlank()) return
+        viewModelScope.launch { tagRepository.attach(taskId, listOf(cleaned)) }
+    }
+
+    fun removeTag(tagId: Long) {
+        viewModelScope.launch { tagRepository.detach(taskId, tagId) }
+    }
 
     /**
      * Ticks or unticks this task. Unticking here is a deliberate reopen, so it is setDone(false),

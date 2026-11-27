@@ -10,6 +10,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import cz.olda.tasks.R
 import cz.olda.tasks.data.AppDatabase
 import cz.olda.tasks.data.ListRepository
+import cz.olda.tasks.data.TagRepository
 import cz.olda.tasks.data.TaskRepository
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -23,6 +24,7 @@ class TaskDetailViewModelTest {
     private lateinit var db: AppDatabase
     private lateinit var repo: TaskRepository
     private lateinit var lists: ListRepository
+    private lateinit var tags: TagRepository
     private var inbox = 0L
 
     @Before fun open() = runBlocking<Unit> {
@@ -32,6 +34,7 @@ class TaskDetailViewModelTest {
             .build()
         repo = TaskRepository(db.taskDao(), Clock.systemDefaultZone())
         lists = ListRepository(db.listDao(), db.groupDao(), db.headingDao())
+        tags = TagRepository(db.tagDao())
         inbox = lists.inboxId()
     }
 
@@ -60,7 +63,7 @@ class TaskDetailViewModelTest {
 
     @Test fun typingANoteCharacterByCharacterIsOneWrite() {
         val id = runBlocking { repo.add("Task", inbox, null, null, 4) }
-        val vm = TaskDetailViewModel(id, repo, lists)
+        val vm = TaskDetailViewModel(id, repo, lists, tags)
         startCountingTaskUpdates()
         val final = "x".repeat(40)
         instrumentation.runOnMainSync { (1..40).forEach { vm.setNotes("x".repeat(it)) } }
@@ -73,7 +76,7 @@ class TaskDetailViewModelTest {
 
     @Test fun titleAndNotesTypedTogetherAreBothKept() {
         val id = runBlocking { repo.add("Old", inbox, null, null, 4) }
-        val vm = TaskDetailViewModel(id, repo, lists)
+        val vm = TaskDetailViewModel(id, repo, lists, tags)
         instrumentation.runOnMainSync {
             vm.setTitle("New title")
             vm.setNotes("New notes")
@@ -89,7 +92,7 @@ class TaskDetailViewModelTest {
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: java.lang.Class<T>): T =
-                    TaskDetailViewModel(id, repo, lists) as T
+                    TaskDetailViewModel(id, repo, lists, tags) as T
             },
         )[TaskDetailViewModel::class.java]
         instrumentation.runOnMainSync {
