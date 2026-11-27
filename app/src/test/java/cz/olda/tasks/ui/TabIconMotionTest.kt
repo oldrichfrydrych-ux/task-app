@@ -1,5 +1,6 @@
 package cz.olda.tasks.ui
 
+import cz.olda.tasks.ui.theme.AppMotion
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -131,6 +132,23 @@ class TabIconMotionTest {
         assertTrue("a page flies off past the end: $page", kotlin.math.abs(page.leavingX) <= 14f && kotlin.math.abs(page.arrivingX) <= 14f)
         assertTrue("the tray is still sunk past the end", kotlin.math.abs(trayDrop(1.2f).dipDp) <= 4f)
         (0..3).forEach { assertTrue("tile $it is the wrong size past the end", gridTilePop(1.2f, it) in 0.5f..1.2f) }
+    }
+
+    /**
+     * The gestures run slower than anything the layout uses, and that is the point rather than an
+     * oversight: on the expressive springs the tray and the tiles went by in about a fifth of a
+     * second and read as nothing happening at all.
+     */
+    @Test
+    fun theGesturesRunSlowerThanTheAppsOwnSlowestSpring() {
+        Destination.entries.forEach {
+            val gesture = tabIconSpring(it)
+            assertTrue(
+                "$it runs at ${gesture.stiffness}, which is no slower than the slow spatial spring",
+                gesture.stiffness < AppMotion.slowSpatial<Float>().stiffness,
+            )
+            assertTrue("$it would wobble at the end: ${gesture.dampingRatio}", gesture.dampingRatio >= 0.8f)
+        }
     }
 
     /** Upright, in its place, its own size - and square with where it started, for the one that turns. */

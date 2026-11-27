@@ -1,6 +1,7 @@
 package cz.olda.tasks.ui
 
 import androidx.compose.animation.core.SpringSpec
+import androidx.compose.animation.core.spring
 import cz.olda.tasks.ui.theme.AppMotion
 import kotlin.math.PI
 import kotlin.math.min
@@ -144,11 +145,20 @@ fun gridTilePop(progress: Float, tile: Int): Float {
 }
 
 /**
- * The spring each gesture runs on. The clock and the calendar get the slow one - a whole turn and
- * a page changing both need room to be read - while the tray and the tiles are quick, because
- * they are answering a finger that has already moved on.
+ * The spring every tab gesture runs on - slower and softer than any of the six expressive
+ * springs, and deliberately not one of them.
+ *
+ * Those six are for layout: something moves from A to B and speed is the courtesy, because the
+ * user is waiting for it. A gesture is the opposite - nobody waits for it, and it only exists to
+ * be read. On `fastSpatial` the tray and the tiles were over in about a fifth of a second and
+ * Olda's verdict was that they did nothing at all; on `slowSpatial` the clock and the calendar
+ * were still too quick to follow. Nothing is held up by this: the tab switches on the tap, and
+ * the icon finishes its gesture afterwards.
+ *
+ * Still spring physics, as docs/design.md asks, and still interruptible: a second tap starts it
+ * over from zero.
  */
-fun tabIconSpring(destination: Destination): SpringSpec<Float> = when (destination) {
-    Destination.Upcoming, Destination.Today -> AppMotion.slowSpatial()
-    else -> AppMotion.fastSpatial()
-}
+private val GestureSpring = spring<Float>(dampingRatio = 0.85f, stiffness = 90f)
+
+/** The spring a tab's gesture runs on. One for all four; the shape of each gesture does the rest. */
+fun tabIconSpring(destination: Destination): SpringSpec<Float> = GestureSpring
