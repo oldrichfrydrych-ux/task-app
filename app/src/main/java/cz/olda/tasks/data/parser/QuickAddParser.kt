@@ -38,4 +38,7 @@ private fun candidatesIn(
     folded: String,
     now: LocalDateTime,
     knownLists: List<String>,
-): List<Candidate> = emptyList()
+): List<Candidate> {
+    val today = now.toLocalDate()
+    return dayCandidates(folded, today) + weekdayCandidates(folded, today)
+}

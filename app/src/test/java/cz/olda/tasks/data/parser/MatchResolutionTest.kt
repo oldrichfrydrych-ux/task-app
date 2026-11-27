@@ -15,9 +15,16 @@ class MatchResolutionTest {
     private fun tag(start: Int, end: Int, name: String) =
         Candidate(start, end, TokenKind.TAG, tagName = name)
 
+    /** "ve 3. 12." — the time and the date both begin at the preposition, so the date wins. */
     @Test
-    fun longerWinsOverEarlier() {
+    fun longerWinsAtTheSameStart() {
         assertEquals(listOf(date(0, 9)), resolve(listOf(date(0, 4), date(0, 9))))
+    }
+
+    /** "dnes zitra zavolat" — today wins and "zitra" is left in the title, though it is longer. */
+    @Test
+    fun anEarlierPhraseBeatsALaterLongerOne() {
+        assertEquals(listOf(date(0, 4)), resolve(listOf(date(0, 4), date(5, 15))))
     }
 
     @Test

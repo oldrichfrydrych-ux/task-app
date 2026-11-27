@@ -4,13 +4,15 @@ private val whitespaceRun = Regex("\\s+")
 private val spaceBeforePunctuation = Regex(" +([,.!?])")
 
 /**
- * Picks the winners out of everything the pattern families offered: **longest first, then
- * leftmost**. A candidate is accepted when it overlaps nothing already accepted and every
- * field it claims is still free.
+ * Picks the winners out of everything the pattern families offered: **leftmost first, and the
+ * longest of the ones that start together**. A candidate is accepted when it overlaps nothing
+ * already accepted and every field it claims is still free.
  *
- * Longest-first is what makes "ve 3. 12." one date rather than the time "ve 3" plus an orphan
- * "12.". Leftmost-at-equal-length means the first thing Olda typed wins, so the words of the
- * loser stay visible in the title instead of a coin toss deciding his date.
+ * Leftmost-first is "the first thing Olda typed wins": in "dnes zitra zavolat" the date is
+ * today and the word "zitra" stays visible in the title, rather than the longer word quietly
+ * winning. Longest-at-the-same-start is what makes "ve 3. 12." one date rather than the time
+ * "ve 3" plus an orphaned "12." — the two candidates for an absorbed preposition always begin
+ * at the same character.
  *
  * The result comes back in reading order, so tokens and tag names follow the line.
  */
@@ -18,7 +20,7 @@ internal fun resolve(candidates: List<Candidate>): List<Candidate> {
     val accepted = mutableListOf<Candidate>()
     val taken = mutableSetOf<Field>()
     candidates
-        .sortedWith(compareByDescending<Candidate> { it.length }.thenBy { it.start })
+        .sortedWith(compareBy<Candidate> { it.start }.thenByDescending { it.length })
         .forEach { candidate ->
             // Tags accumulate; every other kind holds one value.
             val claimed = candidate.fields - Field.TAG
