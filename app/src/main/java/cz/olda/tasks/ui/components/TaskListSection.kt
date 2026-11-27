@@ -116,9 +116,11 @@ fun TaskListSection(
     val measurer = rememberTextMeasurer()
     val timeStyle = MaterialTheme.typography.labelLarge
     val density = LocalDensity.current
-    val timeTexts = rows.map { rowTimeText(it.item.task, showDate) }
-    val timeColumn = remember(timeTexts, timeStyle, density) {
-        val widest = timeTexts.filterNotNull()
+    // Both of a row's lines count: the day and the time of day sit one above the other, so the
+    // column has to hold whichever of them is wider.
+    val timeLines = rows.flatMap { rowTime(it.item.task, showDate).lines }
+    val timeColumn = remember(timeLines, timeStyle, density) {
+        val widest = timeLines
             .maxOfOrNull { measurer.measure(it, timeStyle, softWrap = false).size.width }
             ?: 0
         if (widest > 0) with(density) { widest.toDp() } else null

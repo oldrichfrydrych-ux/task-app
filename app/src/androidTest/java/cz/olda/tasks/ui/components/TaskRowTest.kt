@@ -36,7 +36,6 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
-import androidx.compose.ui.unit.width
 import androidx.test.platform.app.InstrumentationRegistry
 import cz.olda.tasks.data.TaskWithList
 import cz.olda.tasks.data.entity.TaskEntity
@@ -227,13 +226,19 @@ class TaskRowTest {
         val bigHeight = rowBounds.height
 
         val titleLayout = tag("task-title-7").textLayout()
-        val time = tag("task-time-7").textLayout()
+        // The slot holds one line each for the day and the time of day, so they are checked apart.
+        val time = tag("task-clock-7").textLayout()
         val list = tag("task-list-7").textLayout()
         assertFalse("title clipped or ellipsized", clipped(titleLayout))
         assertTrue("title within 2 lines, was ${titleLayout.lineCount}", titleLayout.lineCount <= 2)
         if (singleWord) assertEquals("a single word must not break mid-word", 1, titleLayout.lineCount)
         assertFalse("time clipped", clipped(time, singleLine = true))
         assertEquals("time on one line", 1, time.lineCount)
+        if (showDate) {
+            val day = tag("task-day-7").textLayout()
+            assertFalse("day clipped", clipped(day, singleLine = true))
+            assertEquals("day on one line", 1, day.lineCount)
+        }
         assertFalse("list name clipped", clipped(list, singleLine = true))
         assertEquals("list name on one line", 1, list.lineCount)
 
@@ -281,8 +286,14 @@ class TaskRowTest {
         "zkontrolovat", singleWord = true, widthDp = 320, bigScale = 1f, listName = "Household chores", showDate = true,
     )
 
-    private fun timeText(): String =
-        tag("task-time-7").fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.Text].joinToString("") { it.text }
+    /** The day and the time of day are their own lines now, so read them as one string. */
+    private fun timeText(): String = listOf("task-day-7", "task-clock-7")
+        .filter { rule.onAllNodesWithTag(it, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty() }
+        .joinToString(" ") { line ->
+            tag(line).fetchSemanticsNode()
+                .config[androidx.compose.ui.semantics.SemanticsProperties.Text]
+                .joinToString("") { it.text }
+        }
 
     @Test
     fun theDueDayShowsOnlyWhenAsked() {
@@ -309,12 +320,16 @@ class TaskRowTest {
         rule.onNodeWithTag("task-list-7").assertDoesNotExist()
     }
 
-    /** With the name gone, the title gets that width rather than wrapping for no reason. */
+    /**
+     * With the name gone, the title gets that width. The title here is deliberately short: a long
+     * one would send the row into the stacked layout, where the title spans the whole row anyway
+     * and the comparison would be between two different layouts rather than about the width.
+     */
     @Test
     fun droppingTheListNameLeavesTheTitleMoreRoom() {
         var withName by mutableStateOf(true)
         val longName = sample.copy(
-            task = sample.task.copy(title = "Zkontrolovat fakturu od dodavatele"),
+            task = sample.task.copy(title = "Faktura"),
             listName = "Household chores",
         )
         rule.setContent {
@@ -451,14 +466,27 @@ class TaskRowTest {
                 TaskListSection(null, listOf(undated, timed), {}, {}, showDate = true)
             }
         }
-        // The control: the two date texts really are different widths.
-        val shortDate = tag("task-time-1").getBoundsInRoot().width
-        val longDate = tag("task-time-2").getBoundsInRoot().width
-        assertTrue("the dates are the same width, nothing to line up: $shortDate", longDate > shortDate)
+        // The control: one row really does have a time of day and the other does not, so their
+        // slots hold different things.
+        rule.onNodeWithTag("task-clock-2", useUnmergedTree = true).assertIsDisplayed()
+        rule.onNodeWithTag("task-clock-1", useUnmergedTree = true).assertDoesNotExist()
         assertEquals(
             tag("task-title-1").getBoundsInRoot().left,
             tag("task-title-2").getBoundsInRoot().left,
         )
+    }
+
+    /**
+     * The day over the time of day, not "4 Oct 2024 19:30" on one line: two short lines make the
+     * column as wide as the wider of them, and the title gets the rest.
+     */
+    @Test
+    fun theDayAndTheTimeOfDayAreOnSeparateLines() {
+        rule.setContent { AppTheme { TaskRow(sample, {}, {}, showDate = true) } }
+        val day = tag("task-day-7").getBoundsInRoot()
+        val clock = tag("task-clock-7").getBoundsInRoot()
+        assertEquals("they start in the same place", day.left, clock.left)
+        assertTrue("the time of day must sit under the day: $day, $clock", clock.top >= day.bottom)
     }
 
     @Test
