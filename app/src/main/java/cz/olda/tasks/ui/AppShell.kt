@@ -3,6 +3,7 @@ package cz.olda.tasks.ui
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
@@ -44,6 +45,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -411,11 +413,24 @@ private fun TabItem(
         animationSpec = AppMotion.fastSpatial(),
         label = "tab-pulse",
     )
+
+    // Every tap sets this tab's own gesture going - a tap on the tab you are already on included,
+    // because the icon answering the finger is the point of it, not the navigation. Counted
+    // rather than flagged, so two taps in a row are two gestures and the second one starts over.
+    var taps by remember { mutableIntStateOf(0) }
+    val kick = remember { Animatable(0f) }
+    LaunchedEffect(taps) {
+        if (taps > 0) {
+            kick.snapTo(0f)
+            kick.animateTo(1f, tabIconSpring(destination))
+        }
+    }
+    val tap = if (animate) tabIconTransform(destination, kick.value) else IconTransform()
     Column(
         // No background of its own: TabStrip draws one pill behind whichever tab is selected.
         modifier = modifier
             .clip(CircleShape)
-            .selectable(selected = selected, role = Role.Tab, onClick = onClick)
+            .selectable(selected = selected, role = Role.Tab, onClick = { taps++; onClick() })
             .heightIn(min = TouchTarget)
             .padding(vertical = 6.dp, horizontal = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -425,7 +440,20 @@ private fun TabItem(
             imageVector = destination.icon,
             contentDescription = null,
             tint = content,
-            modifier = Modifier.size(20.dp).graphicsLayer { scaleX = swell; scaleY = swell },
+            modifier = Modifier
+                .size(20.dp)
+                .graphicsLayer {
+                    // The arrival swell and the tap gesture are different things happening to
+                    // the same icon, so the scales multiply rather than one winning.
+                    scaleX = swell * tap.scaleX
+                    scaleY = swell * tap.scaleY
+                    rotationX = tap.rotationX
+                    rotationZ = tap.rotationZ
+                    translationY = tap.translationYDp.dp.toPx()
+                    // Far enough away that a 20dp icon leaning over reads as a page turning
+                    // rather than as something being crushed.
+                    cameraDistance = 16f * density
+                },
         )
         AnimatedVisibility(
             visible = !slimmed,

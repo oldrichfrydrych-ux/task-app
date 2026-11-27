@@ -31,7 +31,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import cz.olda.tasks.data.TaskWithList
@@ -43,6 +42,12 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Locale
+
+/**
+ * The narrowest title column worth keeping a row on the rail, at the phone's own text size.
+ * Below it the title drops under the row instead, where it has the whole width.
+ */
+private val MinTitleColumn = 96.dp
 
 /** The priority dash at a row's leading edge: as tall as the ring it sits beside, and no taller. */
 private val PriorityMarkWidth = 3.dp
@@ -195,19 +200,14 @@ fun TaskRow(
             val fixed = with(density) { (4 + 48 + 12).dp.roundToPx() } + listGap + timeWidth + listWidth
             val width = with(density) { maxWidth.roundToPx() }
             val available = width - fixed
-            // The longest word fitting is not the same as the title fitting: a two-line title can
-            // still need a third line in a narrow column, and then it is ellipsized. Measuring it
-            // capped at two lines in the width it would actually get answers that properly, and it
-            // is what the stacked layout is for.
-            val titleFits = available > 0 && !measurer.measure(
-                text = task.title,
-                style = titleStyle,
-                overflow = TextOverflow.Ellipsis,
-                maxLines = 2,
-                constraints = Constraints(maxWidth = available),
-            ).hasVisualOverflow
+            // The longest word fitting is not enough on its own: a short word leaves a column of
+            // three characters looking like it passed. A title longer than two lines is
+            // ellipsized by design and that is fine - what is not fine is a column too narrow to
+            // read, so there is a floor, and it scales with the text size because what matters is
+            // how much of the title you can see rather than how many dp it takes.
+            val minTitleColumn = with(density) { (MinTitleColumn * fontScale).roundToPx() }
             when {
-                available >= longestWord && titleFits -> RowLayout.Rail
+                available >= longestWord && available >= minTitleColumn -> RowLayout.Rail
                 !rowTime.isEmpty &&
                     timeMeasured + gap + listMeasured > width - with(density) { (4 + 48 + 12).dp.roundToPx() } ->
                     RowLayout.StackedSplit

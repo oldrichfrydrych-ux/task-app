@@ -189,6 +189,7 @@ Olda wants cool, intuitive animations in this app and in the companion calendar;
 - **Dragging:** a task dragged to another day or into a free slot in the Day view lifts with a shadow, the other items make room, and it snaps in with a light haptic tick.
 - **List ↔ Day:** switching views morphs each task row into its time block instead of cutting between screens.
 - **Bottom bar:** the selected-tab pill slides between tabs; the bar slims down while you scroll down and comes back when you scroll up.
+- **Tab icons:** tapping a tab makes its icon do the thing the icon draws — the clock's face sweeps a whole turn, the tray dips as something lands in it, the calendar turns a page, the list's rows squash together and spring apart. Every tap, including one on the tab you are already on. Material 3 Expressive asks for spring physics and for things that answer a touch; the four gestures themselves are ours.
 - **The phone's setting wins:** with Android's "Remove animations" on, everything still works, with simple fades.
 
 ### Colours: presets plus any hex code
