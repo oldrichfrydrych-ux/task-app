@@ -16,6 +16,11 @@ class AppIconsTest {
         "Inbox" to AppIcons.Inbox,
         "Lists" to AppIcons.Lists,
         "Add" to AppIcons.Add,
+        "CalendarFrame" to AppIcons.CalendarFrame,
+        "CalendarDots" to AppIcons.CalendarDots,
+        "ListRowTop" to AppIcons.ListRowTop,
+        "ListRowMiddle" to AppIcons.ListRowMiddle,
+        "ListRowBottom" to AppIcons.ListRowBottom,
         "Check" to AppIcons.Check,
         "Chevron" to AppIcons.Chevron,
     )

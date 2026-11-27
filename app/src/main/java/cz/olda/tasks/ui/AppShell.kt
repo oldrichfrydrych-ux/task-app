@@ -425,7 +425,6 @@ private fun TabItem(
             kick.animateTo(1f, tabIconSpring(destination))
         }
     }
-    val tap = if (animate) tabIconTransform(destination, kick.value) else IconTransform()
     Column(
         // No background of its own: TabStrip draws one pill behind whichever tab is selected.
         modifier = modifier
@@ -436,24 +435,13 @@ private fun TabItem(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(
-            imageVector = destination.icon,
-            contentDescription = null,
+        TabIcon(
+            destination = destination,
+            // The tap gesture lives inside the icon, which is where the parts that mean
+            // something are; the arrival swell is the whole icon and stays out here.
+            progress = if (animate) kick.value else 0f,
             tint = content,
-            modifier = Modifier
-                .size(20.dp)
-                .graphicsLayer {
-                    // The arrival swell and the tap gesture are different things happening to
-                    // the same icon, so the scales multiply rather than one winning.
-                    scaleX = swell * tap.scaleX
-                    scaleY = swell * tap.scaleY
-                    rotationX = tap.rotationX
-                    rotationZ = tap.rotationZ
-                    translationY = tap.translationYDp.dp.toPx()
-                    // Far enough away that a 20dp icon leaning over reads as a page turning
-                    // rather than as something being crushed.
-                    cameraDistance = 16f * density
-                },
+            modifier = Modifier.graphicsLayer { scaleX = swell; scaleY = swell },
         )
         AnimatedVisibility(
             visible = !slimmed,
