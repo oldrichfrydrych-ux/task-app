@@ -135,6 +135,9 @@ class QuickAddSheetTest {
         return LocalDate.now().withDayOfMonth(day)
     }
 
+    /** performTextInput sets the field directly, so it does not go through his own keyboard. */
+    private fun type(text: String) = rule.onNodeWithTag("quick-add-field").performTextInput(text)
+
     private fun fieldText() =
         rule.onNodeWithTag("quick-add-field").fetchSemanticsNode().config[SemanticsProperties.EditableText].text
 
@@ -345,5 +348,61 @@ class QuickAddSheetTest {
         assertEquals("Never mind", fieldText())
         rule.onNodeWithTag("chip-list").assertTextContains("Work")
         rule.onNodeWithTag("chip-priority").assert(!hasText("None", substring = true))
+    }
+
+    // ---- Phase 2: the chips the parser fills in ----
+
+    /** Typing a time shows it; "ve 3" is three in the afternoon. */
+    @Test fun theTimeChipShowsAParsedTime() {
+        show()
+        type("zitra ve 3 zavolat")
+        rule.onNodeWithTag("chip-time").assertTextContains("15:00")
+    }
+
+    @Test fun theTimeChipOpensThePickerAndPinsWhatYouChoose() {
+        show()
+        type("zitra ve 3 zavolat")
+        rule.onNodeWithTag("chip-time").performClick()
+        waitForTag("quick-add-time-save")
+        rule.onNodeWithTag("quick-add-time-save").performClick()
+        waitGone("quick-add-time-save")
+        // Typing on does not undo the pick: the chip keeps the time the picker confirmed.
+        type(" Petrovi")
+        rule.onNodeWithTag("chip-time").assertTextContains("15:00")
+    }
+
+    @Test fun theRepeatChipAppearsOnlyWhenThereIsARepeat() {
+        show()
+        type("zavolat")
+        rule.onAllNodes(hasTestTag("chip-repeat")).assertCountEquals(0)
+        type(" kazdy den")
+        waitForTag("chip-repeat")
+    }
+
+    /** His own spelling, not the stored rule: the chip echoes what he typed. */
+    @Test fun theRepeatChipEchoesWhatWasTyped() {
+        show()
+        type("kazdy den cvicit")
+        waitForTag("chip-repeat")
+        rule.onNodeWithTag("chip-repeat").assertTextContains("kazdy den", substring = true)
+    }
+
+    @Test fun tappingTheRepeatChipClearsIt() {
+        show()
+        type("kazdy den cvicit")
+        waitForTag("chip-repeat")
+        rule.onNodeWithTag("chip-repeat").performClick()
+        waitGone("chip-repeat")
+        rule.onNodeWithTag("quick-add-save").performClick()
+        rule.waitUntil(timeoutMillis = 30_000) { allTasks().isNotEmpty() }
+        assertNull(allTasks().single().recurrence)
+    }
+
+    @Test fun aTagChipAppearsPerTag() {
+        show()
+        type("zavolat @telefon @rychle")
+        waitForTag("chip-tag-telefon")
+        waitForTag("chip-tag-rychle")
+        rule.onNodeWithTag("chip-tag-telefon").assertTextContains("@telefon")
     }
 }

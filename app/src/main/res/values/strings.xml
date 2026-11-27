@@ -13,6 +13,8 @@
     <string name="chip_priority_value">Priority: %1$s</string>
     <string name="quick_add_choose_list">Choose a list</string>
     <string name="quick_add_choose_priority">Choose a priority</string>
+    <!-- The repeat chip echoes the words that were typed, so %1$s is the person's own wording. -->
+    <string name="chip_repeat_value">↺ %1$s</string>
 
     <!-- Task rows and sections -->
     <string name="complete_task">Complete task</string>

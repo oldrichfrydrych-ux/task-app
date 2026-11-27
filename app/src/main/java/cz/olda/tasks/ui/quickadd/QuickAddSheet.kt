@@ -20,6 +20,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.LaunchedEffect
@@ -35,11 +37,13 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import android.text.format.DateFormat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cz.olda.tasks.R
@@ -52,7 +56,7 @@ import java.time.LocalDate
 private const val MILLIS_PER_DAY = 86_400_000L
 
 /** Which picker is open. Saved, so a rotation does not close it. */
-private enum class Picker { None, Date, List, Priority }
+private enum class Picker { None, Date, Time, List, Priority }
 
 /** One line of text, plus a date, list and priority, becomes a task. Phase 2 teaches it Czech and English dates. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -140,8 +144,10 @@ fun QuickAddSheet(
             QuickAddChips(
                 state = state,
                 onPickDate = { picker = Picker.Date },
+                onPickTime = { picker = Picker.Time },
                 onPickList = { picker = Picker.List },
                 onPickPriority = { picker = Picker.Priority },
+                onClearRepeat = viewModel::clearRecurrence,
             )
         }
         LaunchedEffect(Unit) { focusRequester.requestFocus() }
@@ -152,6 +158,11 @@ fun QuickAddSheet(
         Picker.Date -> DatePickerSheetDialog(
             current = state.dueDate,
             onPick = { viewModel.setDate(it); picker = Picker.None },
+            onDismiss = { picker = Picker.None },
+        )
+        Picker.Time -> TimePickerSheetDialog(
+            current = state.dueMinute,
+            onPick = { viewModel.setMinute(it); picker = Picker.None },
             onDismiss = { picker = Picker.None },
         )
         Picker.List -> ChoiceDialog(
@@ -234,6 +245,32 @@ private fun ChoiceDialog(
             }
         },
         confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
+    )
+}
+
+/**
+ * The same time picker task detail uses, with quick-add's own test tags. Clearing is left out:
+ * in quick-add the time comes from what was typed, and deleting the words clears it.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TimePickerSheetDialog(current: Int?, onPick: (Int?) -> Unit, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val pickerState = rememberTimePickerState(
+        initialHour = (current ?: (9 * 60)) / 60,
+        initialMinute = (current ?: (9 * 60)) % 60,
+        is24Hour = DateFormat.is24HourFormat(context),
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        text = { TimePicker(state = pickerState) },
+        confirmButton = {
+            TextButton(
+                onClick = { onPick(pickerState.hour * 60 + pickerState.minute) },
+                modifier = Modifier.testTag("quick-add-time-save"),
+            ) { Text(stringResource(R.string.save)) }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
