@@ -4,6 +4,7 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,14 +22,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -49,6 +53,10 @@ import cz.olda.tasks.ui.theme.toHex
 private val LightCard = TextBackgroundLight
 private val DarkCard = TextBackgroundDark
 
+/** A swatch is its own touch target, so it is a full one. */
+private val SwatchSize = 48.dp
+private val SwatchGap = 12.dp
+
 /**
  * Picks a list colour: the 12 presets plus a custom `#RRGGBB` field. [onPick] is called only with
  * a valid colour, as uppercase `#RRGGBB`; a badly typed hex shows an error and reports nothing.
@@ -68,10 +76,17 @@ fun ColorPicker(selected: String, onPick: (String) -> Unit, modifier: Modifier =
     val lowContrast = typed != null && !(isReadableAsText(typed, false) && isReadableAsText(typed, true))
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        FlowRow(
-            modifier = Modifier.selectableGroup(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        // One row that scrolls sideways, not three rows that stack. Wrapped, the twelve presets
+        // were 200dp of the sheet, which pushed the group picker and the Save button off the
+        // bottom of the phone - and with the keyboard up, off it twice over. Sideways they cost
+        // one row, and the sheet fits.
+        val swatches = rememberScrollState()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(swatches)
+                .selectableGroup(),
+            horizontalArrangement = Arrangement.spacedBy(SwatchGap),
         ) {
             ListPalette.forEach { entry ->
                 val hex = entry.light.toHex()
@@ -79,6 +94,15 @@ fun ColorPicker(selected: String, onPick: (String) -> Unit, modifier: Modifier =
                     text = hex
                     onPick(hex)
                 }
+            }
+        }
+        // A list already in one of the colours further along the row opens with it in view, not
+        // with the row parked at Blue and the chosen one somewhere off to the right.
+        val selectedIndex = ListPalette.indexOfFirst { it.light.toHex() == shown?.toHex() }
+        val density = LocalDensity.current
+        LaunchedEffect(Unit) {
+            if (selectedIndex > 0) {
+                swatches.scrollTo(with(density) { ((SwatchSize + SwatchGap) * selectedIndex).roundToPx() })
             }
         }
         OutlinedTextField(
@@ -128,7 +152,7 @@ private fun Swatch(entry: ListColor, selected: Boolean, onClick: () -> Unit) {
     }
     Box(
         modifier = Modifier
-            .size(48.dp)
+            .size(SwatchSize)
             .clip(CircleShape)
             .background(entry.light)
             .then(ring)

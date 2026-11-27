@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -54,7 +55,7 @@ class ColorPickerTest {
     fun pickingAPresetReportsItsHex() {
         show()
         val orange = ListPalette[1].light.toHex()
-        rule.onNodeWithTag("swatch-$orange").performClick()
+        rule.onNodeWithTag("swatch-$orange").performScrollTo().performClick()
         assertEquals(listOf(orange), picked)
     }
 
@@ -96,7 +97,7 @@ class ColorPickerTest {
         show()
         for (preset in ListPalette) {
             val hex = preset.light.toHex()
-            rule.onNodeWithTag("swatch-$hex").performClick()
+            rule.onNodeWithTag("swatch-$hex").performScrollTo().performClick()
             rule.waitForIdle()
             assertTrue("$hex must not warn", !exists("contrast-warning"))
         }
