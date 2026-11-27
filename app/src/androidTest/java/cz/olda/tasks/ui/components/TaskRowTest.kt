@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
+import androidx.compose.ui.unit.width
 import androidx.test.platform.app.InstrumentationRegistry
 import cz.olda.tasks.data.TaskWithList
 import cz.olda.tasks.data.entity.TaskEntity
@@ -432,6 +433,32 @@ class TaskRowTest {
         assertEquals(2L, toggled)
         rule.onNodeWithText("First").performClick()
         assertEquals(1L, clicked)
+    }
+
+    /**
+     * One date is "4 Oct 2024" and the next "4 Oct 2024 19:30", so left to themselves the two
+     * titles would start in different places and the list would read as ragged. The section gives
+     * every row the same date column.
+     */
+    @Test
+    fun titlesLineUpWhenTheirDatesAreDifferentWidths() {
+        val undated = item(1, "No time of day").let { it.copy(task = it.task.copy(dueMinute = null)) }
+        val timed = item(2, "Half past seven").let {
+            it.copy(task = it.task.copy(dueMinute = 19 * 60 + 30))
+        }
+        rule.setContent {
+            AppTheme {
+                TaskListSection(null, listOf(undated, timed), {}, {}, showDate = true)
+            }
+        }
+        // The control: the two date texts really are different widths.
+        val shortDate = tag("task-time-1").getBoundsInRoot().width
+        val longDate = tag("task-time-2").getBoundsInRoot().width
+        assertTrue("the dates are the same width, nothing to line up: $shortDate", longDate > shortDate)
+        assertEquals(
+            tag("task-title-1").getBoundsInRoot().left,
+            tag("task-title-2").getBoundsInRoot().left,
+        )
     }
 
     @Test

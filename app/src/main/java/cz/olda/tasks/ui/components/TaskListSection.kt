@@ -20,6 +20,9 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import cz.olda.tasks.data.TaskWithList
 import cz.olda.tasks.ui.theme.AppMotion
@@ -107,6 +110,20 @@ fun TaskListSection(
         }
     }
 
+    // One date column for the whole section, as wide as its widest date, so the titles start in
+    // the same place instead of stepping in and out with the length of each row's date. A row
+    // cannot work this out by itself: what decides it is what its neighbours say.
+    val measurer = rememberTextMeasurer()
+    val timeStyle = MaterialTheme.typography.labelLarge
+    val density = LocalDensity.current
+    val timeTexts = rows.map { rowTimeText(it.item.task, showDate) }
+    val timeColumn = remember(timeTexts, timeStyle, density) {
+        val widest = timeTexts.filterNotNull()
+            .maxOfOrNull { measurer.measure(it, timeStyle, softWrap = false).size.width }
+            ?: 0
+        if (widest > 0) with(density) { widest.toDp() } else null
+    }
+
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (title != null) {
             Text(
@@ -126,6 +143,7 @@ fun TaskListSection(
                     entering = animate && !isFolding && id !in memory.firstLoad,
                     showDate = showDate,
                     showList = showList,
+                    timeColumn = timeColumn,
                     onToggleDone = { if (!isFolding) onToggleDone(id) },
                     onClick = { if (!isFolding) onClick(id) },
                     onGone = {
@@ -148,6 +166,7 @@ private fun FoldingRow(
     entering: Boolean,
     showDate: Boolean,
     showList: Boolean,
+    timeColumn: Dp?,
     onToggleDone: () -> Unit,
     onClick: () -> Unit,
     onGone: () -> Unit,
@@ -179,6 +198,7 @@ private fun FoldingRow(
             onClick = onClick,
             showDate = showDate,
             showList = showList,
+            timeColumn = timeColumn,
             showAsDone = folding,
         )
     }

@@ -31,8 +31,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import cz.olda.tasks.data.TaskWithList
+import cz.olda.tasks.data.entity.TaskEntity
 import cz.olda.tasks.ui.theme.ListPalette
 import cz.olda.tasks.ui.theme.parseHex
 import cz.olda.tasks.ui.theme.textShade
@@ -64,6 +66,11 @@ private val PriorityMarkHeight = 18.dp
  * There the name is noise holding width the title needs. Search keeps it: that is where it tells
  * you something.
  *
+ * [timeColumn] fixes the width of the left slot so a whole section's titles start in the same
+ * place, which a row cannot work out alone - its neighbours' dates are what decide it. The
+ * section measures them and hands the width down; a row given one reserves it even when it has
+ * no time of its own, which is the point.
+ *
  * A [TaskWithList.listColorHex] that cannot be parsed falls back to the theme's secondary text
  * colour rather than crashing.
  */
@@ -76,6 +83,7 @@ fun TaskRow(
     showDate: Boolean = false,
     showList: Boolean = true,
     showAsDone: Boolean = false,
+    timeColumn: Dp? = null,
 ) {
     val task = item.task
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -84,10 +92,8 @@ fun TaskRow(
         ?: MaterialTheme.colorScheme.onSurfaceVariant
     // The ring is a graphic, not text, so it keeps the list's raw colour; only text needs a shade.
     val ringColor = parseHex(item.listColorHex) ?: MaterialTheme.colorScheme.onSurfaceVariant
-    val clock = task.dueMinute?.let { formatMinuteOfDay(it) }
-    val dayText = if (showDate) task.dueDate?.let { formatDueDay(it, weekday = false) } else null
     // Date and time share the rail's left slot, so the width maths below covers both.
-    val timeText = listOfNotNull(dayText, clock).joinToString(" ").ifEmpty { null }
+    val timeText = rowTimeText(task, showDate)
     val priorityColor = priorityBarColor(task.priority, darkTheme)
 
     // A row that is folding away has already been written as done, but the copy still being
@@ -149,15 +155,17 @@ fun TaskRow(
         // Stack when the rail would leave the title column narrower than its longest word, which
         // cannot wrap and would otherwise break mid-word. Depends on width and font scale alike.
         // Stacked, time and list name share one line when both fit on it, else one line each.
-        val layout = remember(maxWidth, item, timeText, showList, density) {
+        val layout = remember(maxWidth, item, timeText, showList, timeColumn, density) {
             val longestWord = task.title.split(Regex("[ ]+")).maxOf {
                 measurer.measure(it, titleStyle).size.width
             }
             val gap = with(density) { 10.dp.roundToPx() }
-            val timeMeasured = timeText?.let {
-                measurer.measure(it, typography.labelLarge, softWrap = false).size.width
-            } ?: 0
-            val timeWidth = if (timeText != null) timeMeasured + gap else 0
+            // A section's column, when it set one: the row is held to it whether its own date is
+            // that wide or not, so measuring this row's own text would be the wrong number.
+            val timeMeasured = timeColumn?.let { with(density) { it.roundToPx() } }
+                ?: timeText?.let { measurer.measure(it, typography.labelLarge, softWrap = false).size.width }
+                ?: 0
+            val timeWidth = if (timeMeasured > 0) timeMeasured + gap else 0
             // A row without its list name has that width, and the gap before it, back for the title.
             val listMeasured = if (showList) {
                 measurer.measure(item.listName, typography.labelMedium, softWrap = false).size.width
@@ -210,7 +218,12 @@ fun TaskRow(
                         }
                     }
                 } else {
-                    if (timeText != null) {
+                    if (timeColumn != null) {
+                        // Held open even for a row with no time of its own, so its title starts
+                        // where its neighbours' do.
+                        Box(modifier = Modifier.width(timeColumn)) { time() }
+                        Spacer(Modifier.width(10.dp))
+                    } else if (timeText != null) {
                         time()
                         Spacer(Modifier.width(10.dp))
                     }
@@ -242,6 +255,18 @@ fun TaskRow(
             }
         }
     }
+}
+
+/**
+ * What goes in a row's left slot: the due day (with [showDate]) then the time of day, either of
+ * which may be missing. Shared with [TaskListSection], which measures every row's text to give a
+ * whole section one column width - so the two must build the string the same way.
+ */
+@Composable
+internal fun rowTimeText(task: TaskEntity, showDate: Boolean): String? {
+    val clock = task.dueMinute?.let { formatMinuteOfDay(it) }
+    val dayText = if (showDate) task.dueDate?.let { formatDueDay(it, weekday = false) } else null
+    return listOfNotNull(dayText, clock).joinToString(" ").ifEmpty { null }
 }
 
 /** Priority 1 to 3 are Red, Orange and Blue (docs/design.md, Colours); 4 has no colour. */
