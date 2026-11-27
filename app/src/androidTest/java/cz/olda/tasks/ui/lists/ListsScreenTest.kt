@@ -128,6 +128,19 @@ class ListsScreenTest {
         count(hasText(text)) > 0
     }
 
+    /**
+     * Waits for a node to be there before touching it.
+     *
+     * Scrolling the sheet's content leaves the sheet settling for a frame or two - it is sized
+     * around that content, and the keyboard is moving as well - and in that moment the pinned
+     * buttons underneath can be absent from the tree. One `waitForIdle`, which every action does
+     * for itself, was not always enough: the class failed about one run in two on whichever test
+     * clicked Save straight after a scroll.
+     */
+    private fun awaitTag(tag: String) = rule.waitUntil(timeoutMillis = 10_000) {
+        count(hasTestTag(tag)) == 1
+    }
+
     @Test fun listsHasAHeaderWithSearchBesideIt() {
         show()
         rule.onNodeWithTag("lists-header").assertTextEquals("Lists")
@@ -226,10 +239,12 @@ class ListsScreenTest {
     }
 
     /**
-     * Scrolled to, not just clicked. Once a group exists the sheet grows by a label and a row per
-     * group, which pushes the picker and the Save button off the bottom of the phone - and a
-     * click on a node that is off screen lands nowhere, silently. That is what made this test
-     * look for years like "creating a list in a group is broken" when the app does it fine.
+     * The picker is scrolled to, not just clicked. Once a group exists the sheet grows by a label
+     * and a row per group and the picker goes off the bottom of the phone - and a click on a node
+     * that is off screen lands nowhere, silently, which is what made this test look like
+     * "creating a list in a group is broken" when the app does it fine.
+     *
+     * Save is scrolled to as well: it sits at the end of the same scrolling content.
      */
     @Test fun aNewListCanGoIntoAGroup() {
         runBlocking { lists.createGroup("Home") }
@@ -238,6 +253,8 @@ class ListsScreenTest {
         rule.onNodeWithTag("new-list").performClick()
         rule.onNodeWithTag("list-name-field").performTextInput("Boiler")
         rule.onNodeWithTag("list-group-option-$gid").performScrollTo().performClick()
+        rule.onNodeWithTag("list-name-field").assertExists("the sheet closed when the group was picked")
+        awaitTag("list-save")
         rule.onNodeWithTag("list-save").performScrollTo().performClick()
         awaitRow("Boiler")
         assertEquals(gid, runBlocking { lists.observeLists().first().single { it.name == "Boiler" }.groupId })
@@ -286,6 +303,7 @@ class ListsScreenTest {
         // Scrolled to for the same reason as in aNewListCanGoIntoAGroup: with a group in the
         // sheet, these two sit below the bottom of the screen.
         rule.onNodeWithTag("list-group-option-$gid").performScrollTo().performClick()
+        awaitTag("list-save")
         rule.onNodeWithTag("list-save").performScrollTo().performClick()
         awaitSheetClosed("list-name-field")
         rule.waitUntil(timeoutMillis = 10_000) {
@@ -293,6 +311,7 @@ class ListsScreenTest {
         }
         rule.onNodeWithTag("list-edit-$id").performClick()
         rule.onNodeWithTag("list-group-option-none").performScrollTo().performClick()
+        awaitTag("list-save")
         rule.onNodeWithTag("list-save").performScrollTo().performClick()
         awaitSheetClosed("list-name-field")
         rule.waitUntil(timeoutMillis = 10_000) {
