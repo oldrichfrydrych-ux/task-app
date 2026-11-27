@@ -71,7 +71,8 @@ internal class FakeTaskDao(
     override suspend fun insert(task: TaskEntity): Long = TODO()
     override suspend fun updateEditable(
         id: Long, title: String, titleNormalised: String, notes: String, notesNormalised: String,
-        listId: Long, headingId: Long?, dueDate: Long?, dueMinute: Int?, priority: Int, now: Long,
+        listId: Long, headingId: Long?, dueDate: Long?, dueMinute: Int?, priority: Int,
+        recurrence: String?, now: Long,
     ): Unit = TODO()
     override suspend fun followParent(parentId: Long, now: Long): Unit = TODO()
     override suspend fun markDone(id: Long, done: Boolean, completedAt: Long?, now: Long): Unit = TODO()

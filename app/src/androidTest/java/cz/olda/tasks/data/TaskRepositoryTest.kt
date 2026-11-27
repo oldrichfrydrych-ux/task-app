@@ -318,6 +318,18 @@ class TaskRepositoryTest {
         assertTrue(repo.observeDots(today.minusDays(2), today.plusDays(6)).first().isEmpty())
     }
 
+    /**
+     * A repeat has to be removable, or a mistyped "kazdy den" could only be undone by deleting
+     * the task. `updateEditableAndFollow` writes a fixed set of columns, so `recurrence` has to
+     * be one of them.
+     */
+    @Test fun addStoresARepeatAndUpdateCanClearIt() = runBlocking {
+        val id = repo.add("cvicit", inbox, today, 8 * 60, 4, recurrence = "FREQ=DAILY")
+        assertEquals("FREQ=DAILY", repo.getTask(id)!!.recurrence)
+        repo.update(repo.getTask(id)!!.copy(recurrence = null))
+        assertNull(repo.getTask(id)!!.recurrence)
+    }
+
     @Test fun searchTreatsPercentAndUnderscoreLiterally() = runBlocking {
         val percent = add("100% sure")
         val underscore = add("a_b")

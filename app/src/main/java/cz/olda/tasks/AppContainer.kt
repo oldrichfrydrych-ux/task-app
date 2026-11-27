@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import cz.olda.tasks.data.AppDatabase
 import cz.olda.tasks.data.ListRepository
+import cz.olda.tasks.data.MIGRATION_1_2
 import cz.olda.tasks.data.TaskRepository
 import java.time.Clock
 
@@ -14,6 +15,8 @@ class AppContainer(context: Context, dbName: String = "tasks.db") {
     val database: AppDatabase by lazy {
         Room.databaseBuilder(appContext, AppDatabase::class.java, dbName)
             .addCallback(AppDatabase.seedInbox(appContext.getString(R.string.inbox)))
+            // Never fallbackToDestructiveMigration: Olda's tasks live only on this phone.
+            .addMigrations(MIGRATION_1_2)
             .build()
     }
 

@@ -13,6 +13,11 @@ room = "2.8.4"
 navigationCompose = "2.9.6"
 lifecycle = "2.9.4"
 coroutinesTest = "1.10.2"
+# room-testing (device tests only) pulls kotlinx-serialization-json 1.8.1, while the app pins
+# serialization-core to 1.7.3 through lifecycle. AGP makes the test classpath follow the app, so
+# the two halves of one library disagree and Room's schema reader dies with an AbstractMethodError.
+# This aligns them. See the Task 9 ruling in the phase 2 ledger.
+serialization = "1.8.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -37,6 +42,7 @@ androidx-navigation-compose = { group = "androidx.navigation", name = "navigatio
 androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
+kotlinx-serialization-bom = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-bom", version.ref = "serialization" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

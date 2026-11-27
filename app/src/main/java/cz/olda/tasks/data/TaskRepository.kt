@@ -108,6 +108,7 @@ class TaskRepository(
         priority: Int,
         parentTaskId: Long? = null,
         headingId: Long? = null,
+        recurrence: String? = null,
     ): Long = taskDao.insert(
         TaskEntity(
             title = title,
@@ -119,6 +120,7 @@ class TaskRepository(
             dueDate = dueDate?.toEpochDay(),
             dueMinute = dueMinute,
             priority = priority,
+            recurrence = recurrence,
             position = taskDao.nextPosition(listId, headingId, parentTaskId),
             updatedAt = now(),
         ),
@@ -139,6 +141,7 @@ class TaskRepository(
         dueDate = task.dueDate,
         dueMinute = task.dueMinute,
         priority = task.priority,
+        recurrence = task.recurrence,
         now = now(),
     )
 

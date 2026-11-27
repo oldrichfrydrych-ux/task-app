@@ -115,7 +115,8 @@ abstract class TaskDao {
     @Query(
         "UPDATE tasks SET title = :title, titleNormalised = :titleNormalised, notes = :notes, " +
             "notesNormalised = :notesNormalised, listId = :listId, headingId = :headingId, dueDate = :dueDate, " +
-            "dueMinute = :dueMinute, priority = :priority, updatedAt = :now WHERE id = :id AND deletedAt IS NULL",
+            "dueMinute = :dueMinute, priority = :priority, recurrence = :recurrence, " +
+            "updatedAt = :now WHERE id = :id AND deletedAt IS NULL",
     )
     abstract suspend fun updateEditable(
         id: Long,
@@ -128,6 +129,7 @@ abstract class TaskDao {
         dueDate: Long?,
         dueMinute: Int?,
         priority: Int,
+        recurrence: String?,
         now: Long,
     )
 
@@ -158,9 +160,13 @@ abstract class TaskDao {
         dueDate: Long?,
         dueMinute: Int?,
         priority: Int,
+        recurrence: String?,
         now: Long,
     ) {
-        updateEditable(id, title, titleNormalised, notes, notesNormalised, listId, headingId, dueDate, dueMinute, priority, now)
+        updateEditable(
+            id, title, titleNormalised, notes, notesNormalised, listId, headingId,
+            dueDate, dueMinute, priority, recurrence, now,
+        )
         followParent(id, now)
     }
 

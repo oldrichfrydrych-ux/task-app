@@ -25,7 +25,7 @@ import cz.olda.tasks.ui.theme.toHex
         TaskTagCrossRef::class,
         TaskEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
