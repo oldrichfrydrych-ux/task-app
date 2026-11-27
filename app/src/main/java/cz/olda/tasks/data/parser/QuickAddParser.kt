@@ -36,19 +36,37 @@ fun parseQuickAdd(input: String, now: LocalDateTime, knownLists: List<String>): 
 }
 
 /**
- * The day the task lands on.
+ * The day the task lands on, in the order the spec settles it.
  *
- * A day Olda typed always wins, overdue or not: "dnes ve 3" at half past four is today, because
- * he said today. A time with **no** day lands on the next one — "ve 3" typed at 16:30 means
- * tomorrow, Olda's call on 27 Nov — and an hour that is exactly now counts as gone.
+ * 1. **A day Olda typed always wins**, overdue or not: "dnes ve 3" at half past four is today,
+ *    because he said today.
+ * 2. **A day a repeat implied moves on** by one period of that repeat when its time has already
+ *    gone, so "kazdy den ve 3" typed at 16:30 starts tomorrow and "kazde pondeli v 9" typed on
+ *    Monday morning starts next Monday. With no time there is nothing to have missed.
+ * 3. **A time with no day at all lands on the next one** — "ve 3" typed at 16:30 means tomorrow,
+ *    Olda's call on 27 Nov. An hour that is exactly now counts as gone.
  */
 private fun dueDate(accepted: List<Candidate>, minute: Int?, now: LocalDateTime): LocalDate? {
     accepted.firstNotNullOfOrNull { it.date }?.let { return it }
+
+    val repeat = accepted.firstOrNull { it.impliedDate != null }
+    if (repeat != null) {
+        val first = repeat.impliedDate!!
+        val rollOn = repeat.rollOn
+        return if (minute != null && rollOn != null && !hasYetToCome(first, minute, now)) {
+            first.plus(rollOn)
+        } else {
+            first
+        }
+    }
+
     if (minute == null) return null
     val today = now.toLocalDate()
-    val minuteNow = now.hour * 60 + now.minute
-    return if (minute <= minuteNow) today.plusDays(1) else today
+    return if (hasYetToCome(today, minute, now)) today else today.plusDays(1)
 }
+
+private fun hasYetToCome(date: LocalDate, minute: Int, now: LocalDateTime): Boolean =
+    date.atStartOfDay().plusMinutes(minute.toLong()).isAfter(now)
 
 /** Everything every pattern family offers for this line. One family per phrase family. */
 private fun candidatesIn(
@@ -61,5 +79,6 @@ private fun candidatesIn(
         weekdayCandidates(folded, today) +
         calendarDateCandidates(folded, today) +
         timeCandidates(folded, today) +
-        relativeCandidates(folded, now)
+        relativeCandidates(folded, now) +
+        recurrenceCandidates(folded, today)
 }
