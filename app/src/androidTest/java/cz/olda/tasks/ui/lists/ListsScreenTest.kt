@@ -24,6 +24,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -224,14 +225,20 @@ class ListsScreenTest {
         rule.onNodeWithText("Fresh").assertIsDisplayed()
     }
 
+    /**
+     * Scrolled to, not just clicked. Once a group exists the sheet grows by a label and a row per
+     * group, which pushes the picker and the Save button off the bottom of the phone - and a
+     * click on a node that is off screen lands nowhere, silently. That is what made this test
+     * look for years like "creating a list in a group is broken" when the app does it fine.
+     */
     @Test fun aNewListCanGoIntoAGroup() {
         runBlocking { lists.createGroup("Home") }
         show()
         val gid = groupId()
         rule.onNodeWithTag("new-list").performClick()
         rule.onNodeWithTag("list-name-field").performTextInput("Boiler")
-        rule.onNodeWithTag("list-group-option-$gid").performClick()
-        rule.onNodeWithTag("list-save").performClick()
+        rule.onNodeWithTag("list-group-option-$gid").performScrollTo().performClick()
+        rule.onNodeWithTag("list-save").performScrollTo().performClick()
         awaitRow("Boiler")
         assertEquals(gid, runBlocking { lists.observeLists().first().single { it.name == "Boiler" }.groupId })
     }
@@ -276,15 +283,17 @@ class ListsScreenTest {
         val id = runBlocking { lists.createList("Mover") }
         show()
         rule.onNodeWithTag("list-edit-$id").performClick()
-        rule.onNodeWithTag("list-group-option-$gid").performClick()
-        rule.onNodeWithTag("list-save").performClick()
+        // Scrolled to for the same reason as in aNewListCanGoIntoAGroup: with a group in the
+        // sheet, these two sit below the bottom of the screen.
+        rule.onNodeWithTag("list-group-option-$gid").performScrollTo().performClick()
+        rule.onNodeWithTag("list-save").performScrollTo().performClick()
         awaitSheetClosed("list-name-field")
         rule.waitUntil(timeoutMillis = 10_000) {
             runBlocking { lists.observeLists().first().single { it.id == id }.groupId } == gid
         }
         rule.onNodeWithTag("list-edit-$id").performClick()
-        rule.onNodeWithTag("list-group-option-none").performClick()
-        rule.onNodeWithTag("list-save").performClick()
+        rule.onNodeWithTag("list-group-option-none").performScrollTo().performClick()
+        rule.onNodeWithTag("list-save").performScrollTo().performClick()
         awaitSheetClosed("list-name-field")
         rule.waitUntil(timeoutMillis = 10_000) {
             runBlocking { lists.observeLists().first().single { it.id == id }.groupId } == null
