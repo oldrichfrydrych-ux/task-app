@@ -5,14 +5,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -27,13 +28,12 @@ private val TrayMouth = 11.dp
  * A tab's icon, at [progress] through its tap gesture.
  *
  * Three of the four are drawn from parts rather than as one shape, because that is the whole
- * difference between an icon that answers a tap and one that merely wobbles: the calendar turns
- * its page while its frame stays put, the inbox takes something that falls into it, and the
- * list's rows flick one after another. The clock is the exception - it turns as a whole, which
- * is exactly what a clock does.
+ * difference between an icon that answers a tap and one that merely wobbles: the calendar flicks
+ * its page out and pulls the next one in, the inbox takes something that falls into it, and a
+ * wave runs through the Lists tiles. The clock is the exception - it turns as a whole, winding
+ * back first, which is exactly what a clock does.
  *
- * At rest every one of them draws what it always drew: the parts are the same paths as the whole
- * icons, split (see [AppIcons.CalendarFrame] and friends).
+ * At rest every one of them draws what it always drew.
  */
 @Composable
 fun TabIcon(
@@ -50,44 +50,66 @@ fun TabIcon(
     }
 }
 
-/** The face sweeps a whole turn and ends where it started. */
+/** Winds back against the turn, then sweeps the whole way round. */
 @Composable
 private fun ClockIcon(progress: Float, tint: Color, modifier: Modifier) {
     val turn = tabIconTransform(Destination.Upcoming, progress)
     Part(AppIcons.Upcoming, tint, modifier.graphicsLayer { rotationZ = turn.rotationZ })
 }
 
-/** The dots slide out to the left and the next page's slide in behind them; the frame stays. */
+/** The dots are flicked out to the left, the next page's slide in, and the frame rocks after them. */
 @Composable
 private fun CalendarIcon(progress: Float, tint: Color, modifier: Modifier) {
     val page = calendarPageTurn(progress)
     Box(modifier = modifier.size(IconSize).clipToBounds(), contentAlignment = Alignment.Center) {
-        Part(AppIcons.CalendarFrame, tint)
         Part(
-            AppIcons.CalendarDots,
+            AppIcons.CalendarFrame,
             tint,
-            Modifier.offset(x = page.leavingX.dp).alpha(page.leavingAlpha),
+            Modifier.graphicsLayer { translationX = page.frameNudgeDp.dp.toPx() },
         )
         Part(
             AppIcons.CalendarDots,
             tint,
-            Modifier.offset(x = page.arrivingX.dp).alpha(page.arrivingAlpha),
+            Modifier.graphicsLayer {
+                translationX = page.leavingX.dp.toPx()
+                alpha = page.leavingAlpha
+                scaleX = page.leavingScale
+                scaleY = page.leavingScale
+            },
+        )
+        Part(
+            AppIcons.CalendarDots,
+            tint,
+            Modifier.graphicsLayer {
+                translationX = page.arrivingX.dp.toPx()
+                alpha = page.arrivingAlpha
+            },
         )
     }
 }
 
-/** Something falls in from above, and the tray gives under it and settles. */
+/** Something falls in from above; the tray squashes, gives way, rebounds and settles. */
 @Composable
 private fun InboxIcon(progress: Float, tint: Color, modifier: Modifier) {
     val drop = trayDrop(progress)
     Box(modifier = modifier.size(IconSize).clipToBounds(), contentAlignment = Alignment.TopCenter) {
-        Part(AppIcons.Inbox, tint, Modifier.offset(y = drop.dipDp.dp))
+        Part(
+            AppIcons.Inbox,
+            tint,
+            Modifier.graphicsLayer {
+                translationY = drop.dipDp.dp.toPx()
+                scaleY = drop.trayScaleY
+                // From the bottom, so the tray settles onto its own floor rather than shrinking
+                // towards the middle of the bar.
+                transformOrigin = TransformOrigin(0.5f, 1f)
+            },
+        )
         if (drop.itemAlpha > 0f) {
             Box(
                 modifier = Modifier
                     .offset(y = TrayMouth + drop.itemY.dp)
                     .size(width = 8.dp, height = 2.5.dp)
-                    .alpha(drop.itemAlpha)
+                    .graphicsLayer { alpha = drop.itemAlpha }
                     .clip(CircleShape)
                     .background(tint),
             )
@@ -95,13 +117,31 @@ private fun InboxIcon(progress: Float, tint: Color, modifier: Modifier) {
     }
 }
 
-/** Each row flicks out to the left and back, top one first, the way a list is read. */
+/**
+ * Four tiles with a wave running through them, top-left to bottom-right.
+ *
+ * Drawn as four boxes rather than as [AppIcons.Lists] in one piece, because each tile has to be
+ * punched in on its own. The numbers are that icon's own geometry, scaled from its 24-unit
+ * viewport to [IconSize]: tiles of 7 units at 4 and 13, which is why they are not round numbers.
+ */
 @Composable
 private fun ListsIcon(progress: Float, tint: Color, modifier: Modifier) {
-    val rows = listOf(AppIcons.ListRowTop, AppIcons.ListRowMiddle, AppIcons.ListRowBottom)
-    Box(modifier = modifier.size(IconSize).clipToBounds(), contentAlignment = Alignment.Center) {
-        rows.forEachIndexed { index, row ->
-            Part(row, tint, Modifier.offset(x = listRowSlide(progress, index).dp))
+    val unit = IconSize / 24f
+    val tileSize = unit * 7f
+    val near = unit * 4f
+    val far = unit * 13f
+    val places = listOf(near to near, far to near, near to far, far to far)
+    Box(modifier = modifier.size(IconSize), contentAlignment = Alignment.TopStart) {
+        places.forEachIndexed { index, (x, y) ->
+            val pop = gridTilePop(progress, index)
+            Box(
+                modifier = Modifier
+                    .offset(x = x, y = y)
+                    .size(tileSize)
+                    .graphicsLayer { scaleX = pop; scaleY = pop }
+                    .clip(RoundedCornerShape(unit * 2f))
+                    .background(tint),
+            )
         }
     }
 }

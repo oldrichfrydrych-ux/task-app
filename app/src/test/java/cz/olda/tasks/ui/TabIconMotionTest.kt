@@ -20,7 +20,7 @@ class TabIconMotionTest {
         Destination.entries.forEach { assertAtRest(it, tabIconTransform(it, 0f)) }
         assertPageAtRest(calendarPageTurn(0f))
         assertTrayAtRest(trayDrop(0f))
-        (0..2).forEach { assertEquals("row $it starts out of place", 0f, listRowSlide(0f, it), 0.01f) }
+        (0..3).forEach { assertEquals("tile $it starts punched in", 1f, gridTilePop(0f, it), 0.01f) }
     }
 
     /**
@@ -32,7 +32,7 @@ class TabIconMotionTest {
         Destination.entries.forEach { assertAtRest(it, tabIconTransform(it, 1f)) }
         assertPageAtRest(calendarPageTurn(1f))
         assertTrayAtRest(trayDrop(1f))
-        (0..2).forEach { assertEquals("row $it never came home", 0f, listRowSlide(1f, it), 0.01f) }
+        (0..3).forEach { assertEquals("tile $it never came back", 1f, gridTilePop(1f, it), 0.01f) }
     }
 
     /** The clock is the one icon whose whole face moves, because that is what a clock does. */
@@ -63,12 +63,16 @@ class TabIconMotionTest {
         assertTrue("the tray does not give under it", trayDrop(0.6f).dipDp > 0f)
     }
 
-    /** One after another: the rows cannot all arrive at the same moment, or it is one block moving. */
+    /**
+     * A wave, not a pulse: no two tiles may be punched in at the same moment, and it has to run
+     * from the top left. Measured by when each tile is at its smallest rather than by sampling
+     * one instant, where two tiles that have not started yet look alike for a good reason.
+     */
     @Test
-    fun theListsRowsArriveOneAfterAnother() {
-        val early = (0..2).map { listRowSlide(0.25f, it) }
-        assertTrue("the rows move as one block: $early", early.toSet().size == 3)
-        assertTrue("the top row is not the first home: $early", early[0] < early[2])
+    fun theWaveRunsThroughTheTilesOneAfterAnother() {
+        val deepest = (0..3).map { tile -> (0..100).minBy { gridTilePop(it / 100f, tile) } }
+        assertEquals("the wave does not run top-left to bottom-right: $deepest", deepest.sorted(), deepest)
+        assertEquals("two tiles are punched at the same moment: $deepest", 4, deepest.toSet().size)
     }
 
     @Test
@@ -76,7 +80,26 @@ class TabIconMotionTest {
         assertNotEquals(IconTransform(), tabIconTransform(Destination.Upcoming, 0.5f))
         assertNotEquals(calendarPageTurn(0f), calendarPageTurn(0.5f))
         assertNotEquals(trayDrop(0f), trayDrop(0.5f))
-        assertNotEquals(listRowSlide(0f, 1), listRowSlide(0.5f, 1))
+        assertNotEquals(gridTilePop(0f, 1), gridTilePop(0.5f, 1))
+    }
+
+    /**
+     * The life in these is the wind-up and the recoil: the clock turns backwards before it goes
+     * forwards, and the tray comes back up past its own level before it settles. Without those
+     * two the gestures slide politely from A to B, which was the first version and read as
+     * nothing much at all.
+     */
+    @Test
+    fun theClockWindsBackBeforeItTurns() {
+        assertTrue("the clock goes straight off: ${tabIconTransform(Destination.Upcoming, 0.08f)}",
+            tabIconTransform(Destination.Upcoming, 0.08f).rotationZ < 0f)
+    }
+
+    @Test
+    fun theTrayReboundsPastItsOwnLevel() {
+        val dips = (0..20).map { trayDrop(it / 20f).dipDp }
+        assertTrue("the tray never gives way: $dips", dips.any { it > 0.5f })
+        assertTrue("the tray never comes back up past its line: $dips", dips.any { it < -0.1f })
     }
 
     /**
@@ -91,9 +114,9 @@ class TabIconMotionTest {
             assertTrue("$it scales out of range: $over", over.scaleX in 0.7f..1.3f && over.scaleY in 0.7f..1.3f)
         }
         val page = calendarPageTurn(1.2f)
-        assertTrue("a page flies off past the end: $page", kotlin.math.abs(page.leavingX) <= 12f && kotlin.math.abs(page.arrivingX) <= 12f)
+        assertTrue("a page flies off past the end: $page", kotlin.math.abs(page.leavingX) <= 14f && kotlin.math.abs(page.arrivingX) <= 14f)
         assertTrue("the tray is still sunk past the end", kotlin.math.abs(trayDrop(1.2f).dipDp) <= 4f)
-        (0..2).forEach { assertTrue("row $it is adrift past the end", kotlin.math.abs(listRowSlide(1.2f, it)) <= 12f) }
+        (0..3).forEach { assertTrue("tile $it is the wrong size past the end", gridTilePop(1.2f, it) in 0.5f..1.2f) }
     }
 
     /** Upright, in its place, its own size - and square with where it started, for the one that turns. */
@@ -119,6 +142,7 @@ class TabIconMotionTest {
 
     private fun assertTrayAtRest(tray: TrayDrop) {
         assertEquals("the tray is sunk", 0f, tray.dipDp, 0.01f)
+        assertEquals("the tray is squashed", 1f, tray.trayScaleY, 0.01f)
         assertEquals("something is hanging over the tray at rest", 0f, tray.itemAlpha, 0.01f)
     }
 }

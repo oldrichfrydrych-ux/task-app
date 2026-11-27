@@ -37,22 +37,6 @@ object AppIcons {
         pathData = "M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z",
     )
 
-    /** The list's rows, one each, so they can arrive one after another. Together they draw [Lists]. */
-    val ListRowTop: ImageVector = filledIcon(
-        name = "ListRowTop",
-        pathData = "M3 9h2V7H3v2zM7 7v2h14V7H7z",
-    )
-
-    val ListRowMiddle: ImageVector = filledIcon(
-        name = "ListRowMiddle",
-        pathData = "M3 13h2v-2H3v2zm4 0h14v-2H7v2z",
-    )
-
-    val ListRowBottom: ImageVector = filledIcon(
-        name = "ListRowBottom",
-        pathData = "M3 17h2v-2H3v2zm4 0h14v-2H7v2z",
-    )
-
     /** Clock: the Upcoming tab. */
     val Upcoming: ImageVector = filledIcon(
         name = "Upcoming",
@@ -68,11 +52,15 @@ object AppIcons {
             "V5c0-1.1-.9-2-2-2zm0 12h-4c0 1.66-1.35 3-3 3s-3-1.34-3-3H4.99V5H19v10z",
     )
 
-    /** Bulleted rows: the Lists tab. */
+    /**
+     * Four tiles: the Lists tab. The mockups' own glyph for it, and the one thing on the bar that
+     * is not a row of text - which is the point, since every other screen in the app is rows.
+     * The bar draws it as four separate tiles so the wave can run through them; this is the
+     * whole shape, for anything that needs one.
+     */
     val Lists: ImageVector = filledIcon(
         name = "Lists",
-        pathData = "M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2z" +
-            "M7 7v2h14V7H7z",
+        pathData = "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
     )
 
     /** Plus: the add button. */
