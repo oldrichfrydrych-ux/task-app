@@ -45,6 +45,20 @@ class TabIconMotionTest {
         }
     }
 
+    /**
+     * The frame is never empty. Faded separately the two pages were both down at a sixth of
+     * their opacity halfway through, and on the phone the calendar simply lost its dots for a
+     * moment; what one page loses the other has to gain.
+     */
+    @Test
+    fun theCalendarsFrameNeverEmptiesDuringTheTurn() {
+        (0..20).forEach { step ->
+            val page = calendarPageTurn(step / 20f)
+            val ink = page.leavingAlpha + page.arrivingAlpha
+            assertTrue("the frame is nearly empty at ${step / 20f}: $page", ink > 0.9f)
+        }
+    }
+
     /** Mid-turn the page that is leaving and the page that is arriving are in different places. */
     @Test
     fun theCalendarTurnsItsPageOutAndANewOneIn() {

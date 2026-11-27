@@ -75,16 +75,24 @@ fun calendarPageTurn(progress: Float): PageTurn {
     val p = progress.coerceIn(0f, 1f)
     val leaving = (p / 0.6f).coerceIn(0f, 1f)
     val arriving = ((p - 0.4f) / 0.6f).coerceIn(0f, 1f)
+    // One hand-over rather than two fades: what the one page loses the other gains, so the ink
+    // in the frame stays about the same throughout. Faded separately, both pages sat at a sixth
+    // of their opacity in the middle of the turn and the frame read as empty - which a
+    // screenshot of the phone caught, and the maths had hidden.
+    val handover = smoothStep((p - 0.3f) / 0.4f)
     return PageTurn(
         leavingX = -PageTravelDp * leaving,
-        leavingAlpha = 1f - leaving,
+        leavingAlpha = 1f - handover,
         leavingScale = 1f - 0.25f * leaving,
         arrivingX = PageTravelDp * (1f - arriving),
-        arrivingAlpha = arriving,
+        arrivingAlpha = handover,
         // One rock out and back, against the page's travel.
         frameNudgeDp = FrameRockDp * sin(p * 2f * PI).toFloat(),
     )
 }
+
+/** Eases in and out of a 0..1 ramp, so a hand-over has no corners in it. */
+private fun smoothStep(t: Float): Float = t.coerceIn(0f, 1f).let { it * it * (3f - 2f * it) }
 
 /** How far above the tray the thing starts, how far the tray gives way, and how much it squashes. */
 private const val ItemFallDp = 11f
