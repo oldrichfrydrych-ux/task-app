@@ -112,6 +112,22 @@ One line of text becomes a task. Symbols follow Todoist. Czech and English work 
 
 A notification at the due time, with Done and Snooze buttons.
 
+**Built on 28 November (Phase 3).** The decisions Olda made that day:
+
+- A task with a time rings at that minute; a task dated with no time rings at **08:00**, the same
+  hour the parser reads as `ráno`. A task with no date never rings.
+- **Snooze means an hour**, and can be tapped again. It moves the ring and never the task: the task
+  stays due when it was due and goes overdue normally.
+- **Done** ticks the task off without opening the app, through the same path as ticking it on
+  screen — so a repeating task creates its next occurrence from the notification.
+- Exact alarms are granted at install (`USE_EXACT_ALARM`), so there is no Settings trip. The app
+  asks once for permission to post notifications; if that is refused, Settings says so.
+- **A reminder missed while the phone was off does not arrive late.** The task is on Today, overdue,
+  which is where the app shows it anyway. Firing a just-missed one needs a column to remember what
+  has already been shown, and that is written down as a later addition.
+- One alarm is booked at a time, re-armed after a restart, a clock or time-zone change, and a
+  reinstall — the last because every `installDebug` cancels an app's alarms.
+
 ### Recurring tasks
 
 Olda wants recurring tasks to be hideable; the details are Claude's proposal.
@@ -119,6 +135,21 @@ Olda wants recurring tasks to be hideable; the details are Claude's proposal.
 - A small repeat icon marks every recurring task.
 - A "Hide recurring" switch on Today (both views) and Upcoming; the app remembers the choice.
 - Hidden tasks collapse into one row, such as "3 recurring hidden", so nothing disappears silently. Overdue recurring tasks always stay visible.
+
+**Built on 28 November (Phase 3).** As it turned out:
+
+- **The next occurrence keeps the schedule and skips what was missed.** A daily task due Monday and
+  ticked on Wednesday comes back on Thursday, not on the Tuesday it missed; a weekly Monday task
+  stays on Mondays; "every 3 days" keeps its rhythm. Nothing it creates is ever already overdue.
+- **A repeat picker**, reached from the Repeat row on task detail and from the ↺ chip in quick-add:
+  Does not repeat, Every day, Every week on the task's own weekday, Every month, Every year, and
+  Custom for every N days, weeks, months or years.
+- The switch is a **labelled chip** rather than an icon, under the week strip on Today and under the
+  header on Upcoming, and one choice serves both screens.
+- **The chip changes which rows are listed and nothing that counts a day:** the glance line's "2 of
+  7 done" still counts the hidden ones, the week dots are untouched, and "Nothing due today" never
+  appears above a folded row.
+- The Day view inherits the chip when it arrives; it is still drawn and disabled.
 
 ### Durations
 
