@@ -124,6 +124,12 @@
     <string name="repeat_every_n_years">Every %1$d years</string>
     <string name="repeat_unknown">Repeats</string>
     <string name="repeat_mark">Repeats</string>
+    <string name="repeats_hide">Hide repeats</string>
+    <string name="repeats_hidden">Repeats hidden</string>
+    <plurals name="repeats_hidden_count">
+        <item quantity="one">%d repeat hidden</item>
+        <item quantity="other">%d repeats hidden</item>
+    </plurals>
     <string name="repeat_chip_empty">↺ Repeat</string>
     <string name="repeat_none">Does not repeat</string>
     <string name="repeat_custom">Custom…</string>

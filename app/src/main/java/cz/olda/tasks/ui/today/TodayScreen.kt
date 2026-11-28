@@ -20,6 +20,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import cz.olda.tasks.ui.components.RepeatsChip
+import cz.olda.tasks.ui.components.FoldedRepeatsRow
 import cz.olda.tasks.R
 import cz.olda.tasks.data.TaskWithList
 import cz.olda.tasks.ui.components.EmptyStateText
@@ -62,6 +67,7 @@ fun TodayScreen(
         onOpenTask = onOpenTask,
         onPickDay = viewModel::showDay,
         onBackToToday = viewModel::showToday,
+        onHideRepeats = viewModel::setHideRepeats,
         modifier = modifier,
     )
 }
@@ -79,10 +85,14 @@ fun TodayContent(
     onOpenTask: (Long) -> Unit,
     onPickDay: (LocalDate) -> Unit,
     onBackToToday: () -> Unit,
+    onHideRepeats: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
     now: LocalTime = LocalTime.now(),
 ) {
     val sections = state.sections
+    // A peek at the hidden repeats lasts the visit and no longer: the screen's own state, not a
+    // setting, so looking costs one tap and undoes itself.
+    var peeking by rememberSaveable { mutableStateOf(false) }
     val nowMinute = now.hour * 60 + now.minute
     // The now line goes between the two tasks the time falls between, so the timed section is
     // split in two rather than having a line dropped on top of it. With no timed task there is
@@ -137,7 +147,14 @@ fun TodayContent(
             )
             // The day's own tasks only: overdue rows belong to days that have gone, and the done
             // count behind "of 7" counts this day alone.
-            DayGlance(open = sections.timed + sections.anytime, doneCount = state.doneCount)
+            // The hidden repeats are counted too: the chip changes which rows are listed and
+            // nothing that counts a day, or the "of 7" would shrink while the done count behind
+            // its "2" stayed put, and one sentence would disagree with itself.
+            DayGlance(
+                open = sections.timed + sections.anytime + sections.hiddenRepeats,
+                doneCount = state.doneCount,
+            )
+            RepeatsChip(hidden = state.hideRepeats, onToggle = onHideRepeats)
         }
 
         Box(modifier = Modifier.padding(horizontal = SideMargin).padding(top = 10.dp)) {
@@ -169,7 +186,21 @@ fun TodayContent(
             modifier = Modifier.padding(horizontal = SideMargin).padding(top = 12.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (state.isLoaded && listOf(sections.overdue, sections.timed, sections.anytime).all { it.isEmpty() }) {
+            if (sections.hiddenRepeats.isNotEmpty()) {
+                FoldedRepeatsRow(
+                    count = sections.hiddenRepeats.size,
+                    expanded = peeking,
+                    onToggle = { peeking = !peeking },
+                )
+                if (peeking) {
+                    TaskListSection(null, sections.hiddenRepeats, onToggleDone, onOpenTask)
+                }
+            }
+            // "Nothing due today" must never sit above a row saying two are hidden.
+            if (state.isLoaded &&
+                sections.hiddenRepeats.isEmpty() &&
+                listOf(sections.overdue, sections.timed, sections.anytime).all { it.isEmpty() }
+            ) {
                 EmptyStateText(
                     text = stringResource(if (state.isToday) R.string.today_empty else R.string.day_empty),
                     modifier = Modifier.testTag("today-empty"),

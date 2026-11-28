@@ -8,7 +8,9 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
@@ -17,6 +19,7 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.hasTestTag
@@ -311,5 +314,102 @@ class TodayScreenTest {
         awaitSelected("day-2026-11-23")
         rule.onNodeWithTag("day-2026-11-23").assertIsSelected()
         rule.onNodeWithTag("back-to-today").assertDoesNotExist()
+    }
+
+    // ---- Phase 3: hiding repeats ----
+
+    private suspend fun addRepeating(title: String, due: LocalDate?, minute: Int? = null) =
+        repo.add(title, inbox, due, minute, 4, recurrence = "FREQ=DAILY")
+
+    private fun awaitShownText(text: String) = rule.waitUntil(timeoutMillis = 10_000) {
+        rule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
+    }
+
+    private fun hideRepeats() {
+        rule.onNodeWithTag("repeats-chip").performClick()
+        awaitShownTag("folded-repeats")
+    }
+
+    @Test fun theChipSaysWhatItWillDo() {
+        runBlocking { add("Zavolat", today, 15 * 60) }
+        show()
+        awaitShownTag("repeats-chip")
+        rule.onNodeWithTag("repeats-chip").assertTextContains("Hide repeats", substring = true)
+    }
+
+    @Test fun hidingRepeatsTakesThemOffTheDayAndCountsThem() {
+        runBlocking {
+            addRepeating("Vynest kose", today, 9 * 60)
+            addRepeating("Protahnout se", today)
+            add("Zavolat", today, 15 * 60)
+        }
+        show()
+        awaitShownText("Vynest kose")
+
+        hideRepeats()
+
+        rule.onNodeWithTag("repeats-chip").assertTextContains("Repeats hidden", substring = true)
+        rule.onNodeWithTag("folded-repeats").assertTextContains("2", substring = true)
+        rule.onAllNodesWithText("Vynest kose").assertCountEquals(0)
+        rule.onAllNodesWithText("Protahnout se").assertCountEquals(0)
+        rule.onNodeWithText("Zavolat").assertIsDisplayed()
+    }
+
+    /** A peek: one tap shows them, the chip stays on, and leaving the screen undoes it. */
+    @Test fun tappingTheFoldedRowShowsThemAndLeavesTheChipOn() {
+        runBlocking {
+            addRepeating("Vynest kose", today, 9 * 60)
+            add("Zavolat", today, 15 * 60)
+        }
+        show()
+        awaitShownText("Vynest kose")
+        hideRepeats()
+
+        rule.onNodeWithTag("folded-repeats").performClick()
+
+        awaitShownText("Vynest kose")
+        rule.onNodeWithText("Vynest kose").assertIsDisplayed()
+        rule.onNodeWithTag("repeats-chip").assertTextContains("Repeats hidden", substring = true)
+    }
+
+    /** The chip changes which rows are listed and nothing that counts a day. */
+    @Test fun theGlanceLineStillCountsHiddenRepeats() {
+        runBlocking {
+            addRepeating("Vynest kose", today, 9 * 60)
+            add("Zavolat", today, 15 * 60)
+        }
+        show()
+        awaitShownTag("glance-done")
+        rule.onNodeWithTag("glance-done").assertTextContains("0 of 2 done")
+
+        hideRepeats()
+
+        rule.onNodeWithTag("glance-done").assertTextContains("0 of 2 done")
+    }
+
+    /** Review Focus 4: the day must not call itself empty while the folded row is under it. */
+    @Test fun nothingDueTodayDoesNotShowAboveAFoldedRow() {
+        runBlocking { addRepeating("Vynest kose", today, 9 * 60) }
+        show()
+        awaitShownText("Vynest kose")
+
+        hideRepeats()
+
+        rule.onAllNodes(hasTestTag("today-empty")).assertCountEquals(0)
+        rule.onNodeWithTag("folded-repeats").assertIsDisplayed()
+    }
+
+    @Test fun anOverdueRepeatIsStillOnScreenWithRepeatsHidden() {
+        runBlocking {
+            addRepeating("Napsat na ekonomku", today.minusDays(1), 9 * 60)
+            addRepeating("Vynest kose", today, 9 * 60)
+        }
+        show()
+        awaitShownText("Napsat na ekonomku")
+
+        hideRepeats()
+
+        rule.onNodeWithText("Napsat na ekonomku").assertIsDisplayed()
+        rule.onNodeWithTag("folded-repeats").assertTextContains("1", substring = true)
     }
 }

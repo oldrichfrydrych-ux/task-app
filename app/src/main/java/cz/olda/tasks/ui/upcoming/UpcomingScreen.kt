@@ -1,5 +1,12 @@
 package cz.olda.tasks.ui.upcoming
 
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import cz.olda.tasks.ui.components.FoldedRepeatsRow
+import cz.olda.tasks.ui.components.RepeatsChip
+import java.time.LocalDate
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,7 +43,14 @@ fun UpcomingScreen(
         onComplete = viewModel::complete,
         onUndo = viewModel::undoCompletion,
     )
-    UpcomingContent(days = state.days, onToggleDone = complete, onOpenTask = onOpenTask, modifier = modifier)
+    UpcomingContent(
+        days = state.days,
+        hideRepeats = state.hideRepeats,
+        onHideRepeats = viewModel::setHideRepeats,
+        onToggleDone = complete,
+        onOpenTask = onOpenTask,
+        modifier = modifier,
+    )
 }
 
 /** The stateless body of [UpcomingScreen]; [days] is null until the first load. */
@@ -45,9 +59,13 @@ fun UpcomingContent(
     days: List<UpcomingDay>?,
     onToggleDone: (Long) -> Unit,
     onOpenTask: (Long) -> Unit,
+    hideRepeats: Boolean = false,
+    onHideRepeats: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val formatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(Locale.getDefault())
+    // Which days have been peeked at, for this visit only: the screen's own state, not a setting.
+    var peeking by rememberSaveable { mutableStateOf(emptySet<LocalDate>()) }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -55,6 +73,10 @@ fun UpcomingContent(
             .verticalScroll(rememberScrollState()),
     ) {
         ScreenHeader(title = stringResource(R.string.upcoming), titleModifier = Modifier.testTag("upcoming-header"))
+        // The same chip as Today's, reading the same remembered choice.
+        Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+            RepeatsChip(hidden = hideRepeats, onToggle = onHideRepeats)
+        }
         Column(
             modifier = Modifier.padding(horizontal = 20.dp).padding(top = 4.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -67,6 +89,20 @@ fun UpcomingContent(
                     onClick = onOpenTask,
                     headerModifier = Modifier.testTag("upcoming-day-${day.date}"),
                 )
+                // One folded row per day, so a day of nothing but repeats still appears and says so.
+                if (day.hiddenRepeats.isNotEmpty()) {
+                    FoldedRepeatsRow(
+                        count = day.hiddenRepeats.size,
+                        expanded = day.date in peeking,
+                        onToggle = {
+                            peeking = if (day.date in peeking) peeking - day.date else peeking + day.date
+                        },
+                        modifier = Modifier.testTag("folded-repeats-${day.date}"),
+                    )
+                    if (day.date in peeking) {
+                        TaskListSection(null, day.hiddenRepeats, onToggleDone, onOpenTask)
+                    }
+                }
             }
             if (days != null && days.isEmpty()) {
                 EmptyStateText(

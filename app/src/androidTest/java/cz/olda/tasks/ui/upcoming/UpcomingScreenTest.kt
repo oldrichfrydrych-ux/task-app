@@ -9,6 +9,9 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
@@ -173,5 +176,72 @@ class UpcomingScreenTest {
         rule.onNodeWithText("Undo").assertIsDisplayed().performClick()
         awaitShown("task-$id")
         rule.onNodeWithTag("task-$id").assertIsDisplayed()
+    }
+
+    // ---- Phase 3: hiding repeats ----
+
+    private suspend fun addRepeating(title: String, due: LocalDate) =
+        repo.add(title, inbox, due, null, 4, recurrence = "FREQ=DAILY")
+
+    @Test fun eachDayGetsItsOwnFoldedRow() {
+        val tomorrow = today.plusDays(1)
+        val later = today.plusDays(3)
+        runBlocking {
+            addRepeating("Vynest kose", tomorrow)
+            add("Zavolat", tomorrow)
+            addRepeating("Protahnout se", later)
+        }
+        show()
+        awaitShown("repeats-chip")
+
+        rule.onNodeWithTag("repeats-chip").performClick()
+
+        awaitShown("folded-repeats-$tomorrow")
+        rule.onNodeWithTag("folded-repeats-$tomorrow").assertIsDisplayed()
+        rule.onNodeWithTag("folded-repeats-$later").assertIsDisplayed()
+        rule.onNodeWithText("Zavolat").assertIsDisplayed()
+        rule.onAllNodesWithText("Vynest kose").assertCountEquals(0)
+    }
+
+    @Test fun aDayWithNoRepeatsHasNoFoldedRow() {
+        val tomorrow = today.plusDays(1)
+        runBlocking { add("Zavolat", tomorrow) }
+        show()
+        awaitShown("repeats-chip")
+
+        rule.onNodeWithTag("repeats-chip").performClick()
+
+        rule.onAllNodes(hasTestTag("folded-repeats-$tomorrow")).assertCountEquals(0)
+        rule.onNodeWithText("Zavolat").assertIsDisplayed()
+    }
+
+    /** A day whose only task repeats must still appear, with its row saying so. */
+    @Test fun aDayOfNothingButRepeatsStillAppears() {
+        val tomorrow = today.plusDays(1)
+        runBlocking { addRepeating("Vynest kose", tomorrow) }
+        show()
+        awaitShown("repeats-chip")
+
+        rule.onNodeWithTag("repeats-chip").performClick()
+
+        awaitShown("folded-repeats-$tomorrow")
+        rule.onNodeWithTag("folded-repeats-$tomorrow").assertTextContains("1", substring = true)
+        rule.onAllNodes(hasTestTag("upcoming-empty")).assertCountEquals(0)
+    }
+
+    @Test fun tappingADaysFoldedRowShowsThatDaysRepeats() {
+        val tomorrow = today.plusDays(1)
+        runBlocking { addRepeating("Vynest kose", tomorrow) }
+        show()
+        awaitShown("repeats-chip")
+        rule.onNodeWithTag("repeats-chip").performClick()
+        awaitShown("folded-repeats-$tomorrow")
+
+        rule.onNodeWithTag("folded-repeats-$tomorrow").performClick()
+
+        rule.waitUntil(timeoutMillis = 10_000) {
+            rule.onAllNodesWithText("Vynest kose").fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.onNodeWithText("Vynest kose").assertIsDisplayed()
     }
 }
