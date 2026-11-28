@@ -53,6 +53,23 @@
         <receiver
             android:name=".platform.ReminderActionReceiver"
             android:exported="false" />
+
+        <!--
+          Puts the booked alarm back. A restart cancels it; a time-zone or clock change leaves it
+          on the wrong local hour; and MY_PACKAGE_REPLACED is the one that matters most while this
+          app is being built, since every installDebug cancels its alarms. Exported, because these
+          four come from the system.
+        -->
+        <receiver
+            android:name=".platform.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>
