@@ -25,6 +25,7 @@ import androidx.test.core.app.ApplicationProvider
 import cz.olda.tasks.R
 import cz.olda.tasks.data.AppDatabase
 import cz.olda.tasks.data.ListRepository
+import cz.olda.tasks.data.SettingsRepository
 import cz.olda.tasks.data.TaskRepository
 import cz.olda.tasks.ui.LocalSnackbarHostState
 import cz.olda.tasks.ui.theme.AppTheme
@@ -84,7 +85,7 @@ class UpcomingScreenTest {
     }
 
     private fun setScreen() {
-        val viewModel = UpcomingViewModel(repo)
+        val viewModel = UpcomingViewModel(repo, SettingsRepository(db.settingDao()))
         rule.setContent {
             AppTheme {
                 val hostState = remember { SnackbarHostState() }

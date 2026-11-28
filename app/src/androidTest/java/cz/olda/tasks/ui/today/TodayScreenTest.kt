@@ -29,6 +29,7 @@ import cz.olda.tasks.data.DaySections
 import cz.olda.tasks.data.ListRepository
 import cz.olda.tasks.data.TaskWithList
 import cz.olda.tasks.data.entity.TaskEntity
+import cz.olda.tasks.data.SettingsRepository
 import cz.olda.tasks.data.TaskRepository
 import cz.olda.tasks.ui.LocalSnackbarHostState
 import cz.olda.tasks.ui.theme.AppTheme
@@ -70,7 +71,7 @@ class TodayScreenTest {
         repo.add(title, inbox, due, minute, 4)
 
     private fun show() {
-        val viewModel = TodayViewModel(repo, clock)
+        val viewModel = TodayViewModel(repo, clock, SettingsRepository(db.settingDao()))
         rule.setContent {
             AppTheme {
                 val host = SnackbarHostState()

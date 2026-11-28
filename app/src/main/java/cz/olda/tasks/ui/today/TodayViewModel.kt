@@ -3,6 +3,7 @@ package cz.olda.tasks.ui.today
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import cz.olda.tasks.data.DaySections
+import cz.olda.tasks.data.SettingsRepository
 import cz.olda.tasks.data.TaskRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -45,6 +46,11 @@ data class TodayState(
      * empty day and a not-yet-loaded one look the same, and "Nothing due today" flashes on start.
      */
     val isLoaded: Boolean = true,
+    /**
+     * Whether repeating tasks are out of the way. One choice, shared with Upcoming and remembered
+     * by the phone: wanting repeats hidden is a mood, not a per-screen preference.
+     */
+    val hideRepeats: Boolean = false,
 )
 
 /**
@@ -55,7 +61,10 @@ data class TodayState(
 class TodayViewModel(
     private val repository: TaskRepository,
     private val clock: Clock,
+    private val settings: SettingsRepository,
 ) : ViewModel() {
+
+    private val hideRepeats = settings.observeBoolean(SettingsRepository.HIDE_REPEATS, default = false)
 
     /**
      * Null follows today. A pick remembers the date it was made on and only counts while that is
@@ -65,17 +74,19 @@ class TodayViewModel(
     private val picked = MutableStateFlow<Pick?>(null)
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val state: StateFlow<TodayState> = combine(todayTicker(), picked) { today, pick ->
-        today to (pick?.takeIf { it.madeOn == today }?.day ?: today)
+    val state: StateFlow<TodayState> = combine(todayTicker(), picked, hideRepeats) { today, pick, hide ->
+        Triple(today, pick?.takeIf { it.madeOn == today }?.day ?: today, hide)
     }
-        .flatMapLatest { (today, shown) ->
+        .flatMapLatest { (today, shown, hide) ->
             val weekStart = shown.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
             combine(
-                repository.observeDay(shown),
+                repository.observeDay(shown, hideRepeats = hide),
+                // The dots are deliberately not filtered: a day is coloured by what is due on it,
+                // not by what is currently on screen.
                 repository.observeDots(weekStart, weekStart.plusDays(6)),
                 repository.observeDoneCount(shown),
             ) { sections, dots, doneCount ->
-                TodayState(shown, shown == today, sections, dots, weekStart, doneCount)
+                TodayState(shown, shown == today, sections, dots, weekStart, doneCount, hideRepeats = hide)
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), initialState())
@@ -88,6 +99,11 @@ class TodayViewModel(
 
     /** The way back from any picked day. */
     fun showToday() = showDay(LocalDate.now(clock))
+
+    /** The chip. Written to the settings table, so Upcoming follows and the phone remembers it. */
+    fun setHideRepeats(hide: Boolean) {
+        viewModelScope.launch { settings.setBoolean(SettingsRepository.HIDE_REPEATS, hide) }
+    }
 
     /** Completes the task. Screens call it through rememberCompletionUndo, never directly. */
     fun complete(id: Long) {

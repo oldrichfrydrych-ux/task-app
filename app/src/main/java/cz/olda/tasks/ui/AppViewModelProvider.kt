@@ -26,8 +26,10 @@ import cz.olda.tasks.ui.upcoming.UpcomingViewModel
  */
 object AppViewModelProvider {
     val Factory: ViewModelProvider.Factory = viewModelFactory {
-        initializer { TodayViewModel(container().taskRepository, container().clock) }
-        initializer { UpcomingViewModel(container().taskRepository) }
+        initializer {
+            TodayViewModel(container().taskRepository, container().clock, container().settingsRepository)
+        }
+        initializer { UpcomingViewModel(container().taskRepository, container().settingsRepository) }
         // Saved state lets a half-typed task survive the process being killed.
         initializer {
             QuickAddViewModel(

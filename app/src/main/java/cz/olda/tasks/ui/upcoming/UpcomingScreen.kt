@@ -31,12 +31,12 @@ fun UpcomingScreen(
     onOpenTask: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val days by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     val complete = rememberCompletionUndo(
         onComplete = viewModel::complete,
         onUndo = viewModel::undoCompletion,
     )
-    UpcomingContent(days = days, onToggleDone = complete, onOpenTask = onOpenTask, modifier = modifier)
+    UpcomingContent(days = state.days, onToggleDone = complete, onOpenTask = onOpenTask, modifier = modifier)
 }
 
 /** The stateless body of [UpcomingScreen]; [days] is null until the first load. */

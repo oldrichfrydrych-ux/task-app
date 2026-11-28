@@ -14,15 +14,27 @@ import kotlinx.coroutines.flow.map
 import java.time.Clock
 import java.time.LocalDate
 
-/** The sections of one day; [overdue] and [tomorrow] are empty unless the day is today. */
+/**
+ * The sections of one day; [overdue] and [tomorrow] are empty unless the day is today.
+ *
+ * [hiddenRepeats] holds the repeating tasks taken out of [timed] and [anytime] when repeats are
+ * hidden. They are moved aside rather than dropped, so the folded row can count them and a tap can
+ * show them without a second read — and so nothing can disappear silently, which is what
+ * docs/design.md asks for.
+ */
 data class DaySections(
     val overdue: List<TaskWithList>,
     val timed: List<TaskWithList>,
     val anytime: List<TaskWithList>,
     val tomorrow: List<TaskWithList>,
+    val hiddenRepeats: List<TaskWithList> = emptyList(),
 )
 
-data class UpcomingDay(val date: LocalDate, val tasks: List<TaskWithList>)
+data class UpcomingDay(
+    val date: LocalDate,
+    val tasks: List<TaskWithList>,
+    val hiddenRepeats: List<TaskWithList> = emptyList(),
+)
 
 class TaskRepository(
     private val taskDao: TaskDao,
@@ -32,8 +44,16 @@ class TaskRepository(
 
     private fun now(): Long = clock.millis()
 
-    /** "Today" is read when the flow is collected, not when it is created. */
-    fun observeDay(day: LocalDate): Flow<DaySections> = flow {
+    /**
+     * "Today" is read when the flow is collected, not when it is created.
+     *
+     * With [hideRepeats], a task that repeats leaves [DaySections.timed] and
+     * [DaySections.anytime] for [DaySections.hiddenRepeats], keeping the order it had.
+     * [DaySections.overdue] is never filtered — something already missed is exactly what hiding
+     * must not swallow — and neither is [DaySections.tomorrow], which is one line standing for a
+     * whole day and would otherwise disagree with that day when it is opened.
+     */
+    fun observeDay(day: LocalDate, hideRepeats: Boolean = false): Flow<DaySections> = flow {
         val today = today()
         val isToday = day == today
         val overdue = if (isToday) taskDao.observeOverdue(today.toEpochDay()) else flowOf(emptyList())
@@ -45,22 +65,38 @@ class TaskRepository(
         val onDay = taskDao.observeDueBetween(day.toEpochDay(), day.toEpochDay())
         emitAll(
             combine(overdue, onDay, tomorrow) { o, d, t ->
+                val shown = if (hideRepeats) d.filter { it.task.recurrence == null } else d
                 DaySections(
                     overdue = o,
-                    timed = d.filter { it.task.dueMinute != null },
-                    anytime = d.filter { it.task.dueMinute == null },
+                    timed = shown.filter { it.task.dueMinute != null },
+                    anytime = shown.filter { it.task.dueMinute == null },
                     tomorrow = t,
+                    hiddenRepeats = if (hideRepeats) d.filter { it.task.recurrence != null } else emptyList(),
                 )
             },
         )
     }
 
-    /** Open tasks due after today, grouped by day, earliest first. */
-    fun observeUpcoming(): Flow<List<UpcomingDay>> = flow {
+    /**
+     * Open tasks due after today, grouped by day, earliest first. With [hideRepeats] each day's
+     * repeating tasks move to [UpcomingDay.hiddenRepeats], so every day gets its own folded row and
+     * a day of nothing but repeats still appears.
+     */
+    fun observeUpcoming(hideRepeats: Boolean = false): Flow<List<UpcomingDay>> = flow {
         emitAll(
             taskDao.observeDueAfter(today().toEpochDay()).map { rows ->
                 rows.groupBy { it.task.dueDate!! }
-                    .map { (epochDay, tasks) -> UpcomingDay(LocalDate.ofEpochDay(epochDay), tasks) }
+                    .map { (epochDay, tasks) ->
+                        UpcomingDay(
+                            date = LocalDate.ofEpochDay(epochDay),
+                            tasks = if (hideRepeats) tasks.filter { it.task.recurrence == null } else tasks,
+                            hiddenRepeats = if (hideRepeats) {
+                                tasks.filter { it.task.recurrence != null }
+                            } else {
+                                emptyList()
+                            },
+                        )
+                    }
             },
         )
     }

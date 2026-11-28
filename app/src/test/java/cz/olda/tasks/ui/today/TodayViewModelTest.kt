@@ -1,16 +1,21 @@
 package cz.olda.tasks.ui.today
 
+import cz.olda.tasks.data.SettingsRepository
 import cz.olda.tasks.data.TaskRepository
 import cz.olda.tasks.data.TaskWithList
 import cz.olda.tasks.data.dao.DayDot
 import cz.olda.tasks.data.dao.ListOpenCount
+import cz.olda.tasks.data.dao.SettingDao
 import cz.olda.tasks.data.dao.TaskDao
+import cz.olda.tasks.data.entity.SettingEntity
 import cz.olda.tasks.data.entity.TaskEntity
 import cz.olda.tasks.data.reminder.ReminderInput
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -93,6 +98,23 @@ internal class FakeTaskDao(
     override suspend fun deleteHard(id: Long): Unit = TODO()
 }
 
+/**
+ * The settings table without a database, so the day screens' "hide repeats" can be tested on the
+ * PC. This is why `SettingDao` is an abstract class and not an interface.
+ */
+internal class FakeSettingDao(val stored: MutableMap<String, String> = mutableMapOf()) : SettingDao() {
+    private val values = MutableStateFlow(stored.toMap())
+
+    override fun observe(key: String): Flow<String?> = values.map { it[key] }
+
+    override suspend fun get(key: String): String? = values.value[key]
+
+    override suspend fun put(setting: SettingEntity) {
+        stored[setting.key] = setting.value
+        values.value = stored.toMap()
+    }
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class TodayViewModelTest {
     private val zone = ZoneId.of("Europe/Prague")
@@ -115,7 +137,7 @@ class TodayViewModelTest {
     )
 
     private fun TestScope.viewModel(clock: Clock, dao: FakeTaskDao = FakeTaskDao(listOf(overdueRow()))): TodayViewModel {
-        val vm = TodayViewModel(TaskRepository(dao, clock), clock)
+        val vm = TodayViewModel(TaskRepository(dao, clock), clock, SettingsRepository(FakeSettingDao()))
         // WhileSubscribed state only moves while something collects it, as the screen does.
         backgroundScope.launch { vm.state.collect {} }
         runCurrent()
@@ -124,7 +146,7 @@ class TodayViewModelTest {
 
     @Test fun isNotLoadedUntilTheFirstEmission() = runTest {
         val clock = MutableClock(startOfDay("2026-11-23T10:00"), zone)
-        val vm = TodayViewModel(TaskRepository(FakeTaskDao(emptyList()), clock), clock)
+        val vm = TodayViewModel(TaskRepository(FakeTaskDao(emptyList()), clock), clock, SettingsRepository(FakeSettingDao()))
         backgroundScope.launch { vm.state.collect {} }
         assertFalse(vm.state.value.isLoaded) // nothing has run yet: placeholder, not "empty"
         runCurrent()
@@ -213,5 +235,66 @@ class TodayViewModelTest {
         vm.showDay(today)
         runCurrent()
         assertTrue(vm.state.value.isToday)
+    }
+}
+
+/** Phase 3: the chip that hides repeating tasks, and the choice the phone remembers. */
+@OptIn(ExperimentalCoroutinesApi::class)
+class TodayHideRepeatsTest {
+    private val zone = ZoneId.of("Europe/Prague")
+    private val clock = Clock.fixed(
+        LocalDate.of(2026, 12, 2).atTime(10, 0).atZone(zone).toInstant(),
+        zone,
+    )
+
+    @Before fun setMain() = Dispatchers.setMain(StandardTestDispatcher())
+
+    @After fun resetMain() = Dispatchers.resetMain()
+
+    private fun viewModel(dao: FakeSettingDao) = TodayViewModel(
+        TaskRepository(FakeTaskDao(emptyList()), clock),
+        clock,
+        SettingsRepository(dao),
+    )
+
+    @Test fun theRememberedChoiceIsWhatTheScreenStartsWith() = runTest {
+        val dao = FakeSettingDao(mutableMapOf(SettingsRepository.HIDE_REPEATS to "true"))
+        val vm = viewModel(dao)
+        backgroundScope.launch { vm.state.collect {} }
+        runCurrent()
+
+        assertTrue("the chip must come back on", vm.state.value.hideRepeats)
+    }
+
+    @Test fun flippingTheChipIsRememberedAndTheStateFollows() = runTest {
+        val dao = FakeSettingDao()
+        val vm = viewModel(dao)
+        backgroundScope.launch { vm.state.collect {} }
+        runCurrent()
+        assertFalse(vm.state.value.hideRepeats)
+
+        vm.setHideRepeats(true)
+        runCurrent()
+
+        assertTrue(vm.state.value.hideRepeats)
+        assertEquals("true", dao.stored[SettingsRepository.HIDE_REPEATS])
+    }
+
+    /** One switch, not one per screen: Today and Upcoming read the same key. */
+    @Test fun todayAndUpcomingShareTheOneChoice() = runTest {
+        val dao = FakeSettingDao()
+        val today = viewModel(dao)
+        val upcoming = cz.olda.tasks.ui.upcoming.UpcomingViewModel(
+            TaskRepository(FakeTaskDao(emptyList()), clock),
+            SettingsRepository(dao),
+        )
+        backgroundScope.launch { today.state.collect {} }
+        backgroundScope.launch { upcoming.state.collect {} }
+        runCurrent()
+
+        today.setHideRepeats(true)
+        runCurrent()
+
+        assertTrue("Upcoming must follow Today", upcoming.state.value.hideRepeats)
     }
 }

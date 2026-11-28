@@ -339,4 +339,97 @@ class TaskRepositoryTest {
         assertEquals(listOf(underscore), repo.search("a_b").first().map { it.task.id })
         assertEquals(listOf(underscore), repo.search("_").first().map { it.task.id })
     }
+
+    // ---- Phase 3: hiding repeats ----
+
+    private suspend fun addRepeating(
+        title: String,
+        due: LocalDate? = null,
+        minute: Int? = null,
+        rule: String = "FREQ=DAILY",
+    ) = repo.add(title, inbox, due, minute, 4, recurrence = rule)
+
+    @Test fun withRepeatsShownNothingMoves() = runBlocking {
+        val repeating = addRepeating("vynest kose", today, 9 * 60)
+        val plain = add("zavolat", today, 15 * 60)
+
+        val day = repo.observeDay(today, hideRepeats = false).first()
+
+        assertEquals(listOf(repeating, plain), day.timed.map { it.task.id })
+        assertEquals(emptyList<Long>(), day.hiddenRepeats.map { it.task.id })
+    }
+
+    @Test fun aTimedRepeatMovesToHiddenRepeats() = runBlocking {
+        val repeating = addRepeating("vynest kose", today, 9 * 60)
+        val plain = add("zavolat", today, 15 * 60)
+
+        val day = repo.observeDay(today, hideRepeats = true).first()
+
+        assertEquals(listOf(plain), day.timed.map { it.task.id })
+        assertEquals(listOf(repeating), day.hiddenRepeats.map { it.task.id })
+    }
+
+    @Test fun anAnytimeRepeatMovesToHiddenRepeats() = runBlocking {
+        val repeating = addRepeating("protahnout se", today)
+        val plain = add("koupit kabat", today)
+
+        val day = repo.observeDay(today, hideRepeats = true).first()
+
+        assertEquals(listOf(plain), day.anytime.map { it.task.id })
+        assertEquals(listOf(repeating), day.hiddenRepeats.map { it.task.id })
+    }
+
+    /** From docs/design.md: something already missed is what hiding must not swallow. */
+    @Test fun anOverdueRepeatStaysWhereItIs() = runBlocking {
+        val overdue = addRepeating("napsat na ekonomku", today.minusDays(1), 9 * 60)
+
+        val day = repo.observeDay(today, hideRepeats = true).first()
+
+        assertEquals(listOf(overdue), day.overdue.map { it.task.id })
+        assertEquals(emptyList<Long>(), day.hiddenRepeats.map { it.task.id })
+    }
+
+    /** One line standing for a whole day: filtering its count would disagree with the day itself. */
+    @Test fun tomorrowKeepsCountingRepeats() = runBlocking {
+        val repeating = addRepeating("vynest kose", today.plusDays(1), 9 * 60)
+
+        val day = repo.observeDay(today, hideRepeats = true).first()
+
+        assertEquals(listOf(repeating), day.tomorrow.map { it.task.id })
+    }
+
+    @Test fun hiddenRepeatsKeepTheOrderTheyHadOnTheDay() = runBlocking {
+        val three = addRepeating("tri", today, 15 * 60)
+        val nine = addRepeating("devet", today, 9 * 60)
+        val whenever = addRepeating("kdykoli", today)
+
+        val day = repo.observeDay(today, hideRepeats = true).first()
+
+        assertEquals(listOf(nine, three, whenever), day.hiddenRepeats.map { it.task.id })
+    }
+
+    @Test fun upcomingMovesRepeatsPerDay() = runBlocking {
+        val repeatTomorrow = addRepeating("vynest kose", today.plusDays(1), 9 * 60)
+        val plainTomorrow = add("zavolat", today.plusDays(1), 15 * 60)
+        val plainLater = add("koupit kabat", today.plusDays(3))
+
+        val days = repo.observeUpcoming(hideRepeats = true).first()
+
+        assertEquals(listOf(plainTomorrow), days.first().tasks.map { it.task.id })
+        assertEquals(listOf(repeatTomorrow), days.first().hiddenRepeats.map { it.task.id })
+        assertEquals(listOf(plainLater), days.last().tasks.map { it.task.id })
+        assertEquals(emptyList<Long>(), days.last().hiddenRepeats.map { it.task.id })
+    }
+
+    /** Review Focus 4: the day must not look empty while the folded row says two are hidden. */
+    @Test fun aDayWhoseOnlyTasksAreRepeatsHasEmptySectionsAndHiddenOnes() = runBlocking {
+        addRepeating("vynest kose", today, 9 * 60)
+        addRepeating("protahnout se", today)
+
+        val day = repo.observeDay(today, hideRepeats = true).first()
+
+        assertTrue(day.timed.isEmpty())
+        assertTrue(day.anytime.isEmpty())
+        assertEquals(2, day.hiddenRepeats.size)
+    }
 }
