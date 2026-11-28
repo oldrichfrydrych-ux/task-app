@@ -6,6 +6,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 import cz.olda.tasks.data.TaskWithList
 import cz.olda.tasks.data.entity.TaskEntity
+import cz.olda.tasks.data.reminder.ReminderInput
 import kotlinx.coroutines.flow.Flow
 
 /** One list's open-task count; the row type behind [TaskDao.observeOpenCounts]. */
@@ -232,6 +233,24 @@ abstract class TaskDao {
         markDone(id, done, if (done) now else null, now)
         if (done) completeOpenSubtasks(id, now)
     }
+
+    /**
+     * The four columns the reminder planner needs, for every task that could still ring: open, not
+     * deleted, and carrying a date. At this size that is a handful of rows, and Room re-runs it on
+     * every write to `tasks`, which is what keeps the booked alarm in step with the data.
+     */
+    @Query(
+        "SELECT id AS taskId, dueDate, dueMinute, snoozedUntil FROM tasks " +
+            "WHERE deletedAt IS NULL AND done = 0 AND dueDate IS NOT NULL",
+    )
+    abstract fun observeReminderInputs(): Flow<List<ReminderInput>>
+
+    /**
+     * Moves a task's reminder without touching when the task is due. Its own query rather than a
+     * column in [updateEditable], so editing a task cannot silently cancel a snooze.
+     */
+    @Query("UPDATE tasks SET snoozedUntil = :until, updatedAt = :now WHERE id = :id AND deletedAt IS NULL")
+    abstract suspend fun setSnooze(id: Long, until: Long?, now: Long)
 
     /** Gives the new task every tag the old one carries. */
     @Query("INSERT INTO task_tags (taskId, tagId) SELECT :toId, tagId FROM task_tags WHERE taskId = :fromId")

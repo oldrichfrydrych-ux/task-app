@@ -3,6 +3,8 @@ package cz.olda.tasks.data
 import cz.olda.tasks.data.dao.TaskDao
 import cz.olda.tasks.data.entity.TaskEntity
 import cz.olda.tasks.data.recurrence.nextOccurrence
+import cz.olda.tasks.data.reminder.Ring
+import cz.olda.tasks.data.reminder.nextRing
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
@@ -84,6 +86,25 @@ class TaskRepository(
 
     /** How many of [day]'s tasks are already done; the open ones come from [observeDay]. */
     fun observeDoneCount(day: LocalDate): Flow<Int> = taskDao.observeDoneCount(day.toEpochDay())
+
+    /**
+     * The one ring to book: the earliest moment a reminder is due, with every task that shares it.
+     *
+     * Room re-runs the query behind this on every write to `tasks`, so adding a task, moving its
+     * date, snoozing it, completing it or deleting it all re-emit here, and whatever books the
+     * alarm never has to be told. "Now" is read at each emission, and a ring whose minute has
+     * already passed is left out, which is what makes re-booking idempotent — see
+     * [cz.olda.tasks.data.reminder.nextRing].
+     */
+    fun observeNextReminder(): Flow<Ring?> = taskDao.observeReminderInputs()
+        .map { nextRing(it, clock.millis(), clock.zone) }
+
+    /**
+     * Moves this task's reminder to [untilMillis], or clears the snooze when it is null. It never
+     * touches the task's own due date or time: snooze moves the ring, and the task stays due when
+     * it was due and goes overdue normally.
+     */
+    suspend fun snooze(id: Long, untilMillis: Long?) = taskDao.setSnooze(id, untilMillis, now())
 
     /** Matches title or notes, ignoring case and diacritics; [query] is treated as plain text. */
     fun search(query: String): Flow<List<TaskWithList>> {
