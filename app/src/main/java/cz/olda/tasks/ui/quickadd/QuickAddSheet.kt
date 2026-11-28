@@ -47,6 +47,7 @@ import android.text.format.DateFormat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cz.olda.tasks.R
+import cz.olda.tasks.ui.task.RepeatPickerSheet
 import cz.olda.tasks.ui.AppViewModelProvider
 import cz.olda.tasks.ui.theme.AppMotion
 import cz.olda.tasks.ui.theme.LocalAnimationsEnabled
@@ -56,7 +57,7 @@ import java.time.LocalDate
 private const val MILLIS_PER_DAY = 86_400_000L
 
 /** Which picker is open. Saved, so a rotation does not close it. */
-private enum class Picker { None, Date, Time, List, Priority }
+private enum class Picker { None, Date, Time, List, Priority, Repeat }
 
 /** One line of text, plus a date, list and priority, becomes a task. Phase 2 teaches it Czech and English dates. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -147,7 +148,7 @@ fun QuickAddSheet(
                 onPickTime = { picker = Picker.Time },
                 onPickList = { picker = Picker.List },
                 onPickPriority = { picker = Picker.Priority },
-                onClearRepeat = viewModel::clearRecurrence,
+                onPickRepeat = { picker = Picker.Repeat },
             )
         }
         LaunchedEffect(Unit) { focusRequester.requestFocus() }
@@ -177,6 +178,13 @@ fun QuickAddSheet(
             choices = (1..4).map { Choice(it.toLong(), priorityLabel(it), "quick-add-priority-option-$it") },
             selected = state.priority.toLong(),
             onPick = { viewModel.setPriority(it.toInt()); picker = Picker.None },
+            onDismiss = { picker = Picker.None },
+        )
+        // The weekly row names this day: the date on the chips, or today when there is none.
+        Picker.Repeat -> RepeatPickerSheet(
+            current = state.recurrence,
+            anchor = state.dueDate ?: LocalDate.now(),
+            onPick = { viewModel.setRecurrence(it) },
             onDismiss = { picker = Picker.None },
         )
     }

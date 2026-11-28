@@ -371,12 +371,15 @@ class QuickAddSheetTest {
         rule.onNodeWithTag("chip-time").assertTextContains("15:00")
     }
 
-    @Test fun theRepeatChipAppearsOnlyWhenThereIsARepeat() {
+    /**
+     * Since Phase 3 the chip is always there, because it is how a repeat is **set**. Phase 2's
+     * version of this test asserted the opposite, when there was no picker behind it.
+     */
+    @Test fun theRepeatChipIsAlwaysThereSoARepeatCanBeSet() {
         show()
         type("zavolat")
-        rule.onAllNodes(hasTestTag("chip-repeat")).assertCountEquals(0)
-        type(" kazdy den")
         waitForTag("chip-repeat")
+        rule.onNodeWithTag("chip-repeat").assertTextContains("Repeat", substring = true)
     }
 
     /** His own spelling, not the stored rule: the chip echoes what he typed. */
@@ -387,15 +390,46 @@ class QuickAddSheetTest {
         rule.onNodeWithTag("chip-repeat").assertTextContains("kazdy den", substring = true)
     }
 
-    @Test fun tappingTheRepeatChipClearsIt() {
+    @Test fun tappingTheRepeatChipOpensThePicker() {
+        show()
+        type("cvicit")
+        waitForTag("chip-repeat")
+
+        rule.onNodeWithTag("chip-repeat").performClick()
+
+        waitForTag("repeat-picker")
+    }
+
+    @Test fun pickingARepeatInTheSheetSavesItWithTheTask() {
+        show()
+        type("cvicit")
+        waitForTag("chip-repeat")
+        rule.onNodeWithTag("chip-repeat").performClick()
+        waitForTag("repeat-picker")
+
+        rule.onNodeWithTag("repeat-option-FREQ=DAILY").performClick()
+        rule.onNodeWithTag("quick-add-save").performClick()
+
+        rule.waitUntil(timeoutMillis = 30_000) { allTasks().isNotEmpty() }
+        assertEquals("FREQ=DAILY", allTasks().single().recurrence)
+    }
+
+    /**
+     * The wart from Phase 2, named in a test: clearing the repeat used to take the chip with it,
+     * leaving nothing on screen to bring it back.
+     */
+    @Test fun clearingTheRepeatLeavesTheChipThereToTapAgain() {
         show()
         type("kazdy den cvicit")
         waitForTag("chip-repeat")
         rule.onNodeWithTag("chip-repeat").performClick()
-        waitGone("chip-repeat")
-        rule.onNodeWithTag("quick-add-save").performClick()
-        rule.waitUntil(timeoutMillis = 30_000) { allTasks().isNotEmpty() }
-        assertNull(allTasks().single().recurrence)
+        waitForTag("repeat-picker")
+        rule.onNodeWithTag("repeat-option-none").performClick()
+
+        waitForTag("chip-repeat")
+        rule.onNodeWithTag("chip-repeat").performClick()
+
+        waitForTag("repeat-picker")
     }
 
     @Test fun aTagChipAppearsPerTag() {

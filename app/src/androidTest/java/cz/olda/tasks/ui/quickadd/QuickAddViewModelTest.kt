@@ -118,9 +118,66 @@ class QuickAddViewModelTest {
     @Test fun aClearedRepeatStaysCleared() = runBlocking {
         viewModel.setInput("kazdy den cvicit")
         assertEquals("FREQ=DAILY", state("kazdy den cvicit").recurrence)
-        viewModel.clearRecurrence()
+        viewModel.setRecurrence(null)
         viewModel.setInput("kazdy den cvicit doma")
         assertNull(state("kazdy den cvicit doma").recurrence)
+    }
+
+    /** A repeat picked on the chip is his, exactly as a date picked on the date chip is. */
+    @Test fun aPickedRepeatBeatsWhatIsTyped() = runBlocking {
+        viewModel.setInput("kazdy den cvicit")
+        viewModel.setRecurrence("FREQ=WEEKLY;BYDAY=MO")
+        assertEquals("FREQ=WEEKLY;BYDAY=MO", state("kazdy den cvicit").recurrence)
+        viewModel.setInput("kazdy den cvicit doma")
+        assertEquals("FREQ=WEEKLY;BYDAY=MO", state("kazdy den cvicit doma").recurrence)
+    }
+
+    /**
+     * The wart Phase 2 wrote down: a cleared repeat could not be brought back, because the chip
+     * that would have done it was gone. Emptying the field is what unpins it.
+     */
+    @Test fun clearingTheFieldLetsATypedRepeatCountAgain() = runBlocking {
+        viewModel.setInput("kazdy den cvicit")
+        viewModel.setRecurrence(null)
+        assertNull(state("kazdy den cvicit").recurrence)
+
+        viewModel.setInput("")
+        viewModel.setInput("kazdy den cvicit doma")
+
+        // Waits for the repeat to be back rather than for the input alone: the state flow combines
+        // the line and the pins from separate coroutines, so an emission can carry the new line
+        // beside the pin from before it was cleared. The screen settles a frame later; a test that
+        // reads the first matching emission can catch the one in between. A repeat that never came
+        // back times this out, which is the failure this test is for.
+        val after = viewModel.state.first {
+            it.lists.isNotEmpty() && it.input == "kazdy den cvicit doma" && it.recurrence != null
+        }
+        assertEquals("FREQ=DAILY", after.recurrence)
+        assertEquals("the rule is the parser's again, so his own words are back", "kazdy den", after.recurrenceText)
+    }
+
+    @Test fun aPickedRepeatIsWhatGetsSaved() = runBlocking {
+        viewModel.setInput("cvicit")
+        viewModel.setRecurrence("FREQ=MONTHLY;INTERVAL=3")
+        state("cvicit")
+
+        viewModel.save()
+
+        val saved = tasks.observeInList(inbox).first().single().task
+        assertEquals("FREQ=MONTHLY;INTERVAL=3", saved.recurrence)
+    }
+
+    /** With a rule from the picker there are no typed words to echo, so the chip says it in English. */
+    @Test fun aPickedRepeatHasNoTypedWordsToEcho() = runBlocking {
+        viewModel.setInput("kazdy den cvicit")
+        assertEquals("kazdy den", state("kazdy den cvicit").recurrenceText)
+
+        viewModel.setRecurrence("FREQ=DAILY")
+        viewModel.setInput("kazdy den cvicit doma")
+
+        val after = state("kazdy den cvicit doma")
+        assertNull(after.recurrenceText)
+        assertEquals("FREQ=DAILY", after.recurrence)
     }
 
     /** Review Focus 2: the chips still say what it understood, but there is no title to save. */

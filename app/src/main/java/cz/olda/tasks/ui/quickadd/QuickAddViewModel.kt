@@ -48,6 +48,34 @@ data class QuickAddState(
     val canSave: Boolean,
 )
 
+/**
+ * A repeat the picker set. One saved-state key, not two: "" means Olda has not touched the chip and
+ * the parser still decides, NO_REPEAT means he picked "Does not repeat", anything else is the rule.
+ *
+ * One key rather than a "pinned" flag beside a rule, because the two would have to be written one
+ * after the other, and [state]'s `combine` collects each key in its own coroutine - so it can emit
+ * a state built from the new value of one and the old value of the other. The screen converges a
+ * frame later and never shows it, but one key means that intermediate state cannot exist at all.
+ */
+private data class RepeatPin(val pinned: Boolean, val rule: String?) {
+    companion object {
+        fun of(stored: String): RepeatPin = when (stored) {
+            UNPINNED -> RepeatPin(pinned = false, rule = null)
+            NO_REPEAT -> RepeatPin(pinned = true, rule = null)
+            else -> RepeatPin(pinned = true, rule = stored)
+        }
+    }
+}
+
+/** Olda has not touched the repeat chip; what he typed decides. */
+private const val UNPINNED = ""
+
+/** He picked "Does not repeat"; no rule, and the parser no longer gets a say. */
+private const val NO_REPEAT = "none"
+
+/** The fields Olda has taken over from the parser, carried through the flow together. */
+private data class Pins(val list: Long, val priority: Int, val repeat: RepeatPin)
+
 private const val NO_LIST = -1L
 private const val NO_DATE = Long.MIN_VALUE
 private const val NO_MINUTE = -1
@@ -79,11 +107,11 @@ class QuickAddViewModel(
         combine(
             savedState.getStateFlow(LIST, NO_LIST),
             savedState.getStateFlow(PRIORITY, 0),
-            savedState.getStateFlow(NO_REPEAT, false),
-        ) { list, priority, noRepeat -> Triple(list, priority, noRepeat) },
+            savedState.getStateFlow(REPEAT, UNPINNED),
+        ) { list, priority, repeat -> Pins(list, priority, RepeatPin.of(repeat)) },
         listRepository.observeLists(),
     ) { input, epochDay, minute, pins, lists ->
-        build(input, epochDay, minute, pins.first, pins.second, pins.third, lists)
+        build(input, epochDay, minute, pins, lists)
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
@@ -104,8 +132,15 @@ class QuickAddViewModel(
 
     fun setPriority(priority: Int) { savedState[PRIORITY] = priority }
 
-    /** Throws away a repeat the parser found; there is no repeat picker until Phase 3. */
-    fun clearRecurrence() { savedState[NO_REPEAT] = true }
+    /**
+     * Sets the repeat from the picker, or clears it with null, and pins it either way — a chip Olda
+     * touched is his, exactly as with the date, the time, the list and the priority. Emptying the
+     * field unpins it, which is what makes a cleared repeat reachable again: in Phase 2 the chip
+     * vanished with the repeat and nothing on screen could bring it back.
+     */
+    fun setRecurrence(rule: String?) {
+        savedState[REPEAT] = rule ?: NO_REPEAT
+    }
 
     /** The line as stored, for the field to start from after a restart. */
     val draftInput: String get() = savedState[INPUT] ?: ""
@@ -115,7 +150,7 @@ class QuickAddViewModel(
         savedState[MINUTE] = NO_MINUTE
         savedState[LIST] = NO_LIST
         savedState[PRIORITY] = 0
-        savedState[NO_REPEAT] = false
+        savedState[REPEAT] = UNPINNED
     }
 
     /** Throws the draft away; [save] calls it after the task is written. */
@@ -134,11 +169,11 @@ class QuickAddViewModel(
         input: String,
         pinnedDay: Long,
         pinnedMinute: Int,
-        pinnedList: Long,
-        pinnedPriority: Int,
-        noRepeat: Boolean,
+        pins: Pins,
         lists: List<ListEntity>,
     ): QuickAddState {
+        val pinnedList = pins.list
+        val pinnedPriority = pins.priority
         val parsed = parseQuickAdd(input, LocalDateTime.now(clock), lists.map { it.name })
 
         // A list that was deleted since it was picked or parsed falls back to Inbox, like its tasks do.
@@ -154,8 +189,10 @@ class QuickAddViewModel(
             dueMinute = if (pinnedMinute != NO_MINUTE) pinnedMinute else parsed.dueMinute,
             listId = listId,
             priority = if (pinnedPriority != 0) pinnedPriority else parsed.priority ?: DEFAULT_PRIORITY,
-            recurrence = if (noRepeat) null else parsed.recurrence,
-            recurrenceText = if (noRepeat) {
+            recurrence = if (pins.repeat.pinned) pins.repeat.rule else parsed.recurrence,
+            // His own spelling, and only while the repeat is the one he typed: a rule that came
+            // from the picker has no typed words behind it, so the chip says it in English.
+            recurrenceText = if (pins.repeat.pinned) {
                 null
             } else {
                 parsed.tokens.firstOrNull { it.kind == TokenKind.RECURRENCE }?.text
@@ -180,9 +217,11 @@ class QuickAddViewModel(
                 savedState[INPUT] ?: "",
                 savedState[DATE] ?: NO_DATE,
                 savedState[MINUTE] ?: NO_MINUTE,
-                savedState[LIST] ?: NO_LIST,
-                savedState[PRIORITY] ?: 0,
-                savedState[NO_REPEAT] ?: false,
+                Pins(
+                    savedState[LIST] ?: NO_LIST,
+                    savedState[PRIORITY] ?: 0,
+                    RepeatPin.of(savedState[REPEAT] ?: UNPINNED),
+                ),
                 lists,
             )
             if (!current.canSave) return@withLock null
@@ -217,6 +256,6 @@ class QuickAddViewModel(
         const val MINUTE = "minute"
         const val LIST = "list"
         const val PRIORITY = "priority"
-        const val NO_REPEAT = "noRepeat"
+        const val REPEAT = "repeat"
     }
 }

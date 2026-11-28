@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import cz.olda.tasks.R
+import cz.olda.tasks.ui.task.labelOf
 import cz.olda.tasks.ui.components.formatMinuteOfDay
 import cz.olda.tasks.ui.theme.AppMotion
 import cz.olda.tasks.ui.theme.LocalAnimationsEnabled
@@ -60,7 +61,7 @@ fun QuickAddChips(
     onPickTime: () -> Unit,
     onPickList: () -> Unit,
     onPickPriority: () -> Unit,
-    onClearRepeat: () -> Unit,
+    onPickRepeat: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val list = state.lists.firstOrNull { it.id == state.listId }
@@ -90,20 +91,24 @@ fun QuickAddChips(
             ) { Text(stringResource(R.string.chip_priority_value, priorityLabel(state.priority))) }
         }
 
-        if (state.recurrenceText != null || state.tagNames.isNotEmpty()) {
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                state.recurrenceText?.let { typed ->
-                    // His own words, not the stored rule: the rule cannot reconstruct his spelling.
-                    PoppingChip(value = typed, tag = "chip-repeat", onClick = onClearRepeat) {
-                        Text(stringResource(R.string.chip_repeat_value, typed))
-                    }
-                }
-                state.tagNames.forEach { tag ->
-                    PoppingChip(value = tag, tag = "chip-tag-$tag", onClick = {}) { Text("@$tag") }
-                }
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            // Always here, because it is how a repeat is set as well as how one is read. Until
+            // Phase 3 it appeared only once the parser had found a repeat, and tapping it cleared
+            // the repeat and took the chip with it, leaving nothing on screen to bring it back.
+            val repeatText = when {
+                // His own words, not the stored rule: the rule cannot reconstruct his spelling.
+                state.recurrenceText != null -> stringResource(R.string.chip_repeat_value, state.recurrenceText)
+                state.recurrence != null -> stringResource(R.string.chip_repeat_value, labelOf(state.recurrence))
+                else -> stringResource(R.string.repeat_chip_empty)
+            }
+            PoppingChip(value = repeatText, tag = "chip-repeat", onClick = onPickRepeat) {
+                Text(repeatText)
+            }
+            state.tagNames.forEach { tag ->
+                PoppingChip(value = tag, tag = "chip-tag-$tag", onClick = {}) { Text("@$tag") }
             }
         }
     }
