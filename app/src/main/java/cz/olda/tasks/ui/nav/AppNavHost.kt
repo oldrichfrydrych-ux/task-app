@@ -149,7 +149,9 @@ fun AppNavHost(
             )
         }
         // Phase 1: deliberately unreachable — the picker stores nothing yet
-        composable(Routes.SETTINGS) { SettingsScreen() }
+        composable(Routes.SETTINGS) {
+            SettingsScreen(viewModel = viewModel(factory = AppViewModelProvider.Factory))
+        }
         composable(Routes.SEARCH) {
             SearchScreen(
                 viewModel = viewModel(factory = AppViewModelProvider.Factory),

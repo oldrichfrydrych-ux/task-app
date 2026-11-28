@@ -9,7 +9,9 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import cz.olda.tasks.AppContainer
 import cz.olda.tasks.TasksApplication
+import cz.olda.tasks.platform.notificationsEnabled
 import cz.olda.tasks.ui.inbox.InboxViewModel
+import cz.olda.tasks.ui.settings.SettingsViewModel
 import cz.olda.tasks.ui.lists.ListDetailViewModel
 import cz.olda.tasks.ui.lists.ListsViewModel
 import cz.olda.tasks.ui.quickadd.QuickAddViewModel
@@ -38,6 +40,11 @@ object AppViewModelProvider {
         }
         initializer { InboxViewModel(container().taskRepository, container().listRepository) }
         initializer { SearchViewModel(container().taskRepository) }
+        // The notification switch is Android's, not ours, so it is read when asked for.
+        initializer {
+            val application = this[APPLICATION_KEY] as Application
+            SettingsViewModel(container().settingsRepository) { notificationsEnabled(application) }
+        }
         initializer { ListsViewModel(container().listRepository, container().taskRepository) }
         // The list id is the route argument, which the nav back stack puts in the saved state.
         initializer {
