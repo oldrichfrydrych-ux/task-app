@@ -232,4 +232,50 @@ abstract class TaskDao {
         markDone(id, done, if (done) now else null, now)
         if (done) completeOpenSubtasks(id, now)
     }
+
+    /** Gives the new task every tag the old one carries. */
+    @Query("INSERT INTO task_tags (taskId, tagId) SELECT :toId, tagId FROM task_tags WHERE taskId = :fromId")
+    abstract suspend fun copyTags(fromId: Long, toId: Long)
+
+    /**
+     * Removes a row outright, which nothing else in this app does - every other delete is a soft
+     * one. It exists for undoing a completion that created the next occurrence of a repeat: from
+     * Olda's point of view that row never existed, and a soft-deleted sibling would sit in the way
+     * of [nextPosition], which counts deleted siblings on purpose. Guarded on `done = 0` so it can
+     * only ever take the fresh occurrence, never a task with a history.
+     */
+    @Query("DELETE FROM tasks WHERE id = :id AND done = 0")
+    abstract suspend fun deleteHard(id: Long)
+
+    /**
+     * [setDone] with done = true, and the next occurrence of a repeat in the same transaction, so a
+     * crash between the two cannot leave Olda with neither a done task nor its successor. Returns
+     * the new task's id, or 0 when the task was already gone.
+     *
+     * The successor is the task itself, copied: `copy` rather than a column list, so a column added
+     * in a later phase travels with it by default instead of being silently dropped here. What it
+     * deliberately does not inherit is everything that belongs to the occurrence that just ended -
+     * its completion, its snooze, its Google id - and its subtasks, which stay with the task they
+     * were written under.
+     */
+    @Transaction
+    open suspend fun completeAndCreateNext(id: Long, nextDueDate: Long, now: Long): Long {
+        val task = getTask(id) ?: return 0
+        setDone(id, true, now)
+        val newId = insert(
+            task.copy(
+                id = 0,
+                dueDate = nextDueDate,
+                done = false,
+                completedAt = null,
+                parentTaskId = null,
+                snoozedUntil = null,
+                googleId = null,
+                position = nextPosition(task.listId, task.headingId, null),
+                updatedAt = now,
+            ),
+        )
+        copyTags(id, newId)
+        return newId
+    }
 }

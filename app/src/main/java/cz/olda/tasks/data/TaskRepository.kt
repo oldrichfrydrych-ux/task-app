@@ -2,6 +2,7 @@ package cz.olda.tasks.data
 
 import cz.olda.tasks.data.dao.TaskDao
 import cz.olda.tasks.data.entity.TaskEntity
+import cz.olda.tasks.data.recurrence.nextOccurrence
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
@@ -145,15 +146,54 @@ class TaskRepository(
         now = now(),
     )
 
-    /** Completing also completes open subtasks; reopening touches only the task itself. */
-    suspend fun setDone(id: Long, done: Boolean) = taskDao.setDone(id, done, now())
+    /**
+     * The id of the occurrence the last completion created, against the task that was completed.
+     * Held in memory rather than in the database because the only thing that needs it is the undo
+     * offered by the snackbar on screen, which does not outlive the process either. A completion
+     * from the notification's Done button offers no undo and so needs nothing remembered.
+     */
+    private var lastRoll: Pair<Long, Long>? = null
+
+    /**
+     * Completing also completes open subtasks; reopening touches only the task itself.
+     *
+     * **A repeating task creates its next occurrence here**, which is why every screen and the
+     * notification's Done button get that behaviour without knowing about it: this is the one door
+     * every completion in the app goes through. Returns the new occurrence's id, or null when
+     * nothing was created — the task does not repeat, it is being reopened, or its rule cannot be
+     * read, in which case it is completed like any other task rather than landing on a guessed day.
+     */
+    suspend fun setDone(id: Long, done: Boolean): Long? {
+        if (!done) {
+            taskDao.setDone(id, false, now())
+            return null
+        }
+        val task = taskDao.getTask(id) ?: return null
+        val next = task.recurrence
+            ?.let { nextOccurrence(it, task.dueDate?.let(LocalDate::ofEpochDay), today()) }
+        if (next == null) {
+            taskDao.setDone(id, true, now())
+            return null
+        }
+        return taskDao.completeAndCreateNext(id, next.toEpochDay(), now())
+            .also { lastRoll = id to it }
+    }
 
     /**
      * Undo for [setDone] with done = true: reopens the task and the subtasks completed with it (same
      * completedAt stamp), so a cascade completion is reversed in full. [setDone] with false still
      * reopens only the task itself.
+     *
+     * When that completion created the next occurrence of a repeat, this removes it outright: it
+     * was never a task Olda saw, so leaving it behind would turn one undone tick into two tasks.
      */
-    suspend fun undoCompletion(id: Long) = taskDao.undoCompletion(id, now())
+    suspend fun undoCompletion(id: Long) {
+        lastRoll?.takeIf { it.first == id }?.let { (_, created) ->
+            taskDao.deleteHard(created)
+            lastRoll = null
+        }
+        taskDao.undoCompletion(id, now())
+    }
 
     /** Also deletes the live subtasks; [restore] brings back exactly those. */
     suspend fun softDelete(id: Long) = taskDao.softDelete(id, now())
