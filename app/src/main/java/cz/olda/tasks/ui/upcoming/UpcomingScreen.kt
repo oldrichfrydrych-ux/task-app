@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import cz.olda.tasks.ui.components.FoldedRepeatsRow
 import cz.olda.tasks.ui.components.RepeatsChip
 import java.time.LocalDate
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -89,6 +90,17 @@ fun UpcomingContent(
                     onClick = onOpenTask,
                     headerModifier = Modifier.testTag("upcoming-day-${day.date}"),
                 )
+                // A section with no rows draws no title, so a day whose every task is a hidden
+                // repeat would show a bare "1 repeat hidden" with no date on it — and two such
+                // days would be indistinguishable. The date goes in on its own.
+                if (day.tasks.isEmpty() && day.hiddenRepeats.isNotEmpty()) {
+                    Text(
+                        text = day.date.format(formatter),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.testTag("upcoming-day-${day.date}"),
+                    )
+                }
                 // One folded row per day, so a day of nothing but repeats still appears and says so.
                 if (day.hiddenRepeats.isNotEmpty()) {
                     FoldedRepeatsRow(

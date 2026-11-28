@@ -98,10 +98,13 @@ internal fun RepeatPickerContent(
             tag = "none",
             onClick = { onPick(null) },
         )
-        presetRules(anchor).forEach { rule ->
+        // The weekly row shows the rule's own weekday when it has one, so a task carrying
+        // "every Monday" while due on a Saturday reads as Monday and a tap keeps it there.
+        val presets = presetRules(anchor).toMutableList().also { it[1] = weeklyPresetFor(current, anchor) }
+        presets.forEach { rule ->
             Option(
                 text = labelOf(rule),
-                ticked = current == rule,
+                ticked = current != null && matchesPreset(current, rule),
                 tag = rule,
                 onClick = { onPick(rule) },
             )
@@ -170,6 +173,8 @@ private fun CustomRow(
     onSave: () -> Unit,
 ) {
     var unitMenu by rememberSaveable { mutableStateOf(false) }
+    val fewer = stringResource(R.string.repeat_fewer)
+    val more = stringResource(R.string.repeat_more)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -180,7 +185,7 @@ private fun CustomRow(
                 onClick = { onInterval((interval - 1).coerceAtLeast(1)) },
                 modifier = Modifier
                     .testTag("repeat-custom-fewer")
-                    .semantics { contentDescription = "fewer" },
+                    .semantics { contentDescription = fewer },
             ) { Text("−", style = MaterialTheme.typography.titleMedium) }
             Text(
                 text = interval.toString(),
@@ -191,7 +196,7 @@ private fun CustomRow(
                 onClick = { onInterval(interval + 1) },
                 modifier = Modifier
                     .testTag("repeat-custom-more")
-                    .semantics { contentDescription = "more" },
+                    .semantics { contentDescription = more },
             ) { Text("+", style = MaterialTheme.typography.titleMedium) }
             OutlinedButton(
                 onClick = { unitMenu = true },

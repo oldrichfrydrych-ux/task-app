@@ -150,6 +150,25 @@ class ReminderSyncTest {
         assertTrue(bookings.cancelled > 0)
     }
 
+    /**
+     * Room invalidates per table, so editing a title re-runs the reminder query — but if the ring
+     * has not moved there is nothing to re-book. It matters more than tidiness on Olda's phone:
+     * `dumpsys alarm` shows the system allows only a handful of allow-while-idle alarms an hour
+     * before it starts deferring them into a window, and an app that re-books on every keystroke
+     * spends that allowance on nothing.
+     */
+    @Test
+    fun anEditThatDoesNotMoveTheRingDoesNotRebook() = runBlocking {
+        val id = add("zavolat", 15)
+        sync().start()
+        waitFor("the first booking") { bookings.last != null }
+
+        repo.update(repo.getTask(id)!!.copy(title = "zavolat na urad"))
+        Thread.sleep(300) // Long enough for a second booking to have arrived.
+
+        assertEquals("the ring did not move, so nothing should be re-booked", 1, bookings.count)
+    }
+
     @Test
     fun startingTwiceCollectsOnce() = runBlocking {
         add("zavolat", 15)

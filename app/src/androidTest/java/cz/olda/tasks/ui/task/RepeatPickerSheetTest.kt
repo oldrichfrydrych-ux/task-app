@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -82,6 +83,46 @@ class RepeatPickerSheetTest {
         compose.onNodeWithTag("repeat-option-FREQ=MONTHLY").assertIsSelected()
         compose.onNodeWithTag("repeat-option-FREQ=DAILY").assertIsNotSelected()
         compose.onNodeWithTag("repeat-option-none").assertIsNotSelected()
+    }
+
+    /**
+     * "Every week" is what Phase 2's parser writes for `kazdy tyden`, and it is not the same string
+     * as the weekly preset, which always carries a weekday. Nothing may be left with no tick at
+     * all: the sheet would be telling Olda that a task with a repeat has none.
+     */
+    @Test
+    fun aPlainWeeklyRuleIsStillTickedSomewhere() {
+        picker(current = "FREQ=WEEKLY")
+
+        compose.onNodeWithTag("repeat-option-FREQ=WEEKLY;BYDAY=TU").assertIsSelected()
+        compose.onNodeWithTag("repeat-option-none").assertIsNotSelected()
+    }
+
+    /**
+     * His real task "Číst při Týdenním resetu (pondělí)" is `FREQ=WEEKLY;BYDAY=MO` on a task due a
+     * Saturday. The weekly row is worded from the due date, so it does not equal the rule — and
+     * without this, the sheet shows nothing ticked and tapping the weekly row would quietly move
+     * the task off Monday.
+     */
+    @Test
+    fun aWeekdayRuleThatDisagreesWithTheDueDateIsStillTicked() {
+        val saturday = LocalDate.of(2026, 12, 5)
+        picker(current = "FREQ=WEEKLY;BYDAY=MO", anchor = saturday)
+
+        compose.onNodeWithTag("repeat-option-FREQ=WEEKLY;BYDAY=MO").assertIsSelected()
+        compose.onNodeWithTag("repeat-option-FREQ=WEEKLY;BYDAY=MO")
+            .assertTextContains("Monday", substring = true)
+        compose.onNodeWithTag("repeat-option-none").assertIsNotSelected()
+    }
+
+    /** Content descriptions are read aloud, so they are user-facing text and live in strings.xml. */
+    @Test
+    fun theCustomStepperButtonsAreNamedFromTheStringsFile() {
+        picker()
+        compose.onNodeWithTag("repeat-option-custom").performClick()
+
+        compose.onNodeWithContentDescription("Fewer").assertExists()
+        compose.onNodeWithContentDescription("More").assertExists()
     }
 
     @Test

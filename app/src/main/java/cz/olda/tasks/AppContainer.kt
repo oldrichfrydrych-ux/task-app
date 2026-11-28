@@ -8,6 +8,7 @@ import cz.olda.tasks.data.MIGRATION_1_2
 import cz.olda.tasks.data.MIGRATION_2_3
 import cz.olda.tasks.data.SettingsRepository
 import cz.olda.tasks.data.TagRepository
+import cz.olda.tasks.data.liveZoneClock
 import cz.olda.tasks.data.TaskRepository
 import cz.olda.tasks.platform.ReminderScheduler
 import cz.olda.tasks.platform.ReminderSync
@@ -32,8 +33,14 @@ class AppContainer(context: Context, dbName: String = "tasks.db") {
         ListRepository(database.listDao(), database.groupDao(), database.headingDao(), clock)
     }
 
-    /** One clock for everything that reads "today", so the repository and the ViewModels agree. */
-    val clock: Clock = Clock.systemDefaultZone()
+    /**
+     * One clock for everything that reads "today", so the repository and the ViewModels agree.
+     *
+     * [liveZoneClock] and not `Clock.systemDefaultZone()`: that one captures the time zone when it
+     * is made, which would leave a booked reminder on the old zone after a flight even though the
+     * app re-arms on `TIMEZONE_CHANGED` for exactly that case.
+     */
+    val clock: Clock = liveZoneClock()
 
     val taskRepository: TaskRepository by lazy {
         TaskRepository(database.taskDao(), clock)

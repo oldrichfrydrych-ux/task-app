@@ -7,6 +7,7 @@ import cz.olda.tasks.data.reminder.Ring
 import cz.olda.tasks.data.reminder.nextRing
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -137,6 +138,11 @@ class TaskRepository(
      */
     fun observeNextReminder(): Flow<Ring?> = taskDao.observeReminderInputs()
         .map { nextRing(it, clock.millis(), clock.zone) }
+        // Room invalidates per table, so editing a title re-runs the query above — but if the ring
+        // has not moved there is nothing to re-book. That is not only tidiness: Android allows an
+        // app only a handful of allow-while-idle alarms an hour before it starts deferring them
+        // into a window, and spending that allowance on keystrokes is how a reminder ends up late.
+        .distinctUntilChanged()
 
     /**
      * Moves this task's reminder to [untilMillis], or clears the snooze when it is null. It never
@@ -225,6 +231,10 @@ class TaskRepository(
      */
     suspend fun setDone(id: Long, done: Boolean): Long? {
         if (!done) {
+            // Unticking takes back the occurrence the tick created. Task detail has no undo
+            // snackbar, so without this one tap and one change of mind leave two open copies of
+            // the same task, both still repeating.
+            dropRolledOccurrence(id)
             taskDao.setDone(id, false, now())
             return null
         }
@@ -248,11 +258,20 @@ class TaskRepository(
      * was never a task Olda saw, so leaving it behind would turn one undone tick into two tasks.
      */
     suspend fun undoCompletion(id: Long) {
+        dropRolledOccurrence(id)
+        taskDao.undoCompletion(id, now())
+    }
+
+    /**
+     * Removes the occurrence [id]'s last completion created, if that is still what [lastRoll]
+     * holds. A hard delete, and guarded on `done = 0` in the DAO: from Olda's point of view that
+     * row never existed, and a soft-deleted sibling would sit in the way of `nextPosition`.
+     */
+    private suspend fun dropRolledOccurrence(id: Long) {
         lastRoll?.takeIf { it.first == id }?.let { (_, created) ->
             taskDao.deleteHard(created)
             lastRoll = null
         }
-        taskDao.undoCompletion(id, now())
     }
 
     /** Also deletes the live subtasks; [restore] brings back exactly those. */

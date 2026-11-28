@@ -227,6 +227,28 @@ class UpcomingScreenTest {
         awaitShown("folded-repeats-$tomorrow")
         rule.onNodeWithTag("folded-repeats-$tomorrow").assertTextContains("1", substring = true)
         rule.onAllNodes(hasTestTag("upcoming-empty")).assertCountEquals(0)
+        // Without its date the row is "1 repeat hidden" floating with nothing to attach it to, and
+        // two such days are indistinguishable.
+        rule.onNodeWithTag("upcoming-day-$tomorrow").assertIsDisplayed()
+    }
+
+    /** Two days of nothing but repeats must still be telling apart. */
+    @Test
+    fun twoDaysOfNothingButRepeatsBothKeepTheirDates() {
+        val tomorrow = today.plusDays(1)
+        val later = today.plusDays(3)
+        runBlocking {
+            addRepeating("Vynest kose", tomorrow)
+            addRepeating("Protahnout se", later)
+        }
+        show()
+        awaitShown("repeats-chip")
+
+        rule.onNodeWithTag("repeats-chip").performClick()
+
+        awaitShown("folded-repeats-$tomorrow")
+        rule.onNodeWithTag("upcoming-day-$tomorrow").assertIsDisplayed()
+        rule.onNodeWithTag("upcoming-day-$later").assertIsDisplayed()
     }
 
     @Test fun tappingADaysFoldedRowShowsThatDaysRepeats() {

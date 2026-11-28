@@ -33,6 +33,27 @@ fun customRule(interval: Int, unit: RepeatUnit): String =
     if (interval <= 1) "FREQ=${unit.freq}" else "FREQ=${unit.freq};INTERVAL=$interval"
 
 /**
+ * Whether [rule] is the one [preset] stands for, which is not always string equality.
+ *
+ * The weekly preset carries the task's own weekday (`FREQ=WEEKLY;BYDAY=TU`), but two other weekly
+ * rules reach this screen and must still show as weekly: a plain `FREQ=WEEKLY`, which Phase 2's
+ * parser writes for `kazdy tyden`, and a `BYDAY` rule whose day is not the task's due day — his
+ * real "Číst při Týdenním resetu (pondělí)" is `BYDAY=MO` on a task due a Saturday. Without this
+ * the sheet would show nothing ticked at all, telling him a repeating task has no repeat.
+ */
+fun matchesPreset(rule: String, preset: String): Boolean =
+    rule == preset || (rule.isWeekly() && preset.isWeekly())
+
+private fun String.isWeekly(): Boolean = startsWith("FREQ=WEEKLY") && !contains("INTERVAL=")
+
+/**
+ * The weekly row's own wording follows the rule when the rule names a weekday, and the task's due
+ * day only when it does not — so the row a tap would keep says what it would keep.
+ */
+fun weeklyPresetFor(rule: String?, anchor: LocalDate): String =
+    rule?.takeIf { it.isWeekly() && it.contains("BYDAY=") } ?: presetRules(anchor)[1]
+
+/**
  * The interval and unit the Custom sheet should open on, or null when [rule] is a preset, is not a
  * rule this picker could have written, or cannot be read at all — in which case Custom opens on its
  * own defaults rather than on a guess.

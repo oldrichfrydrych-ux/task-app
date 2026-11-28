@@ -198,10 +198,13 @@ class RecurringCompletionTest {
     fun reopeningATaskCreatesNothing() = runBlocking {
         val id = add("vynest kose", due = wed, repeat = "FREQ=DAILY")
         repo.setDone(id, true)
-        val before = liveTasks()
 
         assertNull(repo.setDone(id, false))
-        assertEquals(before, liveTasks())
+
+        // Nothing new appears, and what the tick created goes back with it — the other half is
+        // untickingARecurringTaskRemovesTheOccurrenceItCreated. This test used to assert the count
+        // was unchanged, which is how it managed to encode the duplicate rather than catch it.
+        assertEquals(1, liveTasks())
     }
 
     @Test
@@ -213,6 +216,34 @@ class RecurringCompletionTest {
 
         assertEquals("the occurrence must be gone for good, not soft-deleted", 0, rowsWithId(created))
         assertFalse("the original is open again", repo.getTask(id)!!.done)
+        assertEquals(1, liveTasks())
+    }
+
+    /**
+     * Ticking a repeat on task detail creates tomorrow's copy, and there is no undo snackbar
+     * there — so unticking has to take the copy back with it. Without this, one tap and one
+     * change of mind leave two open copies of the same task, both still repeating.
+     */
+    @Test
+    fun untickingARecurringTaskRemovesTheOccurrenceItCreated() = runBlocking {
+        val id = add("vynest kose", due = wed, repeat = "FREQ=DAILY")
+        val created = repo.setDone(id, true)!!
+
+        repo.setDone(id, false)
+
+        assertEquals("the occurrence must go back with the tick", 0, rowsWithId(created))
+        assertFalse(repo.getTask(id)!!.done)
+        assertEquals(1, liveTasks())
+    }
+
+    @Test
+    fun untickingAnOrdinaryTaskStillJustReopensIt() = runBlocking {
+        val id = add("koupit kabat", due = wed)
+        repo.setDone(id, true)
+
+        repo.setDone(id, false)
+
+        assertFalse(repo.getTask(id)!!.done)
         assertEquals(1, liveTasks())
     }
 
