@@ -43,6 +43,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Where the exact alarm lands. Not exported: only this app's own alarm starts it. -->
+        <receiver
+            android:name=".platform.ReminderReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

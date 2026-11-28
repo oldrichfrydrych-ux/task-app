@@ -78,6 +78,9 @@ class TaskRepository(
     /** One read of a live task, without opening a flow: for code that needs the current row once. */
     suspend fun getTask(id: Long): TaskEntity? = taskDao.getTask(id)
 
+    /** The same, with the name of the task's list, which a reminder has to say and cannot look up. */
+    suspend fun getTaskWithList(id: Long): TaskWithList? = taskDao.getTaskWithList(id)
+
     /** The distinct list colours with an open task (subtasks included) on each day in [from]..[to] inclusive. */
     fun observeDots(from: LocalDate, to: LocalDate): Flow<Map<LocalDate, List<String>>> =
         taskDao.observeDots(from.toEpochDay(), to.toEpochDay()).map { rows ->

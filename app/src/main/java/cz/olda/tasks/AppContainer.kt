@@ -9,6 +9,11 @@ import cz.olda.tasks.data.MIGRATION_2_3
 import cz.olda.tasks.data.SettingsRepository
 import cz.olda.tasks.data.TagRepository
 import cz.olda.tasks.data.TaskRepository
+import cz.olda.tasks.platform.ReminderScheduler
+import cz.olda.tasks.platform.ReminderSync
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import java.time.Clock
 
 /** Hand-wired dependencies, one instance for the life of the process. */
@@ -40,5 +45,15 @@ class AppContainer(context: Context, dbName: String = "tasks.db") {
 
     val settingsRepository: SettingsRepository by lazy {
         SettingsRepository(database.settingDao())
+    }
+
+    /**
+     * Lives as long as the process, which is what [ReminderSync.start] collects in. Not a
+     * ViewModel's scope: the alarm has to stay in step with the data whether a screen is on or not.
+     */
+    private val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    val reminderSync: ReminderSync by lazy {
+        ReminderSync(appScope, taskRepository, ReminderScheduler(appContext))
     }
 }

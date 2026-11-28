@@ -10,5 +10,7 @@ class TasksApplication : Application() {
         super.onCreate()
         // Creating a channel twice is a no-op, so this needs no "has it run yet" state.
         Notifications.ensureChannel(this)
+        // From here the booked alarm follows the tasks table on its own; see ReminderSync.
+        container.reminderSync.start()
     }
 }

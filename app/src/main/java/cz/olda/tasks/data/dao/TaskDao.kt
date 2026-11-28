@@ -67,6 +67,16 @@ abstract class TaskDao {
     @Query("SELECT * FROM tasks WHERE id = :id AND deletedAt IS NULL")
     abstract suspend fun getTask(id: Long): TaskEntity?
 
+    /**
+     * One task with the name of its list, read once. A reminder says which list a task is in, and
+     * the notification has no screen to read that from.
+     */
+    @Query(
+        "SELECT tasks.*, lists.name AS listName, lists.colorHex AS listColorHex FROM tasks " +
+            "JOIN lists ON lists.id = tasks.listId WHERE tasks.id = :id AND tasks.deletedAt IS NULL",
+    )
+    abstract suspend fun getTaskWithList(id: Long): TaskWithList?
+
     @Query(
         "SELECT DISTINCT tasks.dueDate AS dueDate, lists.colorHex AS colorHex FROM tasks " +
             "JOIN lists ON lists.id = tasks.listId " +
