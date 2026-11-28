@@ -1,0 +1,139 @@
+package cz.olda.tasks.ui.task
+
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import cz.olda.tasks.ui.theme.AppTheme
+import org.junit.Assert.assertEquals
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import java.time.LocalDate
+
+/**
+ * The picker Phase 2 left out: a short list to tap, with Custom… behind it. Olda chose this shape
+ * on 28 Nov over a sentence builder and a text field read by the parser.
+ */
+@RunWith(AndroidJUnit4::class)
+class RepeatPickerSheetTest {
+
+    @get:Rule
+    val compose = createComposeRule()
+
+    private val tuesday = LocalDate.of(2026, 12, 1)
+    private val picked = mutableListOf<String?>()
+
+    private fun picker(current: String? = null, anchor: LocalDate = tuesday) {
+        compose.setContent {
+            AppTheme {
+                RepeatPickerContent(current = current, anchor = anchor, onPick = { picked += it })
+            }
+        }
+    }
+
+    @Test
+    fun theFiveWaysToRepeatAreAllThere() {
+        picker()
+
+        compose.onNodeWithTag("repeat-option-none").assertIsDisplayed()
+        compose.onNodeWithTag("repeat-option-FREQ=DAILY").assertIsDisplayed()
+        compose.onNodeWithTag("repeat-option-FREQ=WEEKLY;BYDAY=TU").assertIsDisplayed()
+        compose.onNodeWithTag("repeat-option-FREQ=MONTHLY").assertIsDisplayed()
+        compose.onNodeWithTag("repeat-option-FREQ=YEARLY").assertIsDisplayed()
+        compose.onNodeWithTag("repeat-option-custom").assertIsDisplayed()
+    }
+
+    /** The weekly row names the day the task actually falls on, not a day Olda has to work out. */
+    @Test
+    fun theWeeklyRowNamesTheTasksOwnWeekday() {
+        picker(anchor = tuesday)
+
+        compose.onNodeWithTag("repeat-option-FREQ=WEEKLY;BYDAY=TU")
+            .assertTextContains("Tuesday", substring = true)
+    }
+
+    @Test
+    fun tappingEveryDayPicksIt() {
+        picker()
+
+        compose.onNodeWithTag("repeat-option-FREQ=DAILY").performClick()
+
+        assertEquals(listOf<String?>("FREQ=DAILY"), picked)
+    }
+
+    @Test
+    fun tappingDoesNotRepeatPicksNothing() {
+        picker(current = "FREQ=DAILY")
+
+        compose.onNodeWithTag("repeat-option-none").performClick()
+
+        assertEquals(listOf<String?>(null), picked)
+    }
+
+    @Test
+    fun theCurrentRuleIsTickedAndTheOthersAreNot() {
+        picker(current = "FREQ=MONTHLY")
+
+        compose.onNodeWithTag("repeat-option-FREQ=MONTHLY").assertIsSelected()
+        compose.onNodeWithTag("repeat-option-FREQ=DAILY").assertIsNotSelected()
+        compose.onNodeWithTag("repeat-option-none").assertIsNotSelected()
+    }
+
+    @Test
+    fun aTaskWithNoRepeatHasDoesNotRepeatTicked() {
+        picker(current = null)
+
+        compose.onNodeWithTag("repeat-option-none").assertIsSelected()
+    }
+
+    @Test
+    fun customWritesTheIntervalItWasBuiltWith() {
+        picker()
+
+        compose.onNodeWithTag("repeat-option-custom").performClick()
+        compose.onNodeWithTag("repeat-custom-more").performClick()
+        compose.onNodeWithTag("repeat-custom-save").performClick()
+
+        assertEquals(listOf<String?>("FREQ=DAILY;INTERVAL=2"), picked)
+    }
+
+    @Test
+    fun customCountsDownButNeverBelowOne() {
+        picker()
+
+        compose.onNodeWithTag("repeat-option-custom").performClick()
+        repeat(3) { compose.onNodeWithTag("repeat-custom-fewer").performClick() }
+        compose.onNodeWithTag("repeat-custom-interval").assertTextContains("1", substring = true)
+        compose.onNodeWithTag("repeat-custom-save").performClick()
+
+        assertEquals("an interval of one is written without it", listOf<String?>("FREQ=DAILY"), picked)
+    }
+
+    @Test
+    fun customOpensOnTheRuleTheTaskAlreadyHas() {
+        picker(current = "FREQ=MONTHLY;INTERVAL=3")
+
+        compose.onNodeWithTag("repeat-option-custom").performClick()
+
+        compose.onNodeWithTag("repeat-custom-interval").assertTextContains("3", substring = true)
+        compose.onNodeWithTag("repeat-custom-unit").assertTextContains("months", substring = true)
+    }
+
+    @Test
+    fun customCanChangeTheUnit() {
+        picker()
+
+        compose.onNodeWithTag("repeat-option-custom").performClick()
+        compose.onNodeWithTag("repeat-custom-unit").performClick()
+        compose.onNodeWithTag("repeat-custom-unit-WEEKS").performClick()
+        compose.onNodeWithTag("repeat-custom-more").performClick()
+        compose.onNodeWithTag("repeat-custom-save").performClick()
+
+        assertEquals(listOf<String?>("FREQ=WEEKLY;INTERVAL=2"), picked)
+    }
+}

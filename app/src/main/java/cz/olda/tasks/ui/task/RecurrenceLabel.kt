@@ -46,8 +46,18 @@ fun recurrenceLabel(rule: String): RecurrenceLabel {
             day == null -> RecurrenceLabel(R.string.repeat_weekly)
             else -> unknown
         }
-        "MONTHLY" -> if (interval == null && day == null) RecurrenceLabel(R.string.repeat_monthly) else unknown
-        "YEARLY" -> if (interval == null && day == null) RecurrenceLabel(R.string.repeat_yearly) else unknown
+        // An interval in months or years arrived with Phase 3's picker, whose Custom sheet offers
+        // both units; without these, "every 3 months" would read as the catch-all "Repeats".
+        "MONTHLY" -> when {
+            day != null -> unknown
+            interval != null -> RecurrenceLabel(R.string.repeat_every_n_months, interval = interval)
+            else -> RecurrenceLabel(R.string.repeat_monthly)
+        }
+        "YEARLY" -> when {
+            day != null -> unknown
+            interval != null -> RecurrenceLabel(R.string.repeat_every_n_years, interval = interval)
+            else -> RecurrenceLabel(R.string.repeat_yearly)
+        }
         else -> unknown
     }
 }

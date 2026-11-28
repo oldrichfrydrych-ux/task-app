@@ -6,6 +6,7 @@ import cz.olda.tasks.data.dao.DayDot
 import cz.olda.tasks.data.dao.ListOpenCount
 import cz.olda.tasks.data.dao.TaskDao
 import cz.olda.tasks.data.entity.TaskEntity
+import cz.olda.tasks.data.reminder.ReminderInput
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -82,6 +83,14 @@ internal class FakeTaskDao(
     override suspend fun deletedAtOf(id: Long): Long? = TODO()
     override suspend fun stampDeleted(id: Long, stamp: Long): Unit = TODO()
     override suspend fun clearDeleted(id: Long, stamp: Long, now: Long): Unit = TODO()
+
+    // Phase 3's queries. The day screens never reach them, so they are TODO like the rest - but
+    // they have to be here, or this class stops compiling the moment the DAO grows.
+    override suspend fun getTaskWithList(id: Long): TaskWithList? = TODO()
+    override fun observeReminderInputs(): Flow<List<ReminderInput>> = TODO()
+    override suspend fun setSnooze(id: Long, until: Long?, now: Long): Unit = TODO()
+    override suspend fun copyTags(fromId: Long, toId: Long): Unit = TODO()
+    override suspend fun deleteHard(id: Long): Unit = TODO()
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)

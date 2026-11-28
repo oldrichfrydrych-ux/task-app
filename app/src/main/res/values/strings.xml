@@ -120,7 +120,19 @@
     <string name="repeat_weekly_on">Every %1$s</string>
     <string name="repeat_every_n_days">Every %1$d days</string>
     <string name="repeat_every_n_weeks">Every %1$d weeks</string>
+    <string name="repeat_every_n_months">Every %1$d months</string>
+    <string name="repeat_every_n_years">Every %1$d years</string>
     <string name="repeat_unknown">Repeats</string>
+    <string name="repeat_none">Does not repeat</string>
+    <string name="repeat_custom">Custom…</string>
+    <string name="repeat_unit_days">days</string>
+    <string name="repeat_unit_weeks">weeks</string>
+    <string name="repeat_unit_months">months</string>
+    <string name="repeat_unit_years">years</string>
+    <string name="repeat_choose">Repeat</string>
+    <string name="repeat_every">Every</string>
+    <string name="repeat_fewer">Fewer</string>
+    <string name="repeat_more">More</string>
     <string name="remove_repeat">Remove the repeat</string>
 
     <!-- Reminders -->

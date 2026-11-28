@@ -35,6 +35,28 @@ class RecurrenceLabelTest {
         )
     }
 
+    /**
+     * Added in Phase 3 with the picker, whose Custom sheet offers months and years: without these
+     * two, picking "every 3 months" would quietly store something that reads as "Repeats".
+     */
+    @Test
+    fun anIntervalInMonthsOrYearsHasItsOwnLabel() {
+        assertEquals(
+            RecurrenceLabel(R.string.repeat_every_n_months, interval = 3),
+            recurrenceLabel("FREQ=MONTHLY;INTERVAL=3"),
+        )
+        assertEquals(
+            RecurrenceLabel(R.string.repeat_every_n_years, interval = 2),
+            recurrenceLabel("FREQ=YEARLY;INTERVAL=2"),
+        )
+    }
+
+    @Test
+    fun aWeekdayOnAMonthlyOrYearlyRuleIsStillUnreadable() {
+        assertEquals(RecurrenceLabel(R.string.repeat_unknown), recurrenceLabel("FREQ=MONTHLY;BYDAY=MO"))
+        assertEquals(RecurrenceLabel(R.string.repeat_unknown), recurrenceLabel("FREQ=YEARLY;BYDAY=MO"))
+    }
+
     @Test
     fun anUnreadableRuleFallsBackToRepeats() {
         listOf("", "nonsense", "FREQ=HOURLY", "FREQ=WEEKLY;BYDAY=XX", "FREQ=DAILY;INTERVAL=abc")

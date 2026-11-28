@@ -190,7 +190,13 @@ private fun TaskFields(
         DateField(task.dueDate, viewModel::setDueDate)
         TimeField(task.dueMinute, viewModel::setDueMinute)
         PriorityRow(task.priority, viewModel::setPriority)
-        task.recurrence?.let { RepeatRow(it, viewModel::clearRecurrence) }
+        RepeatRow(
+            rule = task.recurrence,
+            // The weekly row in the picker names this day; the task's own, or today when it has none.
+            anchor = task.dueDate?.let(LocalDate::ofEpochDay) ?: LocalDate.now(),
+            onPick = viewModel::setRecurrence,
+            onClear = viewModel::clearRecurrence,
+        )
         TagRow(state, viewModel)
 
         // One level only: a subtask has no subtasks section and nothing to add one with.
@@ -402,35 +408,48 @@ private fun Subtasks(state: TaskDetailState, viewModel: TaskDetailViewModel, onO
 }
 
 /**
- * A repeat, said in English from the stored rule, with an × that throws it away. Changing one to
- * a different repeat waits for Phase 3, which builds the picker; this phase only has to make sure
- * a "kazdy den" typed by mistake is not stuck on the task for good.
+ * The repeat: said in English from the stored rule, or "Does not repeat" when there is none.
+ *
+ * It is always here, because this is where a repeat is **set** as well as read — Phase 2 could only
+ * clear one, and a row that appeared only for a task that already repeated left no way to start.
+ * Tapping it opens the picker; the × beside it, which is there only when there is something to
+ * remove, still throws the repeat away in one tap.
  */
 @Composable
-private fun RepeatRow(rule: String, onClear: () -> Unit) {
-    val label = recurrenceLabel(rule)
-    val text = when {
-        label.day != null -> stringResource(
-            label.stringId,
-            label.day.getDisplayName(TextStyle.FULL, Locale.getDefault()),
-        )
-        label.interval != null -> stringResource(label.stringId, label.interval)
-        else -> stringResource(label.stringId)
-    }
+private fun RepeatRow(rule: String?, anchor: LocalDate, onPick: (String?) -> Unit, onClear: () -> Unit) {
+    var pickerOpen by rememberSaveable { mutableStateOf(false) }
+    val text = if (rule == null) stringResource(R.string.repeat_none) else labelOf(rule)
     val removeLabel = stringResource(R.string.remove_repeat)
+
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             text = stringResource(R.string.repeat),
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        AssistChip(
-            onClick = onClear,
-            label = { Text(text) },
-            trailingIcon = { Text("✕") },
-            modifier = Modifier
-                .testTag("task-repeat")
-                .semantics { contentDescription = removeLabel },
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AssistChip(
+                onClick = { pickerOpen = true },
+                label = { Text(text) },
+                modifier = Modifier.testTag("task-repeat"),
+            )
+            if (rule != null) {
+                IconButton(
+                    onClick = onClear,
+                    modifier = Modifier
+                        .testTag("task-repeat-clear")
+                        .semantics { contentDescription = removeLabel },
+                ) { Text("✕") }
+            }
+        }
+    }
+
+    if (pickerOpen) {
+        RepeatPickerSheet(
+            current = rule,
+            anchor = anchor,
+            onPick = onPick,
+            onDismiss = { pickerOpen = false },
         )
     }
 }

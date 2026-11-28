@@ -166,7 +166,7 @@ class TaskDetailScreenTest {
         awaitShown("subtask-title-$sub")
         // Control: nothing opens until the subtask is tapped.
         assertNull(openedTask)
-        rule.onNodeWithTag("subtask-title-$sub").performClick()
+        rule.onNodeWithTag("subtask-title-$sub").performScrollTo().performClick()
         rule.waitUntil(timeoutMillis = 10_000) { openedTask == sub }
         assertEquals(sub, openedTask)
         // Ticking the checkbox is still its own tap and does not open anything else.
@@ -211,8 +211,10 @@ class TaskDetailScreenTest {
     @Test fun aParentOffersToAddASubtask() {
         val id = runBlocking { repo.add("Parent", work, null, null, 4) }
         show(id)
-        rule.onNodeWithTag("subtask-field").assertIsDisplayed()
-        rule.onNodeWithTag("subtask-add").assertIsDisplayed()
+        // The screen scrolls, and since Phase 3 the Repeat row is on every task, so the subtask
+        // section sits below the fold on a short phone.
+        rule.onNodeWithTag("subtask-field").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithTag("subtask-add").performScrollTo().assertIsDisplayed()
     }
 
     @Test fun aSubtaskCannotTakeASubtask() {
@@ -312,10 +314,53 @@ class TaskDetailScreenTest {
         assertEquals(emptyList<String>(), runBlocking { tags.observeTagsOf(id).first().map { it.name } })
     }
 
-    @Test fun theRepeatRowAppearsOnlyForARepeatingTask() {
+    /**
+     * Phase 3 turned this row into the place a repeat is **set**, so it is always here — a row that
+     * appeared only for a task that already repeated left nowhere to start. Phase 2's version of
+     * this test asserted the opposite.
+     */
+    @Test fun theRepeatRowSaysDoesNotRepeatForAPlainTask() {
         val plain = runBlocking { repo.add("Call the office", work, null, null, 4) }
         show(plain)
-        rule.onAllNodes(hasTestTag("task-repeat")).assertCountEquals(0)
+        awaitShown("task-repeat")
+        rule.onNodeWithTag("task-repeat").assertTextContains("Does not repeat", substring = true)
+        rule.onAllNodes(hasTestTag("task-repeat-clear")).assertCountEquals(0)
+    }
+
+    @Test fun tappingTheRepeatRowOpensThePicker() {
+        val plain = runBlocking { repo.add("Call the office", work, null, null, 4) }
+        show(plain)
+        awaitShown("task-repeat")
+
+        rule.onNodeWithTag("task-repeat").performClick()
+
+        awaitShown("repeat-picker")
+    }
+
+    @Test fun pickingARepeatWritesItToTheTask() {
+        val id = runBlocking { repo.add("Stand-up", work, null, null, 4) }
+        show(id)
+        awaitShown("task-repeat")
+        rule.onNodeWithTag("task-repeat").performClick()
+        awaitShown("repeat-picker")
+
+        rule.onNodeWithTag("repeat-option-FREQ=DAILY").performClick()
+
+        rule.waitUntil(timeoutMillis = 10_000) { task(id)?.recurrence == "FREQ=DAILY" }
+        assertEquals("FREQ=DAILY", task(id)!!.recurrence)
+    }
+
+    @Test fun aRepeatCanBeChangedToAnother() {
+        val id = runBlocking { repo.add("Stand-up", work, null, null, 4, recurrence = "FREQ=DAILY") }
+        show(id)
+        awaitShown("task-repeat")
+        rule.onNodeWithTag("task-repeat").performClick()
+        awaitShown("repeat-picker")
+
+        rule.onNodeWithTag("repeat-option-FREQ=MONTHLY").performClick()
+
+        rule.waitUntil(timeoutMillis = 10_000) { task(id)?.recurrence == "FREQ=MONTHLY" }
+        assertEquals("FREQ=MONTHLY", task(id)!!.recurrence)
     }
 
     @Test fun aRepeatIsSaidInEnglishFromItsRule() {
@@ -327,14 +372,18 @@ class TaskDetailScreenTest {
         rule.onNodeWithTag("task-repeat").assertTextContains("Monday", substring = true)
     }
 
-    /** Without this, a "kazdy den" typed by mistake could only be undone by deleting the task. */
+    /**
+     * Without this, a "kazdy den" typed by mistake could only be undone by deleting the task.
+     * Since Phase 3 the chip itself opens the picker, so clearing is the × beside it — still one
+     * tap, which is what the design asks for.
+     */
     @Test fun theRepeatCanBeCleared() {
         val id = runBlocking { repo.add("Exercise", work, null, null, 4, recurrence = "FREQ=DAILY") }
         show(id)
-        awaitShown("task-repeat")
-        rule.onNodeWithTag("task-repeat").performClick()
+        awaitShown("task-repeat-clear")
+        rule.onNodeWithTag("task-repeat-clear").performClick()
         rule.waitUntil(timeoutMillis = 10_000) {
-            rule.onAllNodes(hasTestTag("task-repeat")).fetchSemanticsNodes().isEmpty()
+            rule.onAllNodes(hasTestTag("task-repeat-clear")).fetchSemanticsNodes().isEmpty()
         }
         assertNull(task(id)!!.recurrence)
     }

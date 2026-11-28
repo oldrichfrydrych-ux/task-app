@@ -150,6 +150,13 @@ class TaskDetailViewModel(
      */
     fun clearRecurrence() = edit { it.copy(recurrence = null) }
 
+    /**
+     * Sets, changes or removes the repeat — what Phase 2 could not do, since it could only clear
+     * one. [rule] of null is the picker's "Does not repeat" row and does the same as
+     * [clearRecurrence], which the row's own × still uses.
+     */
+    fun setRecurrence(rule: String?) = edit { it.copy(recurrence = rule) }
+
     fun addTag(name: String) {
         val cleaned = name.trim().removePrefix("@")
         if (cleaned.isBlank()) return
