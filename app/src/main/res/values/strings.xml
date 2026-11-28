@@ -126,6 +126,8 @@
     <!-- Reminders -->
     <string name="reminder_channel_name">Reminders</string>
     <string name="reminder_channel_description">A notification when a task is due</string>
+    <string name="reminder_done">Done</string>
+    <string name="reminder_snooze">Snooze</string>
     <plurals name="reminder_summary">
         <item quantity="one">%d task today</item>
         <item quantity="other">%d tasks today</item>

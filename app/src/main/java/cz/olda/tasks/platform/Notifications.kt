@@ -63,6 +63,16 @@ object Notifications {
             .setGroup(GROUP_KEY)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .addAction(
+                0,
+                context.getString(R.string.reminder_done),
+                actionPendingIntent(context, taskId, ReminderActionReceiver.ACTION_DONE),
+            )
+            .addAction(
+                0,
+                context.getString(R.string.reminder_snooze),
+                actionPendingIntent(context, taskId, ReminderActionReceiver.ACTION_SNOOZE),
+            )
             .build()
 
     /**
@@ -98,6 +108,25 @@ object Notifications {
             .setData(Uri.parse("tasks://reminder/$taskId"))
             .putExtra(EXTRA_TASK_ID, taskId)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+
+    /**
+     * Done and Snooze for one task. The task id is in the data here too, and so is the action, so
+     * the two buttons of one reminder — and the same button of two reminders — cannot share a
+     * `PendingIntent` and act on the wrong task.
+     */
+    internal fun actionIntent(context: Context, taskId: Long, action: String): Intent =
+        Intent(context, ReminderActionReceiver::class.java)
+            .setAction(action)
+            .setData(Uri.parse("tasks://reminder/$taskId/$action"))
+            .putExtra(ReminderActionReceiver.EXTRA_TASK_ID, taskId)
+
+    private fun actionPendingIntent(context: Context, taskId: Long, action: String) =
+        PendingIntent.getBroadcast(
+            context,
+            0,
+            actionIntent(context, taskId, action),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
 
     private fun tapPendingIntent(context: Context, taskId: Long) = PendingIntent.getActivity(
         context,

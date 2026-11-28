@@ -48,6 +48,11 @@
         <receiver
             android:name=".platform.ReminderReceiver"
             android:exported="false" />
+
+        <!-- Done and Snooze. Not exported: only this app's own notifications start it. -->
+        <receiver
+            android:name=".platform.ReminderActionReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>
