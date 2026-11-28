@@ -14,8 +14,11 @@ android {
         applicationId = "cz.olda.tasks"
         minSdk = 29
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        // One per phase that reaches the phone, so Android's app info says which build this is and
+        // each new APK installs over the last. Phase 3 is 3 / "0.3"; 1.0 is for when it has
+        // replaced TickTick.
+        versionCode = 3
+        versionName = "0.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
