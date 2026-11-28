@@ -59,6 +59,44 @@ class MigrationTest {
         }
     }
 
+    /**
+     * The same guard one version on. Version 2 is what is on Olda's phone, so this is the run that
+     * stands between `MIGRATION_2_3` and his 31 tasks: the task must come through with its repeat
+     * intact, carrying no snooze, and the new `settings` table must arrive empty.
+     */
+    @Test
+    fun aTaskWrittenAtVersionTwoSurvivesWithNoSnooze() {
+        helper.createDatabase(DB, 2).use { db ->
+            db.execSQL(
+                "INSERT INTO lists (name, colorHex, position, isInbox, updatedAt) " +
+                    "VALUES ('🌊Práce', '#3D6BE0', 0, 1, 0)",
+            )
+            db.execSQL(
+                "INSERT INTO tasks (title, notes, titleNormalised, notesNormalised, listId, " +
+                    "priority, done, position, dueDate, dueMinute, recurrence, updatedAt) " +
+                    "VALUES ('Číst při Týdenním resetu (pondělí).', '', " +
+                    "'cist pri tydennim resetu (pondeli).', '', 1, 2, 0, 0, 20785, 900, " +
+                    "'FREQ=WEEKLY;BYDAY=MO', 7)",
+            )
+        }
+
+        helper.runMigrationsAndValidate(DB, 3, true, MIGRATION_1_2, MIGRATION_2_3).use { db ->
+            db.query("SELECT title, dueDate, dueMinute, recurrence, snoozedUntil FROM tasks").use { row ->
+                assertTrue("the task is gone", row.moveToFirst())
+                assertEquals("Číst při Týdenním resetu (pondělí).", row.getString(0))
+                assertEquals(20785L, row.getLong(1))
+                assertEquals(900, row.getInt(2))
+                assertEquals("FREQ=WEEKLY;BYDAY=MO", row.getString(3))
+                assertTrue("a migrated task must have no snooze", row.isNull(4))
+                assertEquals("exactly one task", 1, row.count)
+            }
+            db.query("SELECT COUNT(*) FROM settings").use { row ->
+                assertTrue(row.moveToFirst())
+                assertEquals("the settings table starts empty", 0, row.getInt(0))
+            }
+        }
+    }
+
     private companion object {
         const val DB = "migration-test.db"
     }

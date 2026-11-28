@@ -34,6 +34,15 @@ data class TaskEntity(
      * hand it over unchanged and Phase 3 can add UNTIL or COUNT without another migration.
      */
     val recurrence: String? = null,
+    /**
+     * When a snoozed reminder should ring, as epoch millis, or null when this task is not snoozed.
+     *
+     * Written only by the snooze path (`TaskRepository.snooze`) and deliberately **absent from
+     * `TaskDao.updateEditable`'s column list**, so editing a task's title or date cannot silently
+     * cancel a snooze Olda asked for. It moves the ring and never the task: `dueDate` and
+     * `dueMinute` are what the task is due at, whatever this says. Phase 4 does not sync it.
+     */
+    val snoozedUntil: Long? = null,
     // Reserved for later phases so they need no migration; nothing writes these in Phase 1.
     val durationMinutes: Int? = null,
     val goalId: Long? = null,

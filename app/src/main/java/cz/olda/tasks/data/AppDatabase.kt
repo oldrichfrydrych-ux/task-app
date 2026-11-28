@@ -6,11 +6,13 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import cz.olda.tasks.data.dao.GroupDao
 import cz.olda.tasks.data.dao.HeadingDao
 import cz.olda.tasks.data.dao.ListDao
+import cz.olda.tasks.data.dao.SettingDao
 import cz.olda.tasks.data.dao.TagDao
 import cz.olda.tasks.data.dao.TaskDao
 import cz.olda.tasks.data.entity.GroupEntity
 import cz.olda.tasks.data.entity.HeadingEntity
 import cz.olda.tasks.data.entity.ListEntity
+import cz.olda.tasks.data.entity.SettingEntity
 import cz.olda.tasks.data.entity.TagEntity
 import cz.olda.tasks.data.entity.TaskEntity
 import cz.olda.tasks.data.entity.TaskTagCrossRef
@@ -25,8 +27,9 @@ import cz.olda.tasks.ui.theme.toHex
         TagEntity::class,
         TaskTagCrossRef::class,
         TaskEntity::class,
+        SettingEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -35,6 +38,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun headingDao(): HeadingDao
     abstract fun taskDao(): TaskDao
     abstract fun tagDao(): TagDao
+    abstract fun settingDao(): SettingDao
 
     companion object {
         /**
