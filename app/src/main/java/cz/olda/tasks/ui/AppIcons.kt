@@ -99,6 +99,15 @@ object AppIcons {
         name = "Back",
         pathData = "M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z",
     )
+
+    /**
+     * Two arrows round a loop: the mark every repeating task carries, on every screen that lists
+     * tasks. Small and in the secondary text colour, so it never competes with the title.
+     */
+    val Repeat: ImageVector = filledIcon(
+        name = "Repeat",
+        pathData = "M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z",
+    )
 }
 
 private fun filledIcon(name: String, pathData: String): ImageVector =

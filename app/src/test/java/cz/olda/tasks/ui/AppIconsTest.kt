@@ -20,6 +20,7 @@ class AppIconsTest {
         "CalendarDots" to AppIcons.CalendarDots,
         "Check" to AppIcons.Check,
         "Chevron" to AppIcons.Chevron,
+        "Repeat" to AppIcons.Repeat,
     )
 
     @Test

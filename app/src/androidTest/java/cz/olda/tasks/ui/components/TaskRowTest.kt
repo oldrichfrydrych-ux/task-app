@@ -502,4 +502,43 @@ class TaskRowTest {
         rule.onAllNodesWithText("Overdue").assertCountEquals(0)
         rule.onNodeWithTag("task-1").onParent().onChildren().assertCountEquals(1)
     }
+
+    // ---- Phase 3: the repeat mark ----
+
+    @Test
+    fun aRepeatingTaskCarriesTheRepeatMark() {
+        val repeating = sample.copy(task = sample.task.copy(recurrence = "FREQ=DAILY"))
+        rule.setContent { AppTheme { TaskRow(repeating, {}, {}) } }
+
+        tag("task-repeat-mark-7").assertExists()
+    }
+
+    @Test
+    fun aTaskThatDoesNotRepeatCarriesNoMark() {
+        rule.setContent { AppTheme { TaskRow(sample, {}, {}) } }
+
+        rule.onAllNodesWithTag("task-repeat-mark-7", useUnmergedTree = true).assertCountEquals(0)
+    }
+
+    /**
+     * The mark shares the list name's slot and takes its width from the title, so the thing that
+     * could go wrong is the name being squeezed to nothing. It sits between the title and the name.
+     */
+    @Test
+    fun aLongTitleBesideTheMarkStillLeavesTheListName() {
+        val long = sample.copy(
+            task = sample.task.copy(
+                title = "Zavolat na úřad kvůli přehlášení trvalého pobytu",
+                recurrence = "FREQ=WEEKLY;BYDAY=MO",
+            ),
+        )
+        rule.setContent { AppTheme { TaskRow(long, {}, {}) } }
+
+        val name = tag("task-list-7").getBoundsInRoot()
+        val mark = tag("task-repeat-mark-7").getBoundsInRoot()
+        val title = tag("task-title-7").getBoundsInRoot()
+        assertTrue("the list name was squeezed out", name.right > name.left)
+        assertTrue("the mark must sit between the title and the list name", title.right <= mark.left)
+        assertTrue("the mark must sit between the title and the list name", mark.right <= name.left)
+    }
 }

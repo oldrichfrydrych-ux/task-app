@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,14 +28,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import cz.olda.tasks.R
 import cz.olda.tasks.data.TaskWithList
 import cz.olda.tasks.data.entity.TaskEntity
+import cz.olda.tasks.ui.AppIcons
 import cz.olda.tasks.ui.theme.ListPalette
 import cz.olda.tasks.ui.theme.parseHex
 import cz.olda.tasks.ui.theme.textShade
@@ -50,6 +54,10 @@ import java.util.Locale
 private val MinTitleColumn = 96.dp
 
 /** The priority dash at a row's leading edge: as tall as the ring it sits beside, and no taller. */
+/** The repeat mark beside a row's list name, and the gap before it. */
+private val RepeatMarkSize = 13.dp
+private val RepeatMarkGap = 4.dp
+
 private val PriorityMarkWidth = 3.dp
 private val PriorityMarkHeight = 18.dp
 
@@ -156,15 +164,34 @@ fun TaskRow(
             modifier = m.padding(vertical = 8.dp).testTag("task-title-${task.id}"),
         )
     }
+    // The repeat mark goes with the list name rather than beside the title: it is a fact about the
+    // task, not part of what it says, and here it costs the title no width when a task does not
+    // repeat. It is on every screen's rows, because "this repeats" is true everywhere.
     val listName: @Composable (Modifier) -> Unit = { m ->
-        if (showList) Text(
-            text = item.listName,
-            style = MaterialTheme.typography.labelMedium,
-            color = listColor,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = m.testTag("task-list-${task.id}"),
-        )
+        Row(
+            modifier = m,
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(RepeatMarkGap),
+        ) {
+            if (task.recurrence != null) {
+                Icon(
+                    imageVector = AppIcons.Repeat,
+                    contentDescription = stringResource(R.string.repeat_mark),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .size(RepeatMarkSize)
+                        .testTag("task-repeat-mark-${task.id}"),
+                )
+            }
+            if (showList) Text(
+                text = item.listName,
+                style = MaterialTheme.typography.labelMedium,
+                color = listColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.testTag("task-list-${task.id}"),
+            )
+        }
     }
 
     val measurer = rememberTextMeasurer()
@@ -195,7 +222,9 @@ fun TaskRow(
             } else {
                 0
             }
-            val listWidth = minOf(listMeasured, with(density) { 120.dp.roundToPx() })
+            val listWidth = minOf(listMeasured, with(density) { 120.dp.roundToPx() }) +
+                // The repeat mark shares the list name's slot, so the title has to know about it.
+                if (task.recurrence != null) with(density) { (RepeatMarkSize + RepeatMarkGap).roundToPx() } else 0
             val listGap = if (showList) with(density) { 10.dp.roundToPx() } else 0
             val fixed = with(density) { (4 + 48 + 12).dp.roundToPx() } + listGap + timeWidth + listWidth
             val width = with(density) { maxWidth.roundToPx() }

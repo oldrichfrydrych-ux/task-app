@@ -123,6 +123,7 @@
     <string name="repeat_every_n_months">Every %1$d months</string>
     <string name="repeat_every_n_years">Every %1$d years</string>
     <string name="repeat_unknown">Repeats</string>
+    <string name="repeat_mark">Repeats</string>
     <string name="repeat_chip_empty">↺ Repeat</string>
     <string name="repeat_none">Does not repeat</string>
     <string name="repeat_custom">Custom…</string>
