@@ -2,6 +2,7 @@ package cz.olda.tasks.platform
 
 import android.annotation.SuppressLint
 import android.app.Notification
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -76,13 +77,15 @@ object Notifications {
             .build()
 
     /**
-     * The row Android shows when several reminders are collapsed together. It carries no actions:
-     * Done and Snooze belong to one task, and the summary stands for several.
+     * The row Android shows when several reminders are collapsed together. It carries no actions —
+     * Done and Snooze belong to one task and this stands for several — but it does open the app,
+     * because when the group is collapsed this is the only row there is to tap.
      */
     fun buildSummary(context: Context, count: Int): Notification =
         NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(context.resources.getQuantityString(R.plurals.reminder_summary, count, count))
+            .setContentIntent(openAppPendingIntent(context))
             .setGroup(GROUP_KEY)
             .setGroupSummary(true)
             .setAutoCancel(true)
@@ -94,8 +97,34 @@ object Notifications {
     fun post(context: Context, notificationId: Long, notification: Notification) =
         NotificationManagerCompat.from(context).notify(notificationId.toInt(), notification)
 
-    fun cancelReminder(context: Context, taskId: Long) =
-        NotificationManagerCompat.from(context).cancel(taskId.toInt())
+    /**
+     * Takes a reminder away, and the group summary with it when that was the last one under it.
+     * Otherwise "3 tasks today" is left sitting in the shade over nothing, which is precisely the
+     * "a notification keeps coming back after it has been dealt with" failure this phase set out
+     * to avoid.
+     */
+    fun cancelReminder(context: Context, taskId: Long) {
+        val manager = NotificationManagerCompat.from(context)
+        manager.cancel(taskId.toInt())
+        if (summaryIsOrphaned(liveReminderIds(context), taskId.toInt())) manager.cancel(SUMMARY_ID)
+    }
+
+    /**
+     * Whether the summary has nothing left to stand for. [justCancelled] is excluded rather than
+     * trusted to have gone already: cancelling is asynchronous, so the notification being removed
+     * can still be in the system's list when this is asked.
+     */
+    internal fun summaryIsOrphaned(live: Set<Int>, justCancelled: Int): Boolean =
+        (live - justCancelled).isEmpty()
+
+    /** The reminders in the shade right now, the summary itself excluded. */
+    private fun liveReminderIds(context: Context): Set<Int> =
+        context.getSystemService(NotificationManager::class.java)
+            ?.activeNotifications
+            ?.filter { it.id != SUMMARY_ID && it.notification.group == GROUP_KEY }
+            ?.map { it.id }
+            ?.toSet()
+            .orEmpty()
 
     /**
      * The intent behind a tap. The task id is in the intent's **data** as well as its extras,
@@ -127,6 +156,17 @@ object Notifications {
             actionIntent(context, taskId, action),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
+
+    /** The app, on no task in particular: what the group summary opens. */
+    private fun openAppPendingIntent(context: Context) = PendingIntent.getActivity(
+        context,
+        0,
+        Intent(context, MainActivity::class.java)
+            .setAction(Intent.ACTION_VIEW)
+            .setData(Uri.parse("tasks://reminders"))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    )
 
     private fun tapPendingIntent(context: Context, taskId: Long) = PendingIntent.getActivity(
         context,

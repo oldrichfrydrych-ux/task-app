@@ -7,6 +7,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import cz.olda.tasks.R
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -83,6 +84,37 @@ class NotificationsTest {
         assertEquals("tasks://reminder/7", second.data.toString())
         assertEquals(42L, first.getLongExtra(Notifications.EXTRA_TASK_ID, 0L))
         assertTrue("two tasks must not share a pending intent", !first.filterEquals(second))
+    }
+
+    /**
+     * The summary is the only row showing when Android collapses a morning's reminders, so a tap
+     * on it has to go somewhere. It stands for several tasks, so it opens the app rather than one
+     * of them.
+     */
+    @Test
+    fun theSummaryOpensTheAppWhenTapped() {
+        val summary = Notifications.buildSummary(context, 3)
+
+        assertNotNull("the summary must do something when tapped", summary.contentIntent)
+        assertTrue(
+            "and go away once it has been tapped",
+            summary.flags and Notification.FLAG_AUTO_CANCEL != 0,
+        )
+    }
+
+    /**
+     * Done on the last reminder of a group used to leave "3 tasks today" sitting in the shade with
+     * nothing under it. The summary stands for the reminders; when the last one goes, so does it.
+     */
+    @Test
+    fun theSummaryIsOrphanedOnceTheLastReminderGoes() {
+        assertTrue(Notifications.summaryIsOrphaned(live = setOf(42), justCancelled = 42))
+        assertTrue("nothing was up in the first place", Notifications.summaryIsOrphaned(emptySet(), 42))
+    }
+
+    @Test
+    fun theSummaryStaysWhileAnotherReminderIsStillUp() {
+        assertFalse(Notifications.summaryIsOrphaned(live = setOf(42, 7), justCancelled = 42))
     }
 
     @Test
