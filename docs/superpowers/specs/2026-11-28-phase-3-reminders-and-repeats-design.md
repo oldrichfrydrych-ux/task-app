@@ -386,7 +386,8 @@ rows to the new id. Doing the copy in SQL means `TaskRepository` does not have t
 **What the next occurrence carries:** title, both normalised columns, notes, list, heading,
 priority, `dueMinute`, the recurrence rule, the tags, the goal link — everything that is the task.
 **What it does not:** `done`, `completedAt`, `deletedAt`, `snoozedUntil`, `googleId` (it is a new
-task to Google), `parentTaskId`, and the subtasks of a recurring parent. `position` is the next free
+task to Google), and the subtasks of a recurring parent. It **does** keep `parentTaskId`, so a
+repeat set on a subtask comes back as a subtask rather than as a task at the top of the list. `position` is the next free
 one in its list, `updatedAt` is now.
 
 **The completed copy keeps its rule.** Nothing is erased from a task that is now history, and

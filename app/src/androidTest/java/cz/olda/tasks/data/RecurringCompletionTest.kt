@@ -168,6 +168,47 @@ class RecurringCompletionTest {
         )
     }
 
+    /**
+     * A repeat can be set on a subtask — task detail draws the Repeat row there too — and ticking
+     * one must leave the next occurrence where the last one was. It used to become a task of its
+     * own at the top of the list, which is a task Olda never created appearing out of nowhere.
+     */
+    @Test
+    fun theNextOccurrenceOfASubtaskStaysUnderItsParent() = runBlocking {
+        val parent = add("velky nakup", due = wed)
+        val sub = add("mleko", due = wed, repeat = "FREQ=DAILY", parent = parent)
+
+        val created = repo.setDone(sub, true)!!
+
+        val next = repo.getTask(created)!!
+        assertEquals("the next one belongs to the same parent", parent, next.parentTaskId)
+        assertEquals(LocalDate.of(2026, 12, 3).toEpochDay(), next.dueDate)
+        assertEquals(
+            listOf("mleko", "mleko"),
+            repo.observeSubtasks(parent).first().map { it.title },
+        )
+    }
+
+    @Test
+    fun tickingASubtaskDoesNotTouchItsParent() = runBlocking {
+        val parent = add("velky nakup", due = wed)
+        val sub = add("mleko", due = wed, repeat = "FREQ=DAILY", parent = parent)
+
+        repo.setDone(sub, true)
+
+        assertFalse("the parent is not done", repo.getTask(parent)!!.done)
+    }
+
+    /** A top-level task's successor is still top-level: it inherits what the task had. */
+    @Test
+    fun theNextOccurrenceOfATopLevelTaskHasNoParent() = runBlocking {
+        val id = add("vynest kose", due = wed, repeat = "FREQ=DAILY")
+
+        val created = repo.setDone(id, true)!!
+
+        assertNull(repo.getTask(created)!!.parentTaskId)
+    }
+
     @Test
     fun aRepeatWithNoDateStartsFromToday() = runBlocking {
         val id = add("protahnout se", repeat = "FREQ=DAILY")

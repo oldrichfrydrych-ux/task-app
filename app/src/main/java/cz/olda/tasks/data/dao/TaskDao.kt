@@ -286,6 +286,10 @@ abstract class TaskDao {
      * deliberately does not inherit is everything that belongs to the occurrence that just ended -
      * its completion, its snooze, its Google id - and its subtasks, which stay with the task they
      * were written under.
+     *
+     * It **does** inherit its parent, so a repeat set on a subtask comes back as a subtask of the
+     * same task. Clearing it would turn one tick into a task at the top of the list that Olda never
+     * created; for a task that has no parent, which is almost all of them, this changes nothing.
      */
     @Transaction
     open suspend fun completeAndCreateNext(id: Long, nextDueDate: Long, now: Long): Long {
@@ -297,10 +301,9 @@ abstract class TaskDao {
                 dueDate = nextDueDate,
                 done = false,
                 completedAt = null,
-                parentTaskId = null,
                 snoozedUntil = null,
                 googleId = null,
-                position = nextPosition(task.listId, task.headingId, null),
+                position = nextPosition(task.listId, task.headingId, task.parentTaskId),
                 updatedAt = now,
             ),
         )
