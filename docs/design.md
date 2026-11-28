@@ -125,6 +125,16 @@ A notification at the due time, with Done and Snooze buttons.
 - **A reminder missed while the phone was off does not arrive late.** The task is on Today, overdue,
   which is where the app shows it anyway. Firing a just-missed one needs a column to remember what
   has already been shown, and that is written down as a later addition.
+- **On Olda's phone a reminder arrives about a minute after its minute, and that is accepted.**
+  Measured on 28 November: 74 seconds late, and 49 after the app was exempted from battery
+  optimisation. ColorOS attaches a window to the alarm whatever the app asks for — the booking is
+  made at the exact second with `setExactAndAllowWhileIdle` and `USE_EXACT_ALARM` granted, and
+  `dumpsys alarm` still shows `window=+2m23s` while the app is warm and `+1h` once it has been
+  closed, because Android defers allow-while-idle alarms past a handful an hour. The app no longer
+  spends that allowance on every keystroke, which is what the alarm is re-booked on now.
+  **The way to make it exact is `setAlarmClock()`**, which no policy may delay; its price is a
+  permanent alarm-clock icon in the status bar, and Olda's call on 28 November was that a minute is
+  not worth that. If the 08:00 nudge ever drifts far enough to annoy him, that is the lever.
 - One alarm is booked at a time, re-armed after a restart, a clock or time-zone change, and a
   reinstall — the last because every `installDebug` cancels an app's alarms.
 
