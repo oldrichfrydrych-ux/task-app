@@ -82,6 +82,7 @@ import kotlinx.coroutines.delay
 import java.time.LocalDate
 import cz.olda.tasks.R
 import cz.olda.tasks.ui.nav.AppNavHost
+import cz.olda.tasks.ui.nav.Routes
 import cz.olda.tasks.ui.components.CompletionTracker
 import cz.olda.tasks.ui.components.LocalCompletionTracker
 import cz.olda.tasks.ui.quickadd.QuickAddSheet
@@ -100,13 +101,25 @@ private val TouchTarget = 48.dp
 /**
  * The frame every screen sits in: the floating bottom bar with the four destinations
  * and the coral add button that opens quick-add, around the navigation graph.
+ *
+ * [openTaskId] is a task a tapped reminder asked for. It arrives from the activity rather than
+ * from the graph because a notification can reach the app when it is not running at all, and it is
+ * handed back with [onTaskOpened] once the graph has gone there, so a rotation does not reopen it.
  */
 @Composable
 fun AppShell(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
     flights: FlightController = remember { FlightController() },
+    openTaskId: Long? = null,
+    onTaskOpened: () -> Unit = {},
 ) {
+    LaunchedEffect(openTaskId) {
+        if (openTaskId != null) {
+            navController.navigate(Routes.task(openTaskId))
+            onTaskOpened()
+        }
+    }
     // Saved by name, so the tab survives process death and not just rotation.
     var selectedName by rememberSaveable { mutableStateOf(Destination.Today.name) }
     var quickAddOpen by rememberSaveable { mutableStateOf(false) }
